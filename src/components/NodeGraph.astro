@@ -1,0 +1,336 @@
+---
+interface Props {
+  class?: string;
+}
+const { class: className = '' } = Astro.props;
+---
+
+<div class={`node-graph relative aspect-[16/9] w-full ${className}`}>
+  <canvas
+    class="absolute inset-0 h-full w-full"
+    style="mask-image: radial-gradient(ellipse 80% 75% at center, #000 55%, transparent 100%); -webkit-mask-image: radial-gradient(ellipse 80% 75% at center, #000 55%, transparent 100%);"
+  ></canvas>
+</div>
+
+<script>
+  type Node = {
+    x: number;
+    y: number;
+    vx: number;
+    vy: number;
+    r: number;
+    label?: string;
+    home?: { x: number; y: number };
+  };
+
+  type Edge = { a: number; b: number };
+
+  const LABELS = ['Product', 'Engineering', 'Design'];
+  const HOME_FRAC: { x: number; y: number }[] = [
+    { x: 0.26, y: 0.4 },
+    { x: 0.74, y: 0.4 },
+    { x: 0.5, y: 0.72 },
+  ];
+
+  function initGraph(root: HTMLElement) {
+    const canvas = root.querySelector('canvas') as HTMLCanvasElement;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    const reduced = window.matchMedia(
+      '(prefers-reduced-motion: reduce)'
+    ).matches;
+
+    let width = 0;
+    let height = 0;
+    const dpr = window.devicePixelRatio || 1;
+
+    const AMBIENT_COUNT = 38;
+    const nodes: Node[] = [];
+    const edges: Edge[] = [];
+
+    function resize() {
+      const rect = canvas.getBoundingClientRect();
+      width = rect.width;
+      height = rect.height;
+      canvas.width = Math.floor(width * dpr);
+      canvas.height = Math.floor(height * dpr);
+      ctx!.setTransform(dpr, 0, 0, dpr, 0, 0);
+    }
+
+    function build() {
+      nodes.length = 0;
+      edges.length = 0;
+
+      // labeled nodes
+      LABELS.forEach((label, i) => {
+        const home = {
+          x: width * HOME_FRAC[i].x,
+          y: height * HOME_FRAC[i].y,
+        };
+        nodes.push({
+          x: home.x,
+          y: home.y,
+          vx: 0,
+          vy: 0,
+          r: 7,
+          label,
+          home,
+        });
+      });
+
+      // labeled triangle: each connected to the other two
+      edges.push({ a: 0, b: 1 });
+      edges.push({ a: 1, b: 2 });
+      edges.push({ a: 0, b: 2 });
+
+      // ambient nodes
+      for (let i = 0; i < AMBIENT_COUNT; i++) {
+        nodes.push({
+          x: Math.random() * width,
+          y: Math.random() * height,
+          vx: (Math.random() - 0.5) * 0.2,
+          vy: (Math.random() - 0.5) * 0.2,
+          r: 1.5 + Math.random() * 2.2,
+        });
+      }
+      // sprinkle a few slightly larger ambient anchors
+      for (let i = LABELS.length; i < nodes.length; i++) {
+        if (Math.random() < 0.1) nodes[i].r = 3.4 + Math.random() * 0.8;
+      }
+
+      // ambient-to-ambient nearest neighbours
+      const ambientStart = LABELS.length;
+      for (let i = ambientStart; i < nodes.length; i++) {
+        const dists: { j: number; d: number }[] = [];
+        for (let j = ambientStart; j < nodes.length; j++) {
+          if (i === j) continue;
+          const dx = nodes[i].x - nodes[j].x;
+          const dy = nodes[i].y - nodes[j].y;
+          dists.push({ j, d: dx * dx + dy * dy });
+        }
+        dists.sort((a, b) => a.d - b.d);
+        const links = 1 + Math.floor(Math.random() * 2);
+        for (let k = 0; k < links && k < dists.length; k++) {
+          const a = i;
+          const b = dists[k].j;
+          if (
+            !edges.some(
+              (e) => (e.a === a && e.b === b) || (e.a === b && e.b === a)
+            )
+          ) {
+            edges.push({ a, b });
+          }
+        }
+      }
+      // each labeled node connects to ~4 nearest ambient nodes
+      for (let i = 0; i < ambientStart; i++) {
+        const dists: { j: number; d: number }[] = [];
+        for (let j = ambientStart; j < nodes.length; j++) {
+          const dx = nodes[i].x - nodes[j].x;
+          const dy = nodes[i].y - nodes[j].y;
+          dists.push({ j, d: dx * dx + dy * dy });
+        }
+        dists.sort((a, b) => a.d - b.d);
+        for (let k = 0; k < 4; k++) {
+          edges.push({ a: i, b: dists[k].j });
+        }
+      }
+    }
+
+    function step() {
+      const cx = width / 2;
+      const cy = height / 2;
+      const REPULSION = 320;
+      const SPRING = 0.0015;
+      const SPRING_LENGTH = 88;
+      const CENTER = 0.0006;
+      const HOME_PULL = 0.012;
+      const DAMPING = 0.92;
+      const MAX_SPEED = 0.55;
+
+      for (let i = 0; i < nodes.length; i++) {
+        for (let j = i + 1; j < nodes.length; j++) {
+          const a = nodes[i];
+          const b = nodes[j];
+          const dx = b.x - a.x;
+          const dy = b.y - a.y;
+          let dist2 = dx * dx + dy * dy;
+          if (dist2 < 1) dist2 = 1;
+          const force = REPULSION / dist2;
+          const dist = Math.sqrt(dist2);
+          const fx = (dx / dist) * force;
+          const fy = (dy / dist) * force;
+          const aMass = a.label ? 6 : 1;
+          const bMass = b.label ? 6 : 1;
+          a.vx -= fx / aMass;
+          a.vy -= fy / aMass;
+          b.vx += fx / bMass;
+          b.vy += fy / bMass;
+        }
+      }
+
+      for (const e of edges) {
+        const a = nodes[e.a];
+        const b = nodes[e.b];
+        const dx = b.x - a.x;
+        const dy = b.y - a.y;
+        const dist = Math.sqrt(dx * dx + dy * dy) || 1;
+        const diff = dist - SPRING_LENGTH;
+        const fx = (dx / dist) * diff * SPRING;
+        const fy = (dy / dist) * diff * SPRING;
+        const aMass = a.label ? 6 : 1;
+        const bMass = b.label ? 6 : 1;
+        a.vx += fx / aMass;
+        a.vy += fy / aMass;
+        b.vx -= fx / bMass;
+        b.vy -= fy / bMass;
+      }
+
+      for (const n of nodes) {
+        if (n.home) {
+          n.vx += (n.home.x - n.x) * HOME_PULL;
+          n.vy += (n.home.y - n.y) * HOME_PULL;
+        } else {
+          n.vx += (cx - n.x) * CENTER;
+          n.vy += (cy - n.y) * CENTER;
+        }
+        n.vx *= DAMPING;
+        n.vy *= DAMPING;
+        const sp = Math.hypot(n.vx, n.vy);
+        if (sp > MAX_SPEED) {
+          n.vx = (n.vx / sp) * MAX_SPEED;
+          n.vy = (n.vy / sp) * MAX_SPEED;
+        }
+        n.x += n.vx;
+        n.y += n.vy;
+      }
+    }
+
+    function drawLabel(n: Node) {
+      if (!n.label) return;
+      const padX = 14;
+      const padY = 7;
+      ctx!.font =
+        '500 13px Inter, ui-sans-serif, system-ui, -apple-system, sans-serif';
+      const text = n.label;
+      const metrics = ctx!.measureText(text);
+      const w = metrics.width + padX * 2;
+      const h = 13 + padY * 2;
+      const x = n.x - w / 2;
+      const y = n.y - h / 2;
+      const r = h / 2;
+
+      ctx!.save();
+      ctx!.shadowColor = 'rgba(28, 25, 23, 0.10)';
+      ctx!.shadowBlur = 14;
+      ctx!.shadowOffsetY = 4;
+
+      const path = new Path2D();
+      path.roundRect(x, y, w, h, r);
+      ctx!.fillStyle = '#ffffff';
+      ctx!.fill(path);
+      ctx!.restore();
+
+      ctx!.lineWidth = 1;
+      ctx!.strokeStyle = 'rgba(28, 25, 23, 0.14)';
+      const stroke = new Path2D();
+      stroke.roundRect(x, y, w, h, r);
+      ctx!.stroke(stroke);
+
+      ctx!.fillStyle = 'rgba(28, 25, 23, 0.95)';
+      ctx!.textAlign = 'center';
+      ctx!.textBaseline = 'middle';
+      ctx!.fillText(text, n.x, n.y + 1);
+    }
+
+    function render() {
+      ctx!.clearRect(0, 0, width, height);
+
+      // edges
+      ctx!.lineWidth = 1;
+      for (const e of edges) {
+        const a = nodes[e.a];
+        const b = nodes[e.b];
+        const dist = Math.hypot(a.x - b.x, a.y - b.y);
+        const alpha = Math.max(0, Math.min(0.3, 1 - dist / 260));
+        ctx!.strokeStyle = `rgba(68, 64, 60, ${alpha})`;
+        ctx!.beginPath();
+        ctx!.moveTo(a.x, a.y);
+        ctx!.lineTo(b.x, b.y);
+        ctx!.stroke();
+      }
+
+      // ambient nodes
+      for (const n of nodes) {
+        if (n.label) continue;
+        ctx!.beginPath();
+        ctx!.arc(n.x, n.y, n.r, 0, Math.PI * 2);
+        ctx!.fillStyle =
+          n.r >= 3.4 ? 'rgba(28, 25, 23, 0.92)' : 'rgba(87, 83, 78, 0.78)';
+        ctx!.fill();
+      }
+
+      // labels on top
+      for (const n of nodes) {
+        if (n.label) drawLabel(n);
+      }
+    }
+
+    let mouse: { x: number; y: number } | null = null;
+    canvas.addEventListener('pointermove', (e) => {
+      const rect = canvas.getBoundingClientRect();
+      mouse = { x: e.clientX - rect.left, y: e.clientY - rect.top };
+    });
+    canvas.addEventListener('pointerleave', () => {
+      mouse = null;
+    });
+
+    function mouseRepel() {
+      if (!mouse) return;
+      for (const n of nodes) {
+        if (n.label) continue;
+        const dx = n.x - mouse.x;
+        const dy = n.y - mouse.y;
+        const d2 = dx * dx + dy * dy;
+        if (d2 < 9000 && d2 > 1) {
+          const f = 25 / d2;
+          const d = Math.sqrt(d2);
+          n.vx += (dx / d) * f;
+          n.vy += (dy / d) * f;
+        }
+      }
+    }
+
+    let raf = 0;
+    function loop() {
+      mouseRepel();
+      step();
+      render();
+      raf = requestAnimationFrame(loop);
+    }
+
+    function start() {
+      cancelAnimationFrame(raf);
+      resize();
+      build();
+      for (let i = 0; i < 240; i++) step();
+      render();
+      if (!reduced) loop();
+    }
+
+    if ('ResizeObserver' in window) {
+      const ro = new ResizeObserver(() => start());
+      ro.observe(canvas);
+    } else {
+      window.addEventListener('resize', start);
+    }
+
+    start();
+  }
+
+  document
+    .querySelectorAll<HTMLElement>('.node-graph')
+    .forEach((el) => initGraph(el));
+</script>
