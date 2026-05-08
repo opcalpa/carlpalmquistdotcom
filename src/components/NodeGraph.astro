@@ -5,10 +5,10 @@ interface Props {
 const { class: className = '' } = Astro.props;
 ---
 
-<div class={`node-graph relative aspect-[16/9] w-full ${className}`}>
+<div class={`node-graph relative aspect-[21/9] w-full ${className}`}>
   <canvas
-    class="absolute inset-0 h-full w-full"
-    style="mask-image: radial-gradient(ellipse 80% 75% at center, #000 55%, transparent 100%); -webkit-mask-image: radial-gradient(ellipse 80% 75% at center, #000 55%, transparent 100%);"
+    class="absolute inset-0 h-full w-full touch-none"
+    style="mask-image: radial-gradient(ellipse 90% 85% at center, #000 60%, transparent 100%); -webkit-mask-image: radial-gradient(ellipse 90% 85% at center, #000 60%, transparent 100%);"
   ></canvas>
 </div>
 
@@ -21,15 +21,41 @@ const { class: className = '' } = Astro.props;
     r: number;
     label?: string;
     home?: { x: number; y: number };
+    pillHalfW?: number;
+    pillHalfH?: number;
   };
 
   type Edge = { a: number; b: number };
 
-  const LABELS = ['Product', 'Engineering', 'Design'];
+  type Packet = {
+    edgeIdx: number;
+    t: number;
+    speed: number;
+    size: number;
+    alpha: number;
+  };
+
+  type LabelHitbox = {
+    idx: number;
+    x: number;
+    y: number;
+    w: number;
+    h: number;
+  };
+
+  const LABELS = [
+    'Product',
+    'Engineering',
+    'Design',
+    'Data Structure',
+    'Commercial Strategy',
+  ];
   const HOME_FRAC: { x: number; y: number }[] = [
-    { x: 0.26, y: 0.4 },
-    { x: 0.74, y: 0.4 },
-    { x: 0.5, y: 0.72 },
+    { x: 0.5, y: 0.2 },
+    { x: 0.85, y: 0.42 },
+    { x: 0.7, y: 0.78 },
+    { x: 0.3, y: 0.78 },
+    { x: 0.15, y: 0.42 },
   ];
 
   function initGraph(root: HTMLElement) {
@@ -46,14 +72,27 @@ const { class: className = '' } = Astro.props;
     let height = 0;
     const dpr = window.devicePixelRatio || 1;
 
-    const AMBIENT_COUNT = 38;
+    let AMBIENT_COUNT = 60;
     const nodes: Node[] = [];
     const edges: Edge[] = [];
+    const packets: Packet[] = [];
+    const labelHitboxes: LabelHitbox[] = [];
+    let hoveredLabel: number | null = null;
+    let connectedToHovered = new Set<number>();
+
+    const MAX_PACKETS = 22;
+
+    // drag state
+    let isDragging = false;
+    let draggedIdx: number | null = null;
+    let dragOffset = { x: 0, y: 0 };
+    let pointerHistory: { x: number; y: number; t: number }[] = [];
 
     function resize() {
       const rect = canvas.getBoundingClientRect();
       width = rect.width;
       height = rect.height;
+      AMBIENT_COUNT = width < 600 ? 32 : width < 1000 ? 48 : 64;
       canvas.width = Math.floor(width * dpr);
       canvas.height = Math.floor(height * dpr);
       ctx!.setTransform(dpr, 0, 0, dpr, 0, 0);
@@ -62,30 +101,39 @@ const { class: className = '' } = Astro.props;
     function build() {
       nodes.length = 0;
       edges.length = 0;
+      packets.length = 0;
 
-      // labeled nodes
       LABELS.forEach((label, i) => {
         const home = {
           x: width * HOME_FRAC[i].x,
           y: height * HOME_FRAC[i].y,
         };
+        // measure pill size for physics radius
+        ctx!.font =
+          '500 13px Inter, ui-sans-serif, system-ui, -apple-system, sans-serif';
+        const tw = ctx!.measureText(label).width;
+        const pillW = tw + 28;
+        const pillH = 27;
         nodes.push({
           x: home.x,
           y: home.y,
           vx: 0,
           vy: 0,
-          r: 7,
+          r: Math.max(pillW, pillH) / 2,
           label,
           home,
+          pillHalfW: pillW / 2,
+          pillHalfH: pillH / 2,
         });
       });
 
-      // labeled triangle: each connected to the other two
-      edges.push({ a: 0, b: 1 });
-      edges.push({ a: 1, b: 2 });
-      edges.push({ a: 0, b: 2 });
+      // K4: every label connected to every other
+      for (let i = 0; i < LABELS.length; i++) {
+        for (let j = i + 1; j < LABELS.length; j++) {
+          edges.push({ a: i, b: j });
+        }
+      }
 
-      // ambient nodes
       for (let i = 0; i < AMBIENT_COUNT; i++) {
         nodes.push({
           x: Math.random() * width,
@@ -95,12 +143,10 @@ const { class: className = '' } = Astro.props;
           r: 1.5 + Math.random() * 2.2,
         });
       }
-      // sprinkle a few slightly larger ambient anchors
       for (let i = LABELS.length; i < nodes.length; i++) {
         if (Math.random() < 0.1) nodes[i].r = 3.4 + Math.random() * 0.8;
       }
 
-      // ambient-to-ambient nearest neighbours
       const ambientStart = LABELS.length;
       for (let i = ambientStart; i < nodes.length; i++) {
         const dists: { j: number; d: number }[] = [];
@@ -124,7 +170,6 @@ const { class: className = '' } = Astro.props;
           }
         }
       }
-      // each labeled node connects to ~4 nearest ambient nodes
       for (let i = 0; i < ambientStart; i++) {
         const dists: { j: number; d: number }[] = [];
         for (let j = ambientStart; j < nodes.length; j++) {
@@ -133,7 +178,7 @@ const { class: className = '' } = Astro.props;
           dists.push({ j, d: dx * dx + dy * dy });
         }
         dists.sort((a, b) => a.d - b.d);
-        for (let k = 0; k < 4; k++) {
+        for (let k = 0; k < 5; k++) {
           edges.push({ a: i, b: dists[k].j });
         }
       }
@@ -144,11 +189,13 @@ const { class: className = '' } = Astro.props;
       const cy = height / 2;
       const REPULSION = 320;
       const SPRING = 0.0015;
-      const SPRING_LENGTH = 88;
+      const SPRING_LENGTH = 90;
       const CENTER = 0.0006;
-      const HOME_PULL = 0.012;
-      const DAMPING = 0.92;
-      const MAX_SPEED = 0.55;
+      const HOME_PULL = 0.005; // weaker so throws actually travel
+      const DAMPING_AMBIENT = 0.92;
+      const DAMPING_LABEL = 0.985; // labels keep momentum longer
+      const MAX_SPEED_AMBIENT = 0.55;
+      const MAX_SPEED_LABEL = 28; // labels can fly fast when thrown
 
       for (let i = 0; i < nodes.length; i++) {
         for (let j = i + 1; j < nodes.length; j++) {
@@ -188,58 +235,184 @@ const { class: className = '' } = Astro.props;
         b.vy -= fy / bMass;
       }
 
-      for (const n of nodes) {
+      for (let i = 0; i < nodes.length; i++) {
+        const n = nodes[i];
+        if (isDragging && i === draggedIdx) continue;
         if (n.home) {
           n.vx += (n.home.x - n.x) * HOME_PULL;
           n.vy += (n.home.y - n.y) * HOME_PULL;
+          n.vx *= DAMPING_LABEL;
+          n.vy *= DAMPING_LABEL;
+          const sp = Math.hypot(n.vx, n.vy);
+          if (sp > MAX_SPEED_LABEL) {
+            n.vx = (n.vx / sp) * MAX_SPEED_LABEL;
+            n.vy = (n.vy / sp) * MAX_SPEED_LABEL;
+          }
         } else {
           n.vx += (cx - n.x) * CENTER;
           n.vy += (cy - n.y) * CENTER;
-        }
-        n.vx *= DAMPING;
-        n.vy *= DAMPING;
-        const sp = Math.hypot(n.vx, n.vy);
-        if (sp > MAX_SPEED) {
-          n.vx = (n.vx / sp) * MAX_SPEED;
-          n.vy = (n.vy / sp) * MAX_SPEED;
+          n.vx *= DAMPING_AMBIENT;
+          n.vy *= DAMPING_AMBIENT;
+          const sp = Math.hypot(n.vx, n.vy);
+          if (sp > MAX_SPEED_AMBIENT) {
+            n.vx = (n.vx / sp) * MAX_SPEED_AMBIENT;
+            n.vy = (n.vy / sp) * MAX_SPEED_AMBIENT;
+          }
         }
         n.x += n.vx;
         n.y += n.vy;
       }
+
+      // boundary bounce
+      const BOUNCE = 0.72;
+      for (const n of nodes) {
+        if (n.x - n.r < 0) {
+          n.x = n.r;
+          n.vx = Math.abs(n.vx) * BOUNCE;
+        }
+        if (n.x + n.r > width) {
+          n.x = width - n.r;
+          n.vx = -Math.abs(n.vx) * BOUNCE;
+        }
+        if (n.y - n.r < 0) {
+          n.y = n.r;
+          n.vy = Math.abs(n.vy) * BOUNCE;
+        }
+        if (n.y + n.r > height) {
+          n.y = height - n.r;
+          n.vy = -Math.abs(n.vy) * BOUNCE;
+        }
+      }
+
+      // hard collisions between labels and everything
+      resolveLabelCollisions();
     }
 
-    function drawLabel(n: Node) {
+    function resolveLabelCollisions() {
+      const ELASTICITY = 0.78;
+      for (let i = 0; i < LABELS.length; i++) {
+        const a = nodes[i];
+        for (let j = 0; j < nodes.length; j++) {
+          if (i === j) continue;
+          if (j < LABELS.length && j < i) continue;
+          const b = nodes[j];
+          const dx = b.x - a.x;
+          const dy = b.y - a.y;
+          const dist = Math.sqrt(dx * dx + dy * dy);
+          const minDist = a.r + b.r;
+          if (dist < minDist && dist > 0.001) {
+            const nx = dx / dist;
+            const ny = dy / dist;
+            const overlap = minDist - dist;
+            const aMass = a.label ? 6 : 1;
+            const bMass = b.label ? 6 : 1;
+            const totalMass = aMass + bMass;
+            // separate
+            a.x -= nx * overlap * (bMass / totalMass);
+            a.y -= ny * overlap * (bMass / totalMass);
+            b.x += nx * overlap * (aMass / totalMass);
+            b.y += ny * overlap * (aMass / totalMass);
+            // elastic impulse along normal
+            const dvx = b.vx - a.vx;
+            const dvy = b.vy - a.vy;
+            const dot = dvx * nx + dvy * ny;
+            if (dot < 0) {
+              const impulse =
+                (-(1 + ELASTICITY) * dot) / (1 / aMass + 1 / bMass);
+              const ix = impulse * nx;
+              const iy = impulse * ny;
+              if (!(isDragging && i === draggedIdx)) {
+                a.vx -= ix / aMass;
+                a.vy -= iy / aMass;
+              }
+              if (!(isDragging && j === draggedIdx)) {
+                b.vx += ix / bMass;
+                b.vy += iy / bMass;
+              }
+            }
+          }
+        }
+      }
+    }
+
+    function spawnPacket() {
+      if (packets.length >= MAX_PACKETS || edges.length === 0) return;
+      const eIdx = Math.floor(Math.random() * edges.length);
+      packets.push({
+        edgeIdx: eIdx,
+        t: 0,
+        speed: 0.004 + Math.random() * 0.012,
+        size: 1.6 + Math.random() * 1.4,
+        alpha: 0,
+      });
+    }
+
+    function updatePackets() {
+      if (Math.random() < 0.18) spawnPacket();
+      for (let i = packets.length - 1; i >= 0; i--) {
+        const p = packets[i];
+        p.t += p.speed;
+        if (p.t < 0.15) p.alpha = p.t / 0.15;
+        else if (p.t > 0.85) p.alpha = Math.max(0, (1 - p.t) / 0.15);
+        else p.alpha = 1;
+        if (p.t >= 1) packets.splice(i, 1);
+      }
+    }
+
+    function computeConnected() {
+      connectedToHovered.clear();
+      if (hoveredLabel === null) return;
+      for (const e of edges) {
+        if (e.a === hoveredLabel) connectedToHovered.add(e.b);
+        else if (e.b === hoveredLabel) connectedToHovered.add(e.a);
+      }
+    }
+
+    function drawLabel(n: Node, idx: number) {
       if (!n.label) return;
-      const padX = 14;
-      const padY = 7;
-      ctx!.font =
-        '500 13px Inter, ui-sans-serif, system-ui, -apple-system, sans-serif';
+      const isHovered = hoveredLabel === idx;
+      const isDraggedNow = isDragging && draggedIdx === idx;
+      const padX = isHovered || isDraggedNow ? 18 : 14;
+      const padY = isHovered || isDraggedNow ? 9 : 7;
+      const fontSize = isHovered || isDraggedNow ? 14 : 13;
+      ctx!.font = `${
+        isHovered || isDraggedNow ? '600' : '500'
+      } ${fontSize}px Inter, ui-sans-serif, system-ui, -apple-system, sans-serif`;
       const text = n.label;
       const metrics = ctx!.measureText(text);
       const w = metrics.width + padX * 2;
-      const h = 13 + padY * 2;
+      const h = fontSize + padY * 2;
       const x = n.x - w / 2;
       const y = n.y - h / 2;
       const r = h / 2;
 
+      labelHitboxes.push({ idx, x, y, w, h });
+
       ctx!.save();
-      ctx!.shadowColor = 'rgba(28, 25, 23, 0.10)';
-      ctx!.shadowBlur = 14;
-      ctx!.shadowOffsetY = 4;
+      ctx!.shadowColor =
+        isHovered || isDraggedNow
+          ? 'rgba(28, 25, 23, 0.28)'
+          : 'rgba(28, 25, 23, 0.10)';
+      ctx!.shadowBlur = isHovered || isDraggedNow ? 28 : 14;
+      ctx!.shadowOffsetY = isDraggedNow ? 8 : 4;
 
       const path = new Path2D();
       path.roundRect(x, y, w, h, r);
-      ctx!.fillStyle = '#ffffff';
+      ctx!.fillStyle = isHovered || isDraggedNow ? '#1c1917' : '#ffffff';
       ctx!.fill(path);
       ctx!.restore();
 
       ctx!.lineWidth = 1;
-      ctx!.strokeStyle = 'rgba(28, 25, 23, 0.14)';
+      ctx!.strokeStyle =
+        isHovered || isDraggedNow
+          ? 'rgba(28, 25, 23, 0)'
+          : 'rgba(28, 25, 23, 0.14)';
       const stroke = new Path2D();
       stroke.roundRect(x, y, w, h, r);
       ctx!.stroke(stroke);
 
-      ctx!.fillStyle = 'rgba(28, 25, 23, 0.95)';
+      ctx!.fillStyle =
+        isHovered || isDraggedNow ? '#fafaf9' : 'rgba(28, 25, 23, 0.95)';
       ctx!.textAlign = 'center';
       ctx!.textBaseline = 'middle';
       ctx!.fillText(text, n.x, n.y + 1);
@@ -247,48 +420,201 @@ const { class: className = '' } = Astro.props;
 
     function render() {
       ctx!.clearRect(0, 0, width, height);
+      labelHitboxes.length = 0;
 
-      // edges
       ctx!.lineWidth = 1;
       for (const e of edges) {
         const a = nodes[e.a];
         const b = nodes[e.b];
         const dist = Math.hypot(a.x - b.x, a.y - b.y);
-        const alpha = Math.max(0, Math.min(0.3, 1 - dist / 260));
-        ctx!.strokeStyle = `rgba(68, 64, 60, ${alpha})`;
+        const isHighlighted =
+          hoveredLabel !== null &&
+          (e.a === hoveredLabel || e.b === hoveredLabel);
+        const baseAlpha = Math.max(0, Math.min(0.32, 1 - dist / 280));
+        const alpha = isHighlighted
+          ? Math.min(0.7, baseAlpha + 0.45)
+          : baseAlpha;
+        ctx!.strokeStyle = isHighlighted
+          ? `rgba(28, 25, 23, ${alpha})`
+          : `rgba(68, 64, 60, ${alpha})`;
         ctx!.beginPath();
         ctx!.moveTo(a.x, a.y);
         ctx!.lineTo(b.x, b.y);
         ctx!.stroke();
       }
 
-      // ambient nodes
-      for (const n of nodes) {
-        if (n.label) continue;
-        ctx!.beginPath();
-        ctx!.arc(n.x, n.y, n.r, 0, Math.PI * 2);
-        ctx!.fillStyle =
-          n.r >= 3.4 ? 'rgba(28, 25, 23, 0.92)' : 'rgba(87, 83, 78, 0.78)';
-        ctx!.fill();
+      for (let i = LABELS.length; i < nodes.length; i++) {
+        const n = nodes[i];
+        const isConnected = connectedToHovered.has(i);
+        const r = isConnected ? n.r * 1.6 : n.r;
+
+        if (isConnected) {
+          ctx!.save();
+          ctx!.shadowColor = 'rgba(28, 25, 23, 0.5)';
+          ctx!.shadowBlur = 10;
+          ctx!.beginPath();
+          ctx!.arc(n.x, n.y, r, 0, Math.PI * 2);
+          ctx!.fillStyle = 'rgba(28, 25, 23, 0.95)';
+          ctx!.fill();
+          ctx!.restore();
+        } else {
+          ctx!.beginPath();
+          ctx!.arc(n.x, n.y, r, 0, Math.PI * 2);
+          ctx!.fillStyle =
+            n.r >= 3.4 ? 'rgba(28, 25, 23, 0.92)' : 'rgba(87, 83, 78, 0.78)';
+          ctx!.fill();
+        }
       }
 
-      // labels on top
-      for (const n of nodes) {
-        if (n.label) drawLabel(n);
+      for (const p of packets) {
+        const e = edges[p.edgeIdx];
+        if (!e) continue;
+        const a = nodes[e.a];
+        const b = nodes[e.b];
+        if (!a || !b) continue;
+        const x = a.x + (b.x - a.x) * p.t;
+        const y = a.y + (b.y - a.y) * p.t;
+
+        ctx!.save();
+        ctx!.shadowColor = `rgba(28, 25, 23, ${0.45 * p.alpha})`;
+        ctx!.shadowBlur = 10;
+        ctx!.beginPath();
+        ctx!.arc(x, y, p.size, 0, Math.PI * 2);
+        ctx!.fillStyle = `rgba(28, 25, 23, ${p.alpha})`;
+        ctx!.fill();
+        ctx!.restore();
+      }
+
+      for (let i = 0; i < LABELS.length; i++) {
+        drawLabel(nodes[i], i);
       }
     }
 
     let mouse: { x: number; y: number } | null = null;
+
     canvas.addEventListener('pointermove', (e) => {
       const rect = canvas.getBoundingClientRect();
-      mouse = { x: e.clientX - rect.left, y: e.clientY - rect.top };
-    });
-    canvas.addEventListener('pointerleave', () => {
-      mouse = null;
+      const m = { x: e.clientX - rect.left, y: e.clientY - rect.top };
+      mouse = m;
+      if (isDragging && draggedIdx !== null) {
+        const n = nodes[draggedIdx];
+        n.x = m.x - dragOffset.x;
+        n.y = m.y - dragOffset.y;
+        n.vx = 0;
+        n.vy = 0;
+        pointerHistory.push({ x: m.x, y: m.y, t: performance.now() });
+        if (pointerHistory.length > 6) pointerHistory.shift();
+      }
     });
 
+    canvas.addEventListener('pointerdown', (e) => {
+      const rect = canvas.getBoundingClientRect();
+      const m = { x: e.clientX - rect.left, y: e.clientY - rect.top };
+      mouse = m;
+      for (const hb of labelHitboxes) {
+        if (
+          m.x >= hb.x &&
+          m.x <= hb.x + hb.w &&
+          m.y >= hb.y &&
+          m.y <= hb.y + hb.h
+        ) {
+          isDragging = true;
+          draggedIdx = hb.idx;
+          const n = nodes[hb.idx];
+          dragOffset = { x: m.x - n.x, y: m.y - n.y };
+          pointerHistory = [{ x: m.x, y: m.y, t: performance.now() }];
+          try {
+            canvas.setPointerCapture(e.pointerId);
+          } catch {}
+          // hover off when starting drag
+          hoveredLabel = null;
+          connectedToHovered.clear();
+          canvas.style.cursor = 'grabbing';
+          break;
+        }
+      }
+    });
+
+    function endDrag(e?: PointerEvent) {
+      if (isDragging && draggedIdx !== null) {
+        const n = nodes[draggedIdx];
+        let usedVelocity = false;
+        if (pointerHistory.length >= 2) {
+          const first = pointerHistory[0];
+          const last = pointerHistory[pointerHistory.length - 1];
+          const totalMove = Math.hypot(last.x - first.x, last.y - first.y);
+          if (totalMove >= 6) {
+            const ref =
+              pointerHistory.find(
+                (p) => last.t - p.t > 30 && last.t - p.t < 120
+              ) || pointerHistory[0];
+            const dtFrames = Math.max(1, (last.t - ref.t) / 16.67);
+            n.vx = ((last.x - ref.x) / dtFrames) * 0.85;
+            n.vy = ((last.y - ref.y) / dtFrames) * 0.85;
+            usedVelocity = true;
+          }
+        }
+        if (!usedVelocity) {
+          // tap → random kick so it bounces around
+          const angle = Math.random() * Math.PI * 2;
+          const speed = 9 + Math.random() * 5;
+          n.vx = Math.cos(angle) * speed;
+          n.vy = Math.sin(angle) * speed;
+        }
+      }
+      isDragging = false;
+      draggedIdx = null;
+      pointerHistory = [];
+      canvas.style.cursor = '';
+      if (e) {
+        try {
+          canvas.releasePointerCapture(e.pointerId);
+        } catch {}
+      }
+    }
+
+    canvas.addEventListener('pointerup', endDrag);
+    canvas.addEventListener('pointercancel', endDrag);
+
+    canvas.addEventListener('pointerleave', () => {
+      mouse = null;
+      if (!isDragging) {
+        hoveredLabel = null;
+        connectedToHovered.clear();
+      }
+    });
+
+    function updateHover() {
+      if (isDragging) return;
+      if (!mouse) {
+        if (hoveredLabel !== null) {
+          hoveredLabel = null;
+          connectedToHovered.clear();
+          canvas.style.cursor = '';
+        }
+        return;
+      }
+      let found: number | null = null;
+      for (const hb of labelHitboxes) {
+        if (
+          mouse.x >= hb.x &&
+          mouse.x <= hb.x + hb.w &&
+          mouse.y >= hb.y &&
+          mouse.y <= hb.y + hb.h
+        ) {
+          found = hb.idx;
+          break;
+        }
+      }
+      if (found !== hoveredLabel) {
+        hoveredLabel = found;
+        computeConnected();
+        canvas.style.cursor = found !== null ? 'grab' : '';
+      }
+    }
+
     function mouseRepel() {
-      if (!mouse) return;
+      if (!mouse || hoveredLabel !== null || isDragging) return;
       for (const n of nodes) {
         if (n.label) continue;
         const dx = n.x - mouse.x;
@@ -307,7 +633,9 @@ const { class: className = '' } = Astro.props;
     function loop() {
       mouseRepel();
       step();
+      updatePackets();
       render();
+      updateHover();
       raf = requestAnimationFrame(loop);
     }
 
@@ -315,7 +643,7 @@ const { class: className = '' } = Astro.props;
       cancelAnimationFrame(raf);
       resize();
       build();
-      for (let i = 0; i < 240; i++) step();
+      for (let i = 0; i < 260; i++) step();
       render();
       if (!reduced) loop();
     }

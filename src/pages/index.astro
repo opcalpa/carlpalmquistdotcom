@@ -2,26 +2,54 @@
 import Layout from '../layouts/Layout.astro';
 import NodeGraph from '../components/NodeGraph.astro';
 
-const services = [
+const bring = [
   {
-    title: 'Ship working products',
+    audience: 'For AI founders looking for a partner',
     description:
-      'From idea to deployed app in weeks, not quarters. Web apps, internal tools, AI-powered features. I write the code, you get the product.',
+      "A second pair of senior hands. I've already worked out how to use AI in the build, not just bolt it onto the product. The boring stuff that kills prototypes — security, database, error handling — is handled.",
   },
   {
-    title: 'Plug AI into what you have',
+    audience: 'For established teams wanting to use AI',
     description:
-      'Drop AI into your existing stack without a six-month migration. Document automation, search, agents, copilots. I work inside your repos and respect your conventions.',
+      "Plug AI into what you already have. No rewrite. The way I work — the rules, the notes, the advisors — stays with your team after I leave. The goal isn't one fast project. It's that the next one is fast too.",
   },
   {
-    title: 'Design that ships with it',
+    audience: 'For commercial teams scaling APIs and partnerships',
     description:
-      'Interfaces, flows, and visual identity baked into the product, not stuck in Figma. Available as a standalone engagement or as part of a build.',
+      "Eight years on the commercial side. I package what's built into something partners actually buy, run the demos that close, and translate between engineering and business so neither side ships the wrong thing.",
   },
   {
-    title: 'Senior judgement, solo speed',
+    audience: 'For all of the above',
     description:
-      'Eight years in product. I decide what to cut, what to ship, what to skip. You pay for outcomes, not hours.',
+      "Two to six week sprints. Working software at the end of every one. Fixed scope and price. If a sprint doesn't produce something usable, that's on me.",
+  },
+];
+
+const buildPrinciples = [
+  {
+    title: 'Plans that stay alive',
+    description:
+      "Every project has one file with this week's plan, what shipped, what's stuck, and open questions. The AI reads it before every session. Nothing gets lost between days.",
+  },
+  {
+    title: 'Save what you learn',
+    description:
+      "When the user says “don't do that,” I write it down. When a design choice turns out wrong, I write that down too. The next session reads the notes and skips the same mistakes. The expensive part of working with AI isn't writing the code — it's re-explaining the context every morning.",
+  },
+  {
+    title: 'Rules in plain text',
+    description:
+      "A short file at the top of every project. Things like: no shortcuts on types. No file longer than 500 lines. Every database change comes with an undo script before it runs. The AI doesn't go off course when the rules are written down.",
+  },
+  {
+    title: "A board of advisors that doesn't exist",
+    description:
+      'A CEO, a designer, a tech lead, a small business owner, a homeowner — each one is a small text file describing how they think. Before a big decision the AI asks each one. They argue. I read it and pick. Costs nothing. Catches blind spots a single perspective misses.',
+  },
+  {
+    title: 'Save often. Ship deliberately',
+    description:
+      'Every change saves to a local copy automatically. Every database change gets verified automatically. But putting it live is always a human decision. The AI never makes the last call.',
   },
 ];
 
@@ -30,8 +58,18 @@ const projects = [
     name: 'Renofine',
     metric: '2026',
     role: 'Founder · Product · Engineering',
-    description:
-      'SaaS for renovation projects, built solo. Live at renofine.com, in beta with homeowners and contractors. Multi-language, AI-translated material specs, project portfolio with structured cost tracking.',
+    intro:
+      'Software for planning and running home renovations. Three kinds of users: the builder, the homeowner running the project, and a homeowner the project lead invites in. Five languages. A drawing tool for floor plans. An AI helper that reads a quote PDF and turns it into a project, rooms, tasks, and a budget. Swedish tax rules baked in.',
+    highlightsLabel: 'What the build forced me to figure out',
+    highlights: [
+      'Three users, three sets of screens. Each role gets its own screens, not the same screens with parts hidden. Mixing user types in one view is a cost you pay forever.',
+      'Floor plans in real-world units. The drawing tool works in millimeters, not pixels. Zoom in, zoom out, change a setting — the math still works because the units are real.',
+      "Locked-down database access. Two simple checks decide what each user can see. Every database change gets tested from two angles: the owner's view and an invited user's view. Catches the most common security bug in this kind of app.",
+      'AI that suggests, never pushes. Drop a quote PDF in, get a project draft. Ignore every suggestion if you want. The AI offers; the user decides.',
+      'Five languages kept in sync. English is the source. Swedish is required. The others are best-effort. No raw text hardcoded into the screens, ever.',
+    ],
+    stack:
+      'React and TypeScript for the screens. Supabase for the database, login, and file storage. Konva for the drawing tool. Cloudflare to host it. Claude and OpenAI for the AI helpers.',
     image: '/images/renofine.png',
     imageAlt: 'Renofine app',
     href: 'https://renofine.com',
@@ -41,8 +79,16 @@ const projects = [
     name: 'Produlog',
     metric: '2026',
     role: 'Founder · Product · Engineering',
-    description:
-      'Catalog automation for beauty, fashion, and FMCG. Turns supplier data into structured product catalogs without manual cleanup. Early prototype.',
+    intro:
+      'Turns product photos and raw data into ready-to-publish catalogs for beauty, fashion, and consumer goods. The work that used to take a small team a week — sorting images, writing descriptions, formatting for every sales channel — runs in minutes.',
+    highlightsLabel: 'What this build is about',
+    highlights: [
+      'AI handles the boring 80% of a product description. The last 20% is brand voice and stays human.',
+      'Every output is editable in one click. The cheapest fix for "AI got it wrong" is making it easy to fix.',
+      'One source, many channels. Same product data flows out as a webshop entry, a spec sheet, a wholesale PDF.',
+    ],
+    stack:
+      'React and TypeScript for the screens. Supabase for the database, login, and file storage. Cloudflare to host it. Claude and OpenAI for the AI helpers.',
     image: '/images/produlog.png',
     imageAlt: 'Produlog dashboard',
     href: 'https://getprodulog.com',
@@ -51,27 +97,22 @@ const projects = [
   {
     name: 'Epidemic Sound — Partner API',
     metric: '0 → 10M MAU',
-    role: 'Product Manager · 2018 — 2025',
-    description:
-      'Built and scaled the Partner API platform powering integrations across creator tools and editing software. Product, partnerships, and engineering coordination in one role.',
+    role: 'API Partnerships & Client Success Manager · 2022 — 2025',
+    intro:
+      "The Partner API powers Epidemic Sound's integrations across creator tools and editing platforms. I owned the commercial and customer-facing side of the platform — packaging, partner deals, demos, and onboarding — alongside the product and engineering team that built it.",
+    highlightsLabel: 'What the role actually meant',
+    highlights: [
+      'Commercial packaging. Translated technical capability into pricing tiers, contract terms, and value propositions partners could understand and buy.',
+      'Demos that closed. Live walkthroughs with platform leads at editing tools, content platforms, and creator software. Knowing the product end-to-end meant I could answer technical questions on the spot, without escalation.',
+      "API strategy. Decided what shipped, what didn't, and what partners had to wait for. Said no to a lot of feature requests so the API stayed sharp.",
+      'Customer success at scale. Onboarded partners from cold inbound to multi-million-user integrations. The companies who scaled with us did because the partnership worked, not because the API alone did.',
+      "The bridge between commercial and engineering. Translated partner pain into engineering work, and engineering trade-offs back into language commercial leaders understood. That's where most API platforms fail.",
+    ],
     image: '/images/api.avif',
     imageAlt: 'API integration illustration',
     href: null,
-    cta: 'Case study',
+    cta: '2022 — 2025',
   },
-];
-
-const stack = [
-  'TypeScript',
-  'Next.js',
-  'Astro',
-  'React',
-  'Postgres',
-  'Supabase',
-  'Cloudflare',
-  'Claude Code',
-  'OpenAI',
-  'Anthropic API',
 ];
 
 const links = [
@@ -106,7 +147,9 @@ const links = [
         </p>
         <div class="mt-10 flex flex-wrap items-center gap-4">
           <a
-            href="mailto:carl.palmquist@gmail.com?subject=Project%20inquiry"
+            href="https://calendar.app.google/cpD1Z1Qb6VQBhSAL9"
+            target="_blank"
+            rel="noopener noreferrer"
             class="inline-flex items-center gap-2 rounded-full bg-stone-900 px-6 py-3 text-sm font-medium text-white transition hover:bg-stone-700"
           >
             Book an intro call
@@ -121,35 +164,55 @@ const links = [
         </div>
       </div>
 
-      <!-- HERO VISUAL -->
-      <div class="mx-auto mt-20 max-w-6xl md:mt-28">
+    </section>
+
+    <!-- HERO VISUAL — full bleed -->
+    <section class="mb-24 md:mb-32">
+      <div class="mx-auto max-w-[1600px] px-6">
         <NodeGraph />
       </div>
     </section>
 
-    <!-- SERVICES -->
+    <!-- WHAT I BRING -->
     <section class="border-t border-stone-200 bg-stone-50 px-6 py-24 md:py-32">
       <div class="mx-auto max-w-6xl">
         <p
           class="mb-12 text-xs font-medium tracking-[0.2em] text-stone-500 uppercase"
         >
-          What I do
+          What I bring
         </p>
         <div class="grid gap-8 md:grid-cols-2 md:gap-10 lg:grid-cols-4">
           {
-            services.map((service, i) => (
-              <div class="flex flex-col">
-                <span class="mb-6 text-sm tracking-tight text-stone-400">
-                  0{i + 1}
-                </span>
-                <h3 class="mb-4 text-2xl font-medium tracking-tight text-stone-900 md:text-3xl">
-                  {service.title}
-                </h3>
-                <p class="leading-relaxed text-stone-600">
-                  {service.description}
-                </p>
-              </div>
-            ))
+            bring.map((item, i) => {
+              const isHighlighted = i === bring.length - 1;
+              return (
+                <div
+                  class={`flex flex-col ${
+                    isHighlighted
+                      ? 'rounded-2xl bg-stone-900 p-8 text-white md:p-10'
+                      : ''
+                  }`}
+                >
+                  <span class="mb-6 text-sm tracking-tight text-stone-400">
+                    0{i + 1}
+                  </span>
+                  <h3
+                    class={`mb-4 text-xl font-medium tracking-tight ${
+                      isHighlighted ? 'text-white' : 'text-stone-900'
+                    }`}
+                  >
+                    {item.audience}
+                  </h3>
+                  <p
+                    class={`leading-relaxed ${
+                      isHighlighted ? 'text-stone-300' : 'text-stone-600'
+                    }`}
+                  >
+                    {item.description}
+                  </p>
+                </div>
+              );
+            })
           }
         </div>
       </div>
@@ -185,8 +248,9 @@ const links = [
               class="mt-8 space-y-5 text-lg leading-relaxed text-stone-700 md:text-xl"
             >
               <p>
-                Eight years in product. Most recently at Epidemic Sound, where I
-                built and scaled the Partner API from <span
+                Eight years across product, partnerships, and engineering. Most
+                recently at Epidemic Sound, where I owned the commercial and
+                client-facing side of a Partner API that scaled from <span
                   class="text-stone-900">zero to ten million</span
                 > monthly users.
               </p>
@@ -199,8 +263,8 @@ const links = [
                   href="https://getprodulog.com"
                   class="text-stone-900 underline decoration-stone-300 underline-offset-[4px] transition hover:decoration-stone-900"
                   >Produlog</a
-                >) and consulting engagements with teams that want to ship
-                faster than their roadmap allows. AI-native, solo, opinionated.
+                >) and consulting work. I build, I package, I demo. AI-native,
+                solo, opinionated.
               </p>
             </div>
             <ul
@@ -215,8 +279,40 @@ const links = [
       </div>
     </section>
 
+    <!-- HOW I BUILD -->
+    <section class="border-t border-stone-200 bg-stone-50 px-6 py-24 md:py-32">
+      <div class="mx-auto max-w-6xl">
+        <p
+          class="mb-12 text-xs font-medium tracking-[0.2em] text-stone-500 uppercase"
+        >
+          How I build
+        </p>
+        <ul class="space-y-12 md:space-y-16">
+          {
+            buildPrinciples.map((p, i) => (
+              <li class="grid grid-cols-12 gap-4 md:gap-8">
+                <div class="col-span-12 md:col-span-3">
+                  <span class="text-sm tracking-tight text-stone-400">
+                    0{i + 1}
+                  </span>
+                </div>
+                <div class="col-span-12 md:col-span-9">
+                  <h3 class="text-2xl font-medium tracking-tight text-stone-900 md:text-3xl">
+                    {p.title}
+                  </h3>
+                  <p class="mt-4 max-w-2xl text-lg leading-relaxed text-stone-700">
+                    {p.description}
+                  </p>
+                </div>
+              </li>
+            ))
+          }
+        </ul>
+      </div>
+    </section>
+
     <!-- WORK -->
-    <section id="work" class="px-6 py-24 md:py-32">
+    <section id="work" class="border-t border-stone-200 px-6 py-24 md:py-32">
       <div class="mx-auto max-w-6xl">
         <p
           class="mb-12 text-xs font-medium tracking-[0.2em] text-stone-500 uppercase"
@@ -227,16 +323,12 @@ const links = [
           {
             projects.map((project) => (
               <article>
-                <div class="relative mb-8 aspect-[16/10] w-full overflow-hidden rounded-2xl bg-gradient-to-br from-stone-100 to-stone-200 ring-1 ring-stone-200">
+                <div class="relative mb-10 aspect-[16/10] w-full overflow-hidden rounded-2xl bg-gradient-to-br from-stone-100 to-stone-200 ring-1 ring-stone-200">
                   <img
                     src={project.image}
                     alt={project.imageAlt}
                     class="absolute inset-0 h-full w-full object-cover"
-                    onerror="this.style.display='none'"
                   />
-                  <div class="absolute inset-0 flex items-center justify-center text-sm tracking-widest text-stone-400 uppercase">
-                    {project.image}
-                  </div>
                 </div>
 
                 <div class="grid grid-cols-12 gap-4 md:gap-8">
@@ -267,8 +359,38 @@ const links = [
                       )}
                     </div>
                     <p class="mt-6 max-w-2xl text-lg leading-relaxed text-stone-700">
-                      {project.description}
+                      {project.intro}
                     </p>
+
+                    {project.highlights && (
+                      <div class="mt-10">
+                        <p class="mb-4 text-xs font-medium tracking-[0.2em] text-stone-500 uppercase">
+                          {project.highlightsLabel}
+                        </p>
+                        <ul class="space-y-4">
+                          {project.highlights.map((h) => (
+                            <li class="flex gap-4">
+                              <span
+                                class="mt-2.5 inline-block h-1 w-3 shrink-0 rounded-full bg-stone-300"
+                                aria-hidden="true"
+                              />
+                              <p class="text-base leading-relaxed text-stone-700 md:text-lg">
+                                {h}
+                              </p>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+
+                    {project.stack && (
+                      <p class="mt-10 max-w-2xl text-sm leading-relaxed text-stone-500">
+                        <span class="font-medium text-stone-700">
+                          Built with —
+                        </span>{' '}
+                        {project.stack}
+                      </p>
+                    )}
                   </div>
                 </div>
               </article>
@@ -278,83 +400,8 @@ const links = [
       </div>
     </section>
 
-    <!-- HOW I WORK -->
-    <section class="border-t border-stone-200 bg-stone-50 px-6 py-24 md:py-32">
-      <div class="mx-auto max-w-6xl">
-        <p
-          class="mb-12 text-xs font-medium tracking-[0.2em] text-stone-500 uppercase"
-        >
-          How I work
-        </p>
-        <div class="grid gap-12 md:grid-cols-2 md:gap-16">
-          <div>
-            <h2
-              class="text-3xl font-medium tracking-tight text-stone-900 md:text-4xl"
-            >
-              One person. Working software. Every week.
-            </h2>
-            <p
-              class="mt-8 text-lg leading-relaxed text-stone-600 md:text-xl"
-            >
-              I work directly with founders and product leads. No agency layers,
-              no junior overhead, no week-long discovery phases. We agree on a
-              clear outcome, I ship in iterations, you see real software in
-              days.
-            </p>
-          </div>
-          <div class="space-y-8">
-            <div>
-              <h4 class="text-sm font-medium tracking-tight text-stone-900">
-                Fixed-scope sprints
-              </h4>
-              <p class="mt-2 leading-relaxed text-stone-600">
-                Two to six weeks. Clear deliverable, fixed price, no scope
-                creep.
-              </p>
-            </div>
-            <div>
-              <h4 class="text-sm font-medium tracking-tight text-stone-900">
-                Embedded engagements
-              </h4>
-              <p class="mt-2 leading-relaxed text-stone-600">
-                Drop into your repo and ship features alongside your team. Best
-                for prototypes, AI integrations, and unblocking specific
-                problems.
-              </p>
-            </div>
-            <div>
-              <h4 class="text-sm font-medium tracking-tight text-stone-900">
-                Product advisory
-              </h4>
-              <p class="mt-2 leading-relaxed text-stone-600">
-                Senior product judgement on what to build, what to cut, and how
-                to position. Hourly or retainer.
-              </p>
-            </div>
-          </div>
-        </div>
-
-        <div class="mt-20 border-t border-stone-200 pt-12">
-          <p
-            class="mb-6 text-xs font-medium tracking-[0.2em] text-stone-500 uppercase"
-          >
-            Stack
-          </p>
-          <ul class="flex flex-wrap gap-2">
-            {
-              stack.map((item) => (
-                <li class="rounded-full border border-stone-300 px-4 py-1.5 text-sm text-stone-700">
-                  {item}
-                </li>
-              ))
-            }
-          </ul>
-        </div>
-      </div>
-    </section>
-
     <!-- CTA -->
-    <section class="px-6 py-32 md:py-40">
+    <section class="border-t border-stone-200 px-6 py-32 md:py-40">
       <div class="mx-auto max-w-4xl text-center">
         <p
           class="mb-8 text-xs font-medium tracking-[0.2em] text-stone-500 uppercase"
@@ -369,11 +416,19 @@ const links = [
         </h2>
         <div class="mt-12 flex flex-wrap items-center justify-center gap-4">
           <a
-            href="mailto:carl.palmquist@gmail.com?subject=Project%20inquiry"
+            href="https://calendar.app.google/cpD1Z1Qb6VQBhSAL9"
+            target="_blank"
+            rel="noopener noreferrer"
             class="inline-flex items-center gap-2 rounded-full bg-stone-900 px-8 py-4 text-base font-medium text-white transition hover:bg-stone-700"
           >
-            carl.palmquist@gmail.com
+            Book a 30-min call
             <span aria-hidden="true">→</span>
+          </a>
+          <a
+            href="mailto:carl.palmquist@gmail.com?subject=Project%20inquiry"
+            class="inline-flex items-center gap-2 rounded-full border border-stone-300 px-8 py-4 text-base font-medium text-stone-900 transition hover:border-stone-900"
+          >
+            carl.palmquist@gmail.com
           </a>
         </div>
         <ul
