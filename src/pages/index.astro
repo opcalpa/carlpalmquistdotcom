@@ -72,6 +72,7 @@ const projects = [
       'React and TypeScript for the screens. Supabase for the database, login, and file storage. Konva for the drawing tool. Cloudflare to host it. Claude and OpenAI for the AI helpers.',
     image: '/images/Screenshots/renofine.png',
     imageAlt: 'Renofine app',
+    imagePosition: 'left',
     href: 'https://renofine.com',
     cta: 'renofine.com',
   },
@@ -141,9 +142,9 @@ const links = [
           class="mt-8 max-w-2xl text-xl leading-relaxed text-stone-600 md:text-2xl"
         >
           Independent product engineer. I design, build, and ship working
-          software, solo. Available for short engagements with companies that
-          want to test, prototype, or launch with AI without waiting six months
-          for a roadmap slot.
+          software. Available for short engagements with companies that want to
+          test, prototype, or launch with AI without waiting six months for a
+          roadmap slot.
         </p>
         <div class="mt-10 flex flex-wrap items-center gap-4">
           <a
@@ -327,7 +328,13 @@ const links = [
                   <img
                     src={project.image}
                     alt={project.imageAlt}
-                    class="absolute inset-0 h-full w-full object-cover"
+                    class={`absolute inset-0 h-full w-full object-cover ${
+                      project.imagePosition === 'left'
+                        ? 'object-left'
+                        : project.imagePosition === 'right'
+                          ? 'object-right'
+                          : ''
+                    }`}
                   />
                 </div>
 
