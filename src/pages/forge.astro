@@ -159,7 +159,8 @@ import Layout from '../layouts/Layout.astro';
           <ul class="space-y-2">${hooks.map((h) => `<li class="flex gap-2 text-sm text-stone-300"><span class="text-[#c6ff00]">▸</span><span>${esc(h)}</span></li>`).join('')}</ul>
         </div>
       </div>
-      ${c.demo || c.note ? `<p class="mt-4 text-xs text-stone-600">${c.note === 'no_api_key' ? 'Showing a curated sample (no API key set yet).' : c.note === 'fallback' ? 'API hiccup — showing a curated sample.' : ''}</p>` : ''}`;
+      ${c.engine ? `<p class="mt-5 text-xs text-stone-500"><span class="text-[#c6ff00]">●</span> Concept by ${esc(c.engine)}${c.image_url ? ` &nbsp;<span class="text-[#ff2d78]">●</span> moodboard by dall-e-3` : ''} &nbsp;·&nbsp; right model for each step.</p>` : ''}
+      ${c.demo || c.note ? `<p class="mt-2 text-xs text-stone-600">${c.note === 'no_api_key' ? 'Showing a curated sample (no API key set yet).' : c.note === 'fallback' ? 'API hiccup — showing a curated sample.' : ''}</p>` : ''}`;
     result.classList.remove('hidden');
   }
 

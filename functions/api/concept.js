@@ -1,10 +1,11 @@
 // Concept Forge — Cloudflare Pages Function
 // POST /api/concept  { theme: string }  ->  { concept JSON, image_url }
 //
-// Genererar ett komplett slot-spelkoncept i Hacksaw-stil (namn, art direction, mekanik,
-// musik/ljud-brief, marknads-hooks) + en moodboard-bild. Nyckeln (OPENAI_API_KEY) ligger
-// som Cloudflare-secret, aldrig i klienten. Om nyckel saknas eller API:t strular faller den
-// tillbaka på ett kurerat exempel så att demon alltid funkar.
+// Hybrid på syfte: Claude skriver konceptet (stark på varumärkesstyrd copy + on-brand),
+// OpenAI/dall-e-3 målar moodboarden (Claude gör inte bild). Det speglar pitchen "rätt modell
+// per steg i en pipeline". Nycklar (ANTHROPIC_API_KEY, OPENAI_API_KEY) ligger som Cloudflare-
+// secrets, aldrig i klienten. Saknas text-nyckel eller strular API:t → kurerat exempel, så
+// demon alltid funkar.
 
 const SYSTEM_PROMPT = `Du är en senior game concept director på en slot-studio i världsklass, i samma anda som Hacksaw Gaming.
 
@@ -62,7 +63,43 @@ const FALLBACK = {
   image_url: null,
 };
 
-async function generateConcept(theme, apiKey) {
+function extractJson(text) {
+  const s = text.indexOf("{");
+  const e = text.lastIndexOf("}");
+  if (s === -1 || e === -1) throw new Error("no json in response");
+  return JSON.parse(text.slice(s, e + 1));
+}
+
+// Claude skriver konceptet. Prefill med "{" tvingar rent JSON-svar.
+async function generateConceptClaude(theme, apiKey) {
+  const res = await fetch("https://api.anthropic.com/v1/messages", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "x-api-key": apiKey,
+      "anthropic-version": "2023-06-01",
+    },
+    body: JSON.stringify({
+      model: "claude-sonnet-4-6",
+      max_tokens: 1400,
+      temperature: 1,
+      system: SYSTEM_PROMPT,
+      messages: [
+        { role: "user", content: `Tema: ${theme}` },
+        { role: "assistant", content: "{" },
+      ],
+    }),
+  });
+  if (!res.ok) throw new Error(`anthropic ${res.status}: ${await res.text()}`);
+  const data = await res.json();
+  const concept = extractJson("{" + data.content[0].text);
+  concept.theme = theme;
+  concept.engine = "Claude (claude-sonnet-4-6)";
+  return concept;
+}
+
+// OpenAI som text-fallback om Claude-nyckel saknas.
+async function generateConceptOpenAI(theme, apiKey) {
   const res = await fetch("https://api.openai.com/v1/chat/completions", {
     method: "POST",
     headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
@@ -80,9 +117,11 @@ async function generateConcept(theme, apiKey) {
   const data = await res.json();
   const concept = JSON.parse(data.choices[0].message.content);
   concept.theme = theme;
+  concept.engine = "OpenAI (gpt-4o)";
   return concept;
 }
 
+// Moodboard via OpenAI dall-e-3 (Claude gör inte bild).
 async function generateImage(prompt, apiKey) {
   const res = await fetch("https://api.openai.com/v1/images/generations", {
     method: "POST",
@@ -109,25 +148,32 @@ export async function onRequestPost(context) {
   } catch {}
   if (!theme) theme = FALLBACK.theme;
 
-  const apiKey = env.OPENAI_API_KEY;
+  const anthropicKey = env.ANTHROPIC_API_KEY;
+  const openaiKey = env.OPENAI_API_KEY;
 
-  // Ingen nyckel → kurerat exempel (demo överlever alltid).
-  if (!apiKey) {
+  // Ingen text-nyckel alls → kurerat exempel (demon överlever alltid).
+  if (!anthropicKey && !openaiKey) {
     return Response.json({ ...FALLBACK, theme, note: "no_api_key" });
   }
 
   try {
-    const concept = await generateConcept(theme, apiKey);
+    const concept = anthropicKey
+      ? await generateConceptClaude(theme, anthropicKey)
+      : await generateConceptOpenAI(theme, openaiKey);
+
     // Bilden får misslyckas utan att fälla konceptet.
-    try {
-      concept.image_url = await generateImage(concept.image_prompt || theme, apiKey);
-    } catch (e) {
+    if (openaiKey) {
+      try {
+        concept.image_url = await generateImage(concept.image_prompt || theme, openaiKey);
+      } catch (e) {
+        concept.image_url = null;
+        concept.image_error = String(e).slice(0, 200);
+      }
+    } else {
       concept.image_url = null;
-      concept.image_error = String(e).slice(0, 200);
     }
     return Response.json(concept);
   } catch (e) {
-    // Hårt fel → fall tillbaka men behåll temat så demon flyter.
     return Response.json({ ...FALLBACK, theme, note: "fallback", error: String(e).slice(0, 200) });
   }
 }
