@@ -1,0 +1,185 @@
+---
+import Layout from '../layouts/Layout.astro';
+---
+
+<Layout
+  title="Concept Forge — slot ideation engine"
+  description="Type a vibe, get a complete slot game concept: name, art direction, mechanic, music brief and marketing hooks. A demo by Carl Palmquist."
+>
+  <main class="min-h-screen bg-[#0a0a0f] text-stone-100 font-sans">
+    <div class="mx-auto max-w-5xl px-5 py-10 sm:py-14">
+
+      <!-- Header -->
+      <header class="mb-8">
+        <p class="mb-3 inline-flex items-center gap-2 rounded-full border border-[#2a2a3a] bg-[#15151f] px-3 py-1 text-xs font-medium tracking-wide text-stone-400">
+          <span class="h-1.5 w-1.5 rounded-full bg-[#c6ff00]"></span>
+          A Carl Palmquist demo · slot ideation accelerator
+        </p>
+        <h1 class="text-5xl font-black uppercase leading-[0.95] tracking-tight sm:text-7xl">
+          Concept<br /><span class="text-[#c6ff00]">Forge</span>
+        </h1>
+        <p class="mt-4 max-w-xl text-base leading-relaxed text-stone-400">
+          Throw it a vibe. It hands back a complete game concept — names, art direction,
+          mechanic, a <span class="text-[#ff2d78] font-semibold">music &amp; audio brief</span>,
+          and launch hooks. The slow part of a content factory is going from idea to greenlight.
+          This compresses it to ten seconds.
+        </p>
+      </header>
+
+      <!-- Input -->
+      <form id="forge-form" class="mb-4">
+        <div class="flex flex-col gap-3 sm:flex-row">
+          <input
+            id="theme"
+            type="text"
+            autocomplete="off"
+            placeholder="neon yakuza synthwave heist…"
+            class="flex-1 rounded-xl border border-[#2a2a3a] bg-[#15151f] px-4 py-3.5 text-lg text-stone-100 placeholder-stone-500 outline-none focus:border-[#c6ff00]"
+          />
+          <button
+            id="generate"
+            type="submit"
+            class="rounded-xl bg-[#c6ff00] px-7 py-3.5 text-lg font-black uppercase tracking-tight text-black transition hover:bg-[#d6ff3a] disabled:opacity-50"
+          >
+            Forge it
+          </button>
+        </div>
+        <div class="mt-3 flex flex-wrap items-center gap-2 text-sm">
+          <button type="button" id="surprise" class="text-[#ff2d78] hover:underline">⚡ Surprise me</button>
+          <span class="text-stone-600">·</span>
+          <span class="text-stone-500">try:</span>
+          <button type="button" class="chip rounded-full border border-[#2a2a3a] px-3 py-1 text-stone-300 hover:border-[#c6ff00]">haunted disco</button>
+          <button type="button" class="chip rounded-full border border-[#2a2a3a] px-3 py-1 text-stone-300 hover:border-[#c6ff00]">viking metal feast</button>
+          <button type="button" class="chip rounded-full border border-[#2a2a3a] px-3 py-1 text-stone-300 hover:border-[#c6ff00]">deep sea treasure cult</button>
+        </div>
+      </form>
+
+      <!-- Loading -->
+      <div id="loading" class="hidden py-16 text-center">
+        <div class="mx-auto mb-4 h-8 w-8 animate-spin rounded-full border-2 border-[#2a2a3a] border-t-[#c6ff00]"></div>
+        <p id="loading-msg" class="text-stone-400">Sketching characters…</p>
+      </div>
+
+      <!-- Results -->
+      <section id="result" class="hidden"></section>
+
+      <!-- Footer note -->
+      <footer class="mt-16 border-t border-[#1c1c28] pt-6 text-xs leading-relaxed text-stone-500">
+        <p><span class="font-semibold text-stone-400">Ideation accelerator, not an art generator.</span>
+        It produces direction and briefs for humans to refine — the model never ships the final asset.
+        That keeps it on the right side of regulatory art audits.</p>
+        <p class="mt-2">Built with Claude Code in an evening and deployed on this site. — Carl Palmquist</p>
+      </footer>
+    </div>
+  </main>
+</Layout>
+
+<script is:inline>
+  const form = document.getElementById('forge-form');
+  const input = document.getElementById('theme');
+  const btn = document.getElementById('generate');
+  const loading = document.getElementById('loading');
+  const loadingMsg = document.getElementById('loading-msg');
+  const result = document.getElementById('result');
+
+  const SURPRISES = [
+    'neon yakuza synthwave heist', 'haunted disco inferno', 'viking metal feast',
+    'deep sea treasure cult', 'cyberpunk samurai noodle bar', 'wild west bank robbery at dawn',
+    'baroque vampire opera', 'arctic monster hunt', 'lucha libre luchador showdown',
+    'egyptian afterlife game show', 'jurassic jungle bounty', 'voodoo new orleans jazz funeral',
+  ];
+  const LOADING_MSGS = [
+    'Sketching characters…', 'Tuning the bonus drop…', 'Mixing the soundtrack…',
+    'Stress-testing the max win…', 'Inking the key art…', 'Writing the launch hooks…',
+  ];
+
+  const esc = (s) => String(s == null ? '' : s)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+
+  document.getElementById('surprise').addEventListener('click', () => {
+    input.value = SURPRISES[Math.floor(Math.random() * SURPRISES.length)];
+    form.requestSubmit();
+  });
+  document.querySelectorAll('.chip').forEach((c) =>
+    c.addEventListener('click', () => { input.value = c.textContent; form.requestSubmit(); })
+  );
+
+  let msgTimer;
+  function startLoading() {
+    result.classList.add('hidden');
+    loading.classList.remove('hidden');
+    btn.disabled = true;
+    let i = 0;
+    loadingMsg.textContent = LOADING_MSGS[0];
+    msgTimer = setInterval(() => {
+      i = (i + 1) % LOADING_MSGS.length;
+      loadingMsg.textContent = LOADING_MSGS[i];
+    }, 1600);
+  }
+  function stopLoading() {
+    clearInterval(msgTimer);
+    loading.classList.add('hidden');
+    btn.disabled = false;
+  }
+
+  function card(label, accent, rows) {
+    const body = rows
+      .filter((r) => r[1])
+      .map((r) => `<div class="mb-2 last:mb-0"><dt class="text-[11px] uppercase tracking-wide text-stone-500">${esc(r[0])}</dt><dd class="text-sm text-stone-200">${esc(r[1])}</dd></div>`)
+      .join('');
+    return `<div class="rounded-2xl border border-[#22222e] bg-[#13131c] p-5" style="${accent ? 'border-color:' + accent + '55' : ''}">
+      <h3 class="mb-3 text-sm font-black uppercase tracking-tight" style="${accent ? 'color:' + accent : ''}">${esc(label)}</h3>
+      <dl>${body}</dl></div>`;
+  }
+
+  function render(c) {
+    const names = Array.isArray(c.names) ? c.names : [];
+    const primary = names[0] || 'Untitled';
+    const alts = names.slice(1);
+    const art = c.art || {}, mech = c.mechanic || {}, math = c.math || {}, music = c.music || {};
+    const hooks = Array.isArray(c.hooks) ? c.hooks : [];
+
+    const imageBlock = c.image_url
+      ? `<img src="${esc(c.image_url)}" alt="Moodboard for ${esc(primary)}" class="aspect-square w-full rounded-2xl border border-[#22222e] object-cover" />`
+      : `<div class="flex aspect-square w-full items-center justify-center rounded-2xl border border-dashed border-[#2a2a3a] bg-[#13131c] p-6 text-center text-sm text-stone-500">Moodboard prompt ready — image API not wired in this run.<br/><span class="mt-2 block text-xs text-stone-600">${esc(c.image_prompt || '')}</span></div>`;
+
+    result.innerHTML = `
+      <div class="mb-5 flex flex-wrap items-baseline gap-x-3 gap-y-2">
+        <h2 class="text-4xl font-black uppercase tracking-tight text-[#c6ff00] sm:text-5xl">${esc(primary)}</h2>
+        ${alts.map((n) => `<span class="rounded-full border border-[#2a2a3a] px-3 py-1 text-sm text-stone-400">${esc(n)}</span>`).join('')}
+      </div>
+      <p class="mb-6 max-w-2xl text-lg italic text-stone-300">“${esc(c.logline || '')}”</p>
+      <div class="grid gap-4 lg:grid-cols-2">
+        <div class="lg:row-span-2">${imageBlock}</div>
+        ${card('Art direction', '#c6ff00', [['Style', art.style], ['Palette', art.palette], ['Hero characters', art.hero_characters], ['Mood', art.mood]])}
+        ${card('Mechanic', '#7aa2ff', [['Base game', mech.base_game], ['Signature feature', mech.signature_feature], ['Bonus round', mech.bonus_round], ['Volatility', math.volatility], ['Suggested max win', math.suggested_max_win]])}
+        ${card('Music & audio', '#ff2d78', [['Genre', music.genre], ['Instrumentation', music.instrumentation], ['Base vs bonus', music.base_vs_bonus], ['Tempo', music.bpm], ['Reference vibe', music.reference_vibe]])}
+        <div class="rounded-2xl border border-[#22222e] bg-[#13131c] p-5">
+          <h3 class="mb-3 text-sm font-black uppercase tracking-tight text-stone-200">Launch hooks</h3>
+          <ul class="space-y-2">${hooks.map((h) => `<li class="flex gap-2 text-sm text-stone-300"><span class="text-[#c6ff00]">▸</span><span>${esc(h)}</span></li>`).join('')}</ul>
+        </div>
+      </div>
+      ${c.demo || c.note ? `<p class="mt-4 text-xs text-stone-600">${c.note === 'no_api_key' ? 'Showing a curated sample (no API key set yet).' : c.note === 'fallback' ? 'API hiccup — showing a curated sample.' : ''}</p>` : ''}`;
+    result.classList.remove('hidden');
+  }
+
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const theme = input.value.trim();
+    startLoading();
+    try {
+      const res = await fetch('/api/concept', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ theme }),
+      });
+      const data = await res.json();
+      render(data);
+    } catch (err) {
+      result.innerHTML = `<p class="text-stone-400">Something broke: ${esc(String(err))}. Try again.</p>`;
+      result.classList.remove('hidden');
+    } finally {
+      stopLoading();
+    }
+  });
+</script>
