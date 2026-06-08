@@ -96,14 +96,13 @@ async function generateConceptClaude(theme, apiKey) {
       temperature: 1,
       system: SYSTEM_PROMPT,
       messages: [
-        { role: "user", content: `Tema: ${theme}` },
-        { role: "assistant", content: "{" },
+        { role: "user", content: `Tema: ${theme}\n\nSvara med ENBART giltig JSON enligt schemat. Ingen text före eller efter, inga kodblock-markörer.` },
       ],
     }),
   });
   if (!res.ok) throw new Error(`anthropic ${res.status}: ${await res.text()}`);
   const data = await res.json();
-  const concept = extractJson("{" + data.content[0].text);
+  const concept = extractJson(data.content[0].text);
   concept.theme = theme;
   concept.engine = "Claude (claude-sonnet-4-6)";
   return concept;
@@ -197,24 +196,29 @@ export async function onRequestPost(context) {
     const imgPrompt = concept.image_prompt || theme;
     const sfxPrompt = concept.sfx_prompt || `${theme} slot bonus-trigger stinger, punchy win chime`;
 
-    // Bild + ljud parallellt, var för sig icke-fällande.
+    // Bild (Flux → dall-e fallback) + ljud parallellt, var för sig icke-fällande. Fel fångas och rapporteras.
+    async function makeImage() {
+      let err = "";
+      if (falKey) {
+        try { return { url: await fluxImage(imgPrompt, falKey), engine: "Flux 1.1 Pro (fal.ai)" }; }
+        catch (e) { err += "flux: " + String(e).slice(0, 350); }
+      }
+      if (openaiKey) {
+        try { return { url: await dalleImage(imgPrompt, openaiKey), engine: "dall-e-3" }; }
+        catch (e) { err += " || dalle: " + String(e).slice(0, 350); }
+      }
+      return { url: null, engine: null, error: err || "no image provider" };
+    }
+
     const [img, sfx] = await Promise.allSettled([
-      (async () => {
-        if (falKey) {
-          try { return { url: await fluxImage(imgPrompt, falKey), engine: "Flux 1.1 Pro (fal.ai)" }; } catch (e) {}
-        }
-        if (openaiKey) return { url: await dalleImage(imgPrompt, openaiKey), engine: "dall-e-3" };
-        return null;
-      })(),
-      (async () => (elevenKey ? await elevenSfx(sfxPrompt, elevenKey) : null))(),
+      makeImage(),
+      elevenKey ? elevenSfx(sfxPrompt, elevenKey) : Promise.resolve(null),
     ]);
 
-    if (img.status === "fulfilled" && img.value) {
-      concept.image_url = img.value.url;
-      concept.engine_image = img.value.engine;
-    } else {
-      concept.image_url = null;
-    }
+    const imgVal = img.status === "fulfilled" ? img.value : { url: null, engine: null, error: String(img.reason).slice(0, 350) };
+    concept.image_url = imgVal.url;
+    concept.engine_image = imgVal.engine;
+    if (!imgVal.url) concept.image_error = imgVal.error;
     concept.sfx_url = sfx.status === "fulfilled" ? sfx.value : null;
     if (concept.sfx_url) concept.engine_audio = "ElevenLabs";
 
