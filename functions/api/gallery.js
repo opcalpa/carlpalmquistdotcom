@@ -13,8 +13,9 @@ const INDEX_KEY = "forge:index";
 const RES_KEY = (id) => "forge:res:" + id;
 const CAP = 60;
 
-const kvOk = (env) => env.CF_ACCOUNT_ID && env.KV_NAMESPACE_ID && env.CF_API_TOKEN;
-const kvBase = (env) => `https://api.cloudflare.com/client/v4/accounts/${env.CF_ACCOUNT_ID}/storage/kv/namespaces/${env.KV_NAMESPACE_ID}`;
+const nsId = (env) => env.KV_NAMESPACE_ID || env.KV_NAMSPACE_ID;
+const kvOk = (env) => env.CF_ACCOUNT_ID && nsId(env) && env.CF_API_TOKEN;
+const kvBase = (env) => `https://api.cloudflare.com/client/v4/accounts/${env.CF_ACCOUNT_ID}/storage/kv/namespaces/${nsId(env)}`;
 const kvAuth = (env) => ({ Authorization: `Bearer ${env.CF_API_TOKEN}` });
 
 async function kvGet(env, key) {
