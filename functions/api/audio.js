@@ -39,5 +39,6 @@ export async function onRequestPost(context) {
     .map((s, i) => ({ label: s.label || `SFX ${i + 1}`, url: results[i].status === "fulfilled" ? results[i].value : null }))
     .filter((x) => x.url);
 
-  return Response.json({ sfx });
+  const errors = results.filter((r) => r.status === "rejected").map((r) => String(r.reason).slice(0, 160));
+  return Response.json(errors.length ? { sfx, errors } : { sfx });
 }
