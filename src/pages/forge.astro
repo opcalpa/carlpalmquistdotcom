@@ -51,6 +51,10 @@ import Layout from '../layouts/Layout.astro';
           <button type="button" class="chip rounded-full border border-[#2a2a3a] px-3 py-1 text-stone-300 hover:border-[#c6ff00]">haunted disco</button>
           <button type="button" class="chip rounded-full border border-[#2a2a3a] px-3 py-1 text-stone-300 hover:border-[#c6ff00]">viking metal feast</button>
           <button type="button" class="chip rounded-full border border-[#2a2a3a] px-3 py-1 text-stone-300 hover:border-[#c6ff00]">deep sea treasure cult</button>
+          <div class="relative ml-auto" id="recent-wrap">
+            <button type="button" id="recent-btn" class="rounded-full border border-[#2a2a3a] px-3 py-1 text-stone-300 hover:border-[#c6ff00]">⟲ Recent <span id="recent-count" class="text-stone-500"></span> ▾</button>
+            <div id="recent-panel" class="hidden absolute right-0 z-20 mt-2 w-80 max-h-96 overflow-auto rounded-xl border border-[#2a2a3a] bg-[#15151f] p-2 shadow-2xl"></div>
+          </div>
         </div>
       </form>
 
@@ -91,6 +95,9 @@ import Layout from '../layouts/Layout.astro';
   const loading = document.getElementById('loading');
   const loadingMsg = document.getElementById('loading-msg');
   const result = document.getElementById('result');
+  const recentBtn = document.getElementById('recent-btn');
+  const recentPanel = document.getElementById('recent-panel');
+  const recentCount = document.getElementById('recent-count');
 
   const SURPRISES = [
     'neon yakuza synthwave heist', 'haunted disco inferno', 'viking metal feast',
@@ -105,7 +112,97 @@ import Layout from '../layouts/Layout.astro';
 
   const esc = (s) => String(s == null ? '' : s)
     .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  const normalize = (s) => String(s || '').trim().toLowerCase().replace(/\s+/g, ' ');
 
+  let lastTheme = '';
+
+  // ---------- History / cache (localStorage) ----------
+  const HKEY = 'cf:hist';
+  const RKEY = (id) => 'cf:res:' + id;
+  const CAP = 24;
+  const loadHist = () => { try { return JSON.parse(localStorage.getItem(HKEY) || '[]'); } catch { return []; } };
+  const resGet = (id) => { try { return JSON.parse(localStorage.getItem(RKEY(id)) || 'null'); } catch { return null; } };
+  const resDel = (id) => { try { localStorage.removeItem(RKEY(id)); } catch {} };
+
+  function findCachedId(key) {
+    const hist = loadHist();
+    const m = hist.find((h) => h.key === key);
+    return m && resGet(m.id) ? m.id : null;
+  }
+
+  function addEntry(theme, concept, audio) {
+    const id = 'e' + Date.now();
+    const meta = { id, theme, key: normalize(theme), ts: Date.now(), thumb: concept.image_url || '' };
+    const hist = loadHist();
+    hist.unshift(meta);
+    while (hist.length > CAP) { const o = hist.pop(); resDel(o.id); }
+    let stored = false, tries = 0;
+    while (!stored && tries < 10) {
+      try { localStorage.setItem(RKEY(id), JSON.stringify({ theme, concept, audio })); stored = true; }
+      catch (e) {
+        let evicted = false;
+        for (let i = hist.length - 1; i >= 0; i--) { if (hist[i].id !== id) { resDel(hist[i].id); hist.splice(i, 1); evicted = true; break; } }
+        if (!evicted) break;
+      }
+      tries++;
+    }
+    try { localStorage.setItem(HKEY, JSON.stringify(hist)); } catch {}
+    renderRecent();
+  }
+
+  function delEntry(id) {
+    const hist = loadHist().filter((h) => h.id !== id);
+    resDel(id);
+    try { localStorage.setItem(HKEY, JSON.stringify(hist)); } catch {}
+    renderRecent();
+  }
+
+  function clearHist() {
+    loadHist().forEach((h) => resDel(h.id));
+    try { localStorage.removeItem(HKEY); } catch {}
+    renderRecent();
+  }
+
+  function timeAgo(ts) {
+    const s = Math.floor((Date.now() - ts) / 1000);
+    if (s < 60) return 'just now';
+    if (s < 3600) return Math.floor(s / 60) + 'm ago';
+    if (s < 86400) return Math.floor(s / 3600) + 'h ago';
+    return Math.floor(s / 86400) + 'd ago';
+  }
+
+  function renderRecent() {
+    const hist = loadHist();
+    recentCount.textContent = hist.length ? '(' + hist.length + ')' : '';
+    if (!hist.length) {
+      recentPanel.innerHTML = '<p class="px-2 py-3 text-xs text-stone-500">No history yet. Forge something.</p>';
+      return;
+    }
+    recentPanel.innerHTML = hist.map((m) => `
+      <div class="recent-item flex items-center gap-2 rounded-lg px-2 py-1.5 hover:bg-[#1d212c] cursor-pointer" data-id="${esc(m.id)}">
+        ${m.thumb ? `<img src="${esc(m.thumb)}" class="h-9 w-9 flex-shrink-0 rounded object-cover" />` : '<div class="h-9 w-9 flex-shrink-0 rounded bg-[#222]"></div>'}
+        <div class="min-w-0 flex-1">
+          <div class="truncate text-sm text-stone-200">${esc(m.theme)}</div>
+          <div class="text-[10px] text-stone-500">${timeAgo(m.ts)}</div>
+        </div>
+        <button class="flex-shrink-0 px-1 text-stone-600 hover:text-[#ff2d78]" data-del="${esc(m.id)}" title="Remove">✕</button>
+      </div>`).join('') +
+      `<div class="mt-1 border-t border-[#2a2a3a] pt-1"><button id="recent-clear" class="w-full rounded-lg px-2 py-1.5 text-left text-xs text-stone-500 hover:text-[#ff2d78]">Clear all</button></div>`;
+    recentPanel.querySelectorAll('.recent-item').forEach((el) => {
+      el.addEventListener('click', (ev) => { if (ev.target.closest('[data-del]')) return; loadCachedById(el.dataset.id); });
+    });
+    recentPanel.querySelectorAll('[data-del]').forEach((b) => {
+      b.addEventListener('click', (ev) => { ev.stopPropagation(); delEntry(b.dataset.del); });
+    });
+    const clr = document.getElementById('recent-clear');
+    if (clr) clr.addEventListener('click', clearHist);
+  }
+
+  const closeRecent = () => recentPanel.classList.add('hidden');
+  recentBtn.addEventListener('click', (e) => { e.stopPropagation(); recentPanel.classList.toggle('hidden'); });
+  document.addEventListener('click', (e) => { if (!e.target.closest('#recent-wrap')) closeRecent(); });
+
+  // ---------- UI helpers ----------
   document.getElementById('surprise').addEventListener('click', () => {
     input.value = SURPRISES[Math.floor(Math.random() * SURPRISES.length)];
     form.requestSubmit();
@@ -131,7 +228,7 @@ import Layout from '../layouts/Layout.astro';
     ).join('');
   }
 
-  function render(c) {
+  function buildResult(c, fromCache) {
     const names = Array.isArray(c.names) ? c.names : [];
     const primary = names[0] || 'Untitled';
     const alts = names.slice(1);
@@ -149,6 +246,10 @@ import Layout from '../layouts/Layout.astro';
       ? `<img src="${esc(c.image_url)}" alt="Moodboard for ${esc(primary)}" class="aspect-square w-full rounded-2xl border border-[#22222e] object-cover" />`
       : `<div class="flex aspect-square w-full items-center justify-center rounded-2xl border border-dashed border-[#2a2a3a] bg-[#13131c] p-6 text-center text-xs text-stone-500">Moodboard prompt ready, image API not wired in this run.<br/><span class="mt-2 block text-stone-600">${esc(c.image_prompt || '')}</span></div>`;
 
+    const strip = fromCache
+      ? `<div class="mb-3 flex items-center gap-3 text-xs"><span class="rounded-full bg-[#c6ff00]/15 px-2.5 py-1 font-semibold text-[#c6ff00]">⚡ From cache · no credits used</span><button id="regen-btn" type="button" class="text-stone-400 hover:text-[#ff2d78]">↻ Generate fresh</button></div>`
+      : `<div class="mb-3 text-xs"><span class="rounded-full bg-[#1d212c] px-2.5 py-1 text-stone-400">✓ Saved · re-running this vibe is free</span></div>`;
+
     const engineLine = c.engine ? `<p class="mt-6 text-xs text-stone-500">${[
       'Concept by ' + esc(c.engine),
       c.image_url && c.engine_image ? 'art by ' + esc(c.engine_image) : '',
@@ -156,6 +257,7 @@ import Layout from '../layouts/Layout.astro';
     ].filter(Boolean).join(' &nbsp;·&nbsp; ')} &nbsp;—&nbsp; right model for each step.</p>` : '';
 
     result.innerHTML = `
+      ${strip}
       <div class="mb-4 flex flex-wrap items-baseline gap-x-3 gap-y-2">
         <h2 class="text-4xl font-black uppercase tracking-tight text-[#c6ff00] sm:text-5xl">${esc(primary)}</h2>
         ${alts.map((n) => `<span class="rounded-full border border-[#2a2a3a] px-3 py-1 text-sm text-stone-400">${esc(n)}</span>`).join('')}
@@ -163,7 +265,6 @@ import Layout from '../layouts/Layout.astro';
       <p class="mb-6 max-w-3xl text-lg italic text-stone-300">“${esc(c.logline || '')}”</p>
 
       <div class="grid items-start gap-5 lg:grid-cols-[minmax(0,44%)_1fr]">
-        <!-- Sticky left: image + audio -->
         <div class="space-y-4 lg:sticky lg:top-5 self-start">
           ${imageBlock}
           <div class="rounded-2xl border border-[#22222e] bg-[#13131c] p-4">
@@ -177,7 +278,6 @@ import Layout from '../layouts/Layout.astro';
           </div>
         </div>
 
-        <!-- Right: tabbed briefs -->
         <div>
           <div class="mb-4 flex flex-wrap gap-2">
             ${tabs.map((t, i) => `<button class="cf-tab${i === 0 ? ' active' : ''}" data-tab="${t[0]}">${esc(t[1])}</button>`).join('')}
@@ -192,7 +292,6 @@ import Layout from '../layouts/Layout.astro';
 
     result.classList.remove('hidden');
 
-    // Tabs
     result.querySelectorAll('[data-tab]').forEach((b) => {
       b.addEventListener('click', () => {
         const t = b.dataset.tab;
@@ -200,49 +299,68 @@ import Layout from '../layouts/Layout.astro';
         result.querySelectorAll('[data-panel]').forEach((p) => p.classList.toggle('hidden', p.dataset.panel !== t));
       });
     });
-
-    loadAudio(c);
+    const regen = document.getElementById('regen-btn');
+    if (regen) regen.addEventListener('click', () => { if (lastTheme) generateFresh(lastTheme); });
   }
 
-  async function loadAudio(c) {
+  function fillAudio(a) {
+    a = a || {};
     const st = document.getElementById('soundtrack-slot');
     const fx = document.getElementById('sfx-slot');
-    try {
-      const res = await fetch('/api/audio', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ soundtrack_prompt: c.soundtrack_prompt, sfx: c.sfx }),
-      });
-      const a = await res.json();
-      const stEng = document.getElementById('st-engine');
-      if (stEng) stEng.textContent = a.soundtrack_engine || '';
-      st.innerHTML = a.soundtrack_url
-        ? `<audio controls src="${esc(a.soundtrack_url)}" class="w-full"></audio>`
-        : `<p class="text-xs text-stone-600">Soundtrack unavailable${a.music_error ? ' (' + esc(a.music_error) + ')' : a.note === 'no_eleven_key' ? ' (no key set)' : ''}.</p>`;
-      fx.innerHTML = (a.sfx && a.sfx.length)
-        ? `<div class="space-y-2.5">${a.sfx.map((s) => `<div><div class="mb-1 text-[11px] text-stone-400">${esc(s.label)}</div><audio controls src="${esc(s.url)}" class="w-full"></audio></div>`).join('')}</div>`
-        : `<p class="text-xs text-stone-600">No SFX generated.</p>`;
-    } catch (e) {
-      st.innerHTML = `<p class="text-xs text-stone-600">Audio could not be generated.</p>`;
-      fx.innerHTML = '';
-    }
+    const stEng = document.getElementById('st-engine');
+    if (stEng) stEng.textContent = a.soundtrack_engine || '';
+    if (st) st.innerHTML = a.soundtrack_url
+      ? `<audio controls src="${esc(a.soundtrack_url)}" class="w-full"></audio>`
+      : `<p class="text-xs text-stone-600">Soundtrack unavailable${a.music_error ? ' (' + esc(a.music_error) + ')' : a.note === 'no_eleven_key' ? ' (no key set)' : ''}.</p>`;
+    if (fx) fx.innerHTML = (a.sfx && a.sfx.length)
+      ? `<div class="space-y-2.5">${a.sfx.map((s) => `<div><div class="mb-1 text-[11px] text-stone-400">${esc(s.label)}</div><audio controls src="${esc(s.url)}" class="w-full"></audio></div>`).join('')}</div>`
+      : `<p class="text-xs text-stone-600">No SFX generated.</p>`;
   }
 
-  form.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const theme = input.value.trim();
+  async function generateFresh(theme) {
+    lastTheme = theme;
+    closeRecent();
     startLoading();
+    let concept;
     try {
-      const res = await fetch('/api/concept', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ theme }),
-      });
-      const data = await res.json();
-      render(data);
+      const res = await fetch('/api/concept', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ theme }) });
+      concept = await res.json();
     } catch (err) {
+      stopLoading();
       result.innerHTML = `<p class="text-stone-400">Something broke: ${esc(String(err))}. Try again.</p>`;
       result.classList.remove('hidden');
-    } finally {
-      stopLoading();
+      return;
     }
+    stopLoading();
+    buildResult(concept, false);
+    let audio = { soundtrack_url: null, soundtrack_engine: null, sfx: [] };
+    try {
+      const r = await fetch('/api/audio', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ soundtrack_prompt: concept.soundtrack_prompt, sfx: concept.sfx }) });
+      audio = await r.json();
+    } catch (e) {}
+    fillAudio(audio);
+    addEntry(theme, concept, audio);
+  }
+
+  function loadCachedById(id) {
+    const data = resGet(id);
+    if (!data) return;
+    lastTheme = data.theme || '';
+    input.value = data.theme || input.value;
+    closeRecent();
+    buildResult(data.concept, true);
+    fillAudio(data.audio);
+    window.scrollTo({ top: result.offsetTop - 20, behavior: 'smooth' });
+  }
+
+  form.addEventListener('submit', (e) => {
+    e.preventDefault();
+    const theme = input.value.trim();
+    if (!theme) return;
+    const id = findCachedId(normalize(theme));
+    if (id) loadCachedById(id);
+    else generateFresh(theme);
   });
+
+  renderRecent();
 </script>
