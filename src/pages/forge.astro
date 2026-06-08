@@ -215,7 +215,7 @@ import Layout from '../layouts/Layout.astro';
     const pill = (m, label) => `<button class="cf-mini" data-vis="${m}" ${mode === m ? on : ''}>${label}</button>`;
     let pills = pill('mood', 'Mood');
     pills += hasGame ? pill('game', 'Game') : (gameBusy ? `<span class="cf-mini" style="opacity:.6">Game…</span>` : `<button class="cf-mini" data-refresh="gameview" ${mood.url ? '' : 'disabled'}>+ Game</button>`);
-    pills += hasLoop ? pill('loop', 'Loop') : (animBusy ? `<span class="cf-mini" style="opacity:.6">Loop…</span>` : `<button class="cf-mini" data-refresh="animation" ${mood.url ? '' : 'disabled'}>✨ Loop</button>`);
+    pills += hasLoop ? pill('loop', 'Loop') : (animBusy ? `<span class="cf-mini" style="opacity:.6">Loop…</span>` : `<button class="cf-mini" data-refresh="animation" ${mood.url ? '' : 'disabled'}>▶ Loop</button>`);
     let reroll = '';
     if (mode === 'mood') reroll = ctrl('image', busy && !gameBusy && !animBusy);
     else if (mode === 'game') reroll = `<button class="cf-mini cf-refresh" data-refresh="gameview" title="Re-roll game view">${gameBusy ? '<span class="cf-spin"></span>' : '↻'}</button>`;
@@ -333,7 +333,8 @@ import Layout from '../layouts/Layout.astro';
   // ---------- Game-view (hur sökningen ser ut i spelläge, Hacksaw-stil) ----------
   function gamePrompt() {
     const a = cur('art') || {};
-    return `In-game screenshot of a mobile slot game: ${state.theme || ''}. Vertical 6x5 reel grid filled with themed high-pay symbols plus stylised A K Q J royal symbols, a character mascot standing beside the reels, a bottom UI bar with a round spin button and balance readout, bold graphic-novel Hacksaw-style art with thick linework and halftone shading, ${a.palette || ''}, bright well-lit high-contrast full-color game HUD, clean readable layout, no real readable text.`.slice(0, 720);
+    const base = (state.imagePrompt || state.theme || '').slice(0, 340);   // Claudes IP-rensade beskrivning, ej råa temat
+    return `In-game screenshot of a mobile slot game. Vertical 6x5 reel grid of glowing themed high-pay symbols plus stylised A K Q J royal letter symbols, a character mascot beside the reels, a bottom UI bar with a round spin button and balance readout, bold comic graphic-novel art with thick ink linework and halftone shading, ${a.palette || ''}, bright well-lit high-contrast colourful glowing game HUD, clean readable layout. No real brands, no copyrighted characters, no real text. Scene: ${base}`.slice(0, 720);
   }
   async function fetchGameview() {
     try { const r = await fetch('/api/image', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ prompt: gamePrompt() }) }); const j = await r.json(); if (j.url) return { url: j.url, engine: j.engine }; } catch (e) {}
@@ -468,7 +469,7 @@ import Layout from '../layouts/Layout.astro';
         state.gameBusy = false; render('gameview', false);
       })(),
       (async () => { const sfx = await fetchSfx(); if (sfx.length) { state.versions.sfx = [sfx]; state.idx.sfx = 0; } renderSfx(); })(),
-      (async () => { const st = await fetchSoundtrack(); if (st) { state.versions.soundtrack = [st]; state.idx.soundtrack = 0; } renderSoundtrack(); })(),
+      (async () => { const st = await fetchSoundtrack(); if (st) { state.versions.soundtrack = [st]; state.idx.soundtrack = 0; renderSoundtrack(); const a = document.querySelector('#soundtrack-slot audio'); if (a) a.play().catch(() => {}); } else renderSoundtrack(); })(),
     ];
     await Promise.allSettled(jobs);
     persist();

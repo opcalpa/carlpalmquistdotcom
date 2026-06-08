@@ -18,10 +18,9 @@ async function fluxImage(prompt, falKey) {
     if (!url) throw new Error("fal: no url");
     lastUrl = url;
     try {
-      const h = await fetch(url, { method: "HEAD" });
-      const len = parseInt(h.headers.get("content-length") || "0", 10);
-      if (len === 0 || len >= 30000) return url;   // riktig bild
-      // annars: troligen safety-svart → försök igen med ny seed
+      const len = (await (await fetch(url)).arrayBuffer()).byteLength;   // faktiska bytes (HEAD ger ej content-length hos fal)
+      if (len >= 30000) return url;   // riktig bild
+      // annars: troligen safety-svart frame → försök igen med ny seed
     } catch (e) { return url; }
   }
   return lastUrl;
