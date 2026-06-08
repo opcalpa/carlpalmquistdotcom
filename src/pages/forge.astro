@@ -150,7 +150,7 @@ import Layout from '../layouts/Layout.astro';
         mechanic: [{ mechanic: c.mechanic || {}, math: c.math || {} }],
         music: [{ music: c.music || {}, soundtrack_prompt: c.soundtrack_prompt || '', sfxPrompts: c.sfx || [] }],
         hooks: [c.hooks || []],
-        image: [{ url: c.image_url || null, engine: c.engine_image || null }],
+        image: c.image_url ? [{ url: c.image_url, engine: c.engine_image || null }] : [],
         soundtrack: [], sfx: [], animation: [],
       },
       idx: { title: 0, art: 0, mechanic: 0, music: 0, hooks: 0, image: 0, soundtrack: 0, sfx: 0, animation: 0 },
@@ -195,7 +195,7 @@ import Layout from '../layouts/Layout.astro';
     let media;
     if (showLoop) media = `<video src="${esc(an.url)}" autoplay muted loop playsinline class="aspect-square w-full rounded-2xl border border-[#22222e] object-cover"></video>`;
     else if (v.url) media = `<img src="${esc(v.url)}" alt="Key art" class="aspect-square w-full rounded-2xl border border-[#22222e] object-cover" />`;
-    else media = `<div class="flex aspect-square w-full items-center justify-center rounded-2xl border border-dashed border-[#2a2a3a] bg-[#13131c] p-6 text-center text-xs text-stone-500">No image (regenerate or check the image key).</div>`;
+    else media = `<div class="flex aspect-square w-full items-center justify-center rounded-2xl border border-dashed border-[#2a2a3a] bg-[#13131c] p-6 text-center text-xs text-stone-500">${busy ? '🎨 Painting key art…' : 'No image (regenerate or check the image key).'}</div>`;
     const flip = hasLoop
       ? `<span class="cf-ctrl"><button class="cf-mini" data-vis="still" ${!showLoop ? on : ''}>Still</button><button class="cf-mini" data-vis="loop" ${showLoop ? on : ''}>Loop</button><button class="cf-mini cf-refresh" data-refresh="animation" title="Re-roll loop">${animBusy ? '<span class="cf-spin"></span>' : '↻'}</button></span>`
       : `<button class="cf-mini cf-refresh" data-refresh="animation" title="Animate this key art" ${(!v.url || animBusy) ? 'disabled' : ''}>${animBusy ? '<span class="cf-spin"></span>' : '✨ Animate'}</button>`;
@@ -219,7 +219,7 @@ import Layout from '../layouts/Layout.astro';
     if (eng) eng.textContent = (v && v.engine) || '';
     if (c) c.innerHTML = ctrl('soundtrack', busy);   // ↻ alltid synlig, även när tomt → kan (om)generera
     if (!st) return;
-    if (v && v.url) st.innerHTML = `<audio controls src="${esc(v.url)}" class="w-full"></audio>`;
+    if (v && v.url) st.innerHTML = `<audio controls loop src="${esc(v.url)}" class="w-full"></audio>`;
     else if (!busy) st.innerHTML = `<p class="text-xs text-stone-600">Soundtrack unavailable.</p>`;
   }
   function renderSfx(busy) {
@@ -396,10 +396,19 @@ import Layout from '../layouts/Layout.astro';
     if (!concept || concept.note === 'error') { result.innerHTML = `<div class="rounded-2xl border border-[#22222e] bg-[#13131c] p-6 text-stone-300">⚠️ Generation hiccupped${concept && concept.error ? ' (' + esc(concept.error) + ')' : ''}. Hit <strong class="text-[#c6ff00]">Forge it</strong> again.</div>`; result.classList.remove('hidden'); return; }
     if (!concept.theme) concept.theme = theme;
     initState(concept);
-    buildResult(false);
+    buildResult(false);              // text + tomma slots syns direkt
     setSoundtrackMsg('Composing soundtrack with Suno…');
-    const sfx = await fetchSfx(); if (sfx.length) { state.versions.sfx = [sfx]; state.idx.sfx = 0; } renderSfx();
-    const st = await fetchSoundtrack(); if (st) { state.versions.soundtrack = [st]; state.idx.soundtrack = 0; } renderSoundtrack();
+    // Bild, SFX och soundtrack hämtas parallellt och renderas var för sig när de blir klara.
+    render('image', true);
+    const jobs = [
+      (async () => {
+        try { const r = await fetch('/api/image', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ prompt: state.imagePrompt }) }); const j = await r.json(); if (j.url) pushVersion('image', { url: j.url, engine: j.engine }); } catch (e) {}
+        render('image', false);
+      })(),
+      (async () => { const sfx = await fetchSfx(); if (sfx.length) { state.versions.sfx = [sfx]; state.idx.sfx = 0; } renderSfx(); })(),
+      (async () => { const st = await fetchSoundtrack(); if (st) { state.versions.soundtrack = [st]; state.idx.soundtrack = 0; } renderSoundtrack(); })(),
+    ];
+    await Promise.allSettled(jobs);
     persist();
   }
 

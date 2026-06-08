@@ -187,18 +187,7 @@ export async function onRequestPost(context) {
       ? await generateConceptClaude(theme, anthropicKey)
       : await generateConceptOpenAI(theme, openaiKey);
 
-    const imgPrompt = concept.image_prompt || theme;
-    let imageErr = "";
-    if (falKey) {
-      try { concept.image_url = await fluxImage(imgPrompt, falKey); concept.engine_image = "Flux 1.1 Pro (fal.ai)"; }
-      catch (e) { imageErr = "flux: " + String(e).slice(0, 300); }
-    }
-    if (!concept.image_url && openaiKey) {
-      try { concept.image_url = await dalleImage(imgPrompt, openaiKey); concept.engine_image = "dall-e-3"; }
-      catch (e) { imageErr += " || dalle: " + String(e).slice(0, 300); }
-    }
-    if (!concept.image_url) { concept.image_url = null; concept.image_error = imageErr || "no image provider"; }
-
+    // Bilden genereras separat via /api/image så texten kan visas direkt (progressive loading).
     return Response.json(concept);
   } catch (e) {
     // Nyckel finns men genereringen föll även efter retries → ärligt fel, inte ett orelaterat exempel.
