@@ -151,13 +151,14 @@ import Layout from '../layouts/Layout.astro';
         music: [{ music: c.music || {}, soundtrack_prompt: c.soundtrack_prompt || '', sfxPrompts: c.sfx || [] }],
         hooks: [c.hooks || []],
         image: [{ url: c.image_url || null, engine: c.engine_image || null }],
-        soundtrack: [], sfx: [],
+        soundtrack: [], sfx: [], animation: [],
       },
-      idx: { title: 0, art: 0, mechanic: 0, music: 0, hooks: 0, image: 0, soundtrack: 0, sfx: 0 },
+      idx: { title: 0, art: 0, mechanic: 0, music: 0, hooks: 0, image: 0, soundtrack: 0, sfx: 0, animation: 0 },
+      showLoop: false, animBusy: false,
     };
   }
   const cur = (comp) => (state.versions[comp] || [])[state.idx[comp]];
-  function pushVersion(comp, value) { const a = state.versions[comp]; a.push(value); while (a.length > VCAP) a.shift(); state.idx[comp] = a.length - 1; }
+  function pushVersion(comp, value) { const a = state.versions[comp] || (state.versions[comp] = []); a.push(value); while (a.length > VCAP) a.shift(); state.idx[comp] = a.length - 1; }
   function flatConcept() {
     const t = cur('title') || {}, m = cur('mechanic') || { mechanic: {}, math: {} }, mu = cur('music') || { music: {} };
     return { names: t.names, logline: t.logline, art: cur('art') || {}, mechanic: m.mechanic, math: m.math, music: mu.music, hooks: cur('hooks') || [] };
@@ -186,10 +187,21 @@ import Layout from '../layouts/Layout.astro';
   function renderImage(busy) {
     const el = document.getElementById('cf-image'); if (!el) return;
     const v = cur('image') || { url: null };
-    const overlay = `<div class="absolute right-2 top-2">${ctrl('image', busy)}</div>`;
-    el.innerHTML = v.url
-      ? `<div class="relative"><img src="${esc(v.url)}" alt="Moodboard" class="aspect-square w-full rounded-2xl border border-[#22222e] object-cover" />${overlay}</div>`
-      : `<div class="relative"><div class="flex aspect-square w-full items-center justify-center rounded-2xl border border-dashed border-[#2a2a3a] bg-[#13131c] p-6 text-center text-xs text-stone-500">No image (regenerate or check the image key).</div>${overlay}</div>`;
+    const an = cur('animation');
+    const hasLoop = an && an.url;
+    const showLoop = state.showLoop && hasLoop;
+    const animBusy = state.animBusy;
+    const on = 'style="color:#c6ff00"';
+    let media;
+    if (showLoop) media = `<video src="${esc(an.url)}" autoplay muted loop playsinline class="aspect-square w-full rounded-2xl border border-[#22222e] object-cover"></video>`;
+    else if (v.url) media = `<img src="${esc(v.url)}" alt="Key art" class="aspect-square w-full rounded-2xl border border-[#22222e] object-cover" />`;
+    else media = `<div class="flex aspect-square w-full items-center justify-center rounded-2xl border border-dashed border-[#2a2a3a] bg-[#13131c] p-6 text-center text-xs text-stone-500">No image (regenerate or check the image key).</div>`;
+    const flip = hasLoop
+      ? `<span class="cf-ctrl"><button class="cf-mini" data-vis="still" ${!showLoop ? on : ''}>Still</button><button class="cf-mini" data-vis="loop" ${showLoop ? on : ''}>Loop</button><button class="cf-mini cf-refresh" data-refresh="animation" title="Re-roll loop">${animBusy ? '<span class="cf-spin"></span>' : '↻'}</button></span>`
+      : `<button class="cf-mini cf-refresh" data-refresh="animation" title="Animate this key art" ${(!v.url || animBusy) ? 'disabled' : ''}>${animBusy ? '<span class="cf-spin"></span>' : '✨ Animate'}</button>`;
+    const reroll = showLoop ? '' : ctrl('image', busy && !animBusy);
+    const note = animBusy ? `<div class="absolute inset-x-2 bottom-2 rounded bg-black/70 px-2 py-1 text-center text-[11px] text-[#c6ff00]">Animating with Luma Ray 2… ~1-2 min</div>` : '';
+    el.innerHTML = `<div class="relative">${media}<div class="absolute right-2 top-2 flex items-center gap-2">${reroll}${flip}</div>${note}</div>`;
   }
   function renderTab(comp, busy) {
     const el = document.getElementById('cf-panel-' + comp); if (!el) return;
@@ -229,12 +241,12 @@ import Layout from '../layouts/Layout.astro';
   }
   function renderEngine() {
     const el = document.getElementById('cf-engine'); if (!el) return;
-    const im = cur('image') || {}, so = cur('soundtrack') || {};
-    el.innerHTML = [`Concept by ${esc(state.conceptEngine || 'Claude')}`, im.engine ? 'art by ' + esc(im.engine) : '', so.engine ? 'soundtrack by ' + esc(so.engine) : '', 'SFX by ElevenLabs'].filter(Boolean).join(' &nbsp;·&nbsp; ') + ' &nbsp;—&nbsp; right model for each step.';
+    const im = cur('image') || {}, so = cur('soundtrack') || {}, an = cur('animation') || {};
+    el.innerHTML = [`Concept by ${esc(state.conceptEngine || 'Claude')}`, im.engine ? 'art by ' + esc(im.engine) : '', an.engine ? 'motion by ' + esc(an.engine) : '', so.engine ? 'soundtrack by ' + esc(so.engine) : '', 'SFX by ElevenLabs'].filter(Boolean).join(' &nbsp;·&nbsp; ') + ' &nbsp;—&nbsp; right model for each step.';
   }
   function render(comp, busy) {
     if (comp === 'title') renderTitle(busy);
-    else if (comp === 'image') { renderImage(busy); renderEngine(); }
+    else if (comp === 'image' || comp === 'animation') { renderImage(busy); renderEngine(); }
     else if (comp === 'soundtrack') { renderSoundtrack(busy); renderEngine(); }
     else if (comp === 'sfx') renderSfx(busy);
     else renderTab(comp, busy);
@@ -262,8 +274,32 @@ import Layout from '../layouts/Layout.astro';
     try { const r = await fetch('/api/audio', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ sfx: (cur('music') || {}).sfxPrompts || [] }) }); const j = await r.json(); return j.sfx || []; } catch (e) { return []; }
   }
 
+  // ---------- Animation (key art -> attract-loop via Luma Ray 2) ----------
+  function motionPrompt() {
+    const base = (state.imagePrompt || state.theme || '').slice(0, 400);
+    return `Subtle cinematic attract-mode loop of this slot key art. Ambient motion only: slowly drifting particles, soft neon and light shimmer, faint haze, the main character breathes and shifts almost imperceptibly with occasional small idle movement. Keep the composition identical, no camera cut, seamless loop. Scene: ${base}`;
+  }
+  async function pollAnimate(id) {
+    let waited = 0; const interval = 5000, maxMs = 200000;
+    while (waited < maxMs) {
+      await new Promise((r) => setTimeout(r, interval)); waited += interval;
+      try { const r = await fetch('/api/animate?id=' + encodeURIComponent(id)); const j = await r.json(); if (j.status === 'done' && j.url) return j.url; if (j.status === 'failed') return null; } catch (e) {}
+    }
+    return null;
+  }
+  async function fetchAnimation() {
+    const img = cur('image'); if (!img || !img.url) return null;
+    try {
+      const r = await fetch('/api/animate', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ imageUrl: img.url, prompt: motionPrompt() }) });
+      const j = await r.json(); if (!j.requestId) return null;
+      const url = await pollAnimate(j.requestId); if (url) return { url, engine: j.engine || 'Luma Ray 2' };
+    } catch (e) {}
+    return null;
+  }
+
   // ---------- Refresh / nav ----------
   async function refresh(comp) {
+    if (comp === 'animation') state.animBusy = true;
     render(comp, true);
     try {
       if (['title', 'art', 'mechanic', 'music', 'hooks'].includes(comp)) {
@@ -283,8 +319,11 @@ import Layout from '../layouts/Layout.astro';
         const st = await fetchSoundtrack(); if (st) pushVersion('soundtrack', st);
       } else if (comp === 'sfx') {
         const sfx = await fetchSfx(); if (sfx.length) pushVersion('sfx', sfx);
+      } else if (comp === 'animation') {
+        const an = await fetchAnimation(); if (an) { pushVersion('animation', an); state.showLoop = true; }
       }
     } catch (e) {}
+    state.animBusy = false;
     render(comp, false);
     persist();
   }
@@ -342,6 +381,7 @@ import Layout from '../layouts/Layout.astro';
   result.addEventListener('click', (e) => {
     const tb = e.target.closest('[data-tab]');
     if (tb) { const t = tb.dataset.tab; result.querySelectorAll('[data-tab]').forEach((x) => x.classList.toggle('active', x.dataset.tab === t)); result.querySelectorAll('[data-panel]').forEach((p) => p.classList.toggle('hidden', p.dataset.panel !== t)); return; }
+    const vs = e.target.closest('[data-vis]'); if (vs) { state.showLoop = (vs.dataset.vis === 'loop'); renderImage(false); return; }
     const rf = e.target.closest('[data-refresh]'); if (rf) { refresh(rf.dataset.refresh); return; }
     const nv = e.target.closest('[data-nav]'); if (nv) { nav(nv.dataset.nav, +nv.dataset.d); return; }
   });
