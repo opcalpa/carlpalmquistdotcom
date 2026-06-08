@@ -136,8 +136,9 @@ import Layout from '../layouts/Layout.astro';
 
   // ---------- Loading ----------
   let msgTimer;
-  function startLoading() { result.classList.add('hidden'); loading.classList.remove('hidden'); btn.disabled = true; let i = 0; loadingMsg.textContent = LOADING_MSGS[0]; msgTimer = setInterval(() => { i = (i + 1) % LOADING_MSGS.length; loadingMsg.textContent = LOADING_MSGS[i]; }, 1500); }
-  function stopLoading() { clearInterval(msgTimer); loading.classList.add('hidden'); btn.disabled = false; }
+  const holdAudio = new Audio('/hold-music.mp3'); holdAudio.loop = true; holdAudio.volume = 0.45;
+  function startLoading() { result.classList.add('hidden'); loading.classList.remove('hidden'); btn.disabled = true; try { holdAudio.currentTime = 0; holdAudio.play().catch(() => {}); } catch (e) {} let i = 0; loadingMsg.textContent = LOADING_MSGS[0]; msgTimer = setInterval(() => { i = (i + 1) % LOADING_MSGS.length; loadingMsg.textContent = LOADING_MSGS[i]; }, 1500); }
+  function stopLoading() { clearInterval(msgTimer); loading.classList.add('hidden'); btn.disabled = false; try { holdAudio.pause(); } catch (e) {} }
 
   // ---------- Version state ----------
   function initState(c) {
@@ -209,7 +210,7 @@ import Layout from '../layouts/Layout.astro';
     if (mode === 'loop' && !hasLoop) mode = 'mood';
     let media;
     if (mode === 'loop') media = `<video src="${esc(an.url)}" autoplay muted loop playsinline class="aspect-square w-full rounded-2xl border border-[#22222e] object-cover"></video>`;
-    else if (mode === 'game') media = `<img src="${esc(game.url)}" alt="Game view" class="aspect-square w-full rounded-2xl border border-[#22222e] object-cover" />`;
+    else if (mode === 'game') media = `<div class="relative aspect-square w-full overflow-hidden rounded-2xl border border-[#22222e] bg-[#13131c]"><div class="absolute inset-0 flex items-center justify-center p-6 text-center text-xs text-stone-500">Game view failed to load. Hit ↻ to re-roll.</div><img src="${esc(game.url)}" alt="Game view" class="absolute inset-0 h-full w-full object-cover" onerror="this.style.display='none'" /></div>`;
     else media = mood.url ? `<img src="${esc(mood.url)}" alt="Key art" class="aspect-square w-full rounded-2xl border border-[#22222e] object-cover" />` : `<div class="flex aspect-square w-full items-center justify-center rounded-2xl border border-dashed border-[#2a2a3a] bg-[#13131c] p-6 text-center text-xs text-stone-500">${busy ? '🎨 Painting key art…' : 'No image yet.'}</div>`;
     const pill = (m, label) => `<button class="cf-mini" data-vis="${m}" ${mode === m ? on : ''}>${label}</button>`;
     let pills = pill('mood', 'Mood');
@@ -313,10 +314,16 @@ import Layout from '../layouts/Layout.astro';
     }
     return null;
   }
+  function gameMotionPrompt() {
+    return `Subtle live-gameplay loop of this slot game screen. Ambient motion only: reel symbols shimmer and gently pulse with soft glow, the character mascot makes small idle movements, neon UI elements flicker softly. No spinning reels, no camera cut, keep the layout identical, seamless loop.`;
+  }
   async function fetchAnimation() {
-    const img = cur('image'); if (!img || !img.url) return null;
+    const fromGame = state.visualMode === 'game' && !!(cur('gameview') || {}).url;
+    const src = fromGame ? cur('gameview') : cur('image');
+    if (!src || !src.url) return null;
+    const prompt = fromGame ? gameMotionPrompt() : motionPrompt();
     try {
-      const r = await fetch('/api/animate', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ imageUrl: img.url, prompt: motionPrompt() }) });
+      const r = await fetch('/api/animate', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ imageUrl: src.url, prompt }) });
       const j = await r.json(); if (!j.requestId) return null;
       const url = await pollAnimate(j.requestId); if (url) return { url, engine: j.engine || 'Luma Ray 2' };
     } catch (e) {}
@@ -326,7 +333,7 @@ import Layout from '../layouts/Layout.astro';
   // ---------- Game-view (hur sökningen ser ut i spelläge, Hacksaw-stil) ----------
   function gamePrompt() {
     const a = cur('art') || {};
-    return `In-game screenshot of a mobile slot game: ${state.theme || ''}. Vertical 6x5 reel grid filled with themed high-pay symbols plus stylised A K Q J royal symbols, a character mascot standing beside the reels, a bottom UI bar with a round spin button and balance readout, bold graphic-novel Hacksaw-style art with thick linework and halftone shading, ${a.palette || ''}, ${a.mood || ''}, vibrant game HUD, no real readable text.`.slice(0, 720);
+    return `In-game screenshot of a mobile slot game: ${state.theme || ''}. Vertical 6x5 reel grid filled with themed high-pay symbols plus stylised A K Q J royal symbols, a character mascot standing beside the reels, a bottom UI bar with a round spin button and balance readout, bold graphic-novel Hacksaw-style art with thick linework and halftone shading, ${a.palette || ''}, bright well-lit high-contrast full-color game HUD, clean readable layout, no real readable text.`.slice(0, 720);
   }
   async function fetchGameview() {
     try { const r = await fetch('/api/image', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ prompt: gamePrompt() }) }); const j = await r.json(); if (j.url) return { url: j.url, engine: j.engine }; } catch (e) {}

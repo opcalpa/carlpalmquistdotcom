@@ -85,6 +85,7 @@ export async function onRequestPost(context) {
     const thumb = curImg.url && !String(curImg.url).startsWith("data:") ? curImg.url : "";
     // Inline all media över alla versioner så inget löper ut (redan-inlinade hoppas över).
     for (const im of imgArr) { if (im && im.url) im.url = await inline(im.url); }
+    if (Array.isArray(v.gameview)) for (const g of v.gameview) { if (g && g.url) g.url = await inline(g.url); }
     if (Array.isArray(v.soundtrack)) for (const so of v.soundtrack) { if (so && so.url) so.url = await inline(so.url); }
 
     const ts = Date.now();
