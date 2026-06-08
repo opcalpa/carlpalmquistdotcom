@@ -16,14 +16,13 @@ async function fluxImage(prompt, falKey) {
     const d = await res.json();
     const url = d.images && d.images[0] && d.images[0].url;
     if (!url) throw new Error("fal: no url");
-    lastUrl = url;
     try {
-      const len = (await (await fetch(url)).arrayBuffer()).byteLength;   // faktiska bytes (HEAD ger ej content-length hos fal)
+      const len = (await (await fetch(url, { cache: "no-store" })).arrayBuffer()).byteLength;   // faktiska bytes
       if (len >= 30000) return url;   // riktig bild
-      // annars: troligen safety-svart frame → försök igen med ny seed
-    } catch (e) { return url; }
+      // annars: safety-svart frame → försök igen med ny seed, returnera ALDRIG en svart url
+    } catch (e) { return url; }   // kunde ej verifiera → anta ok
   }
-  return lastUrl;
+  return null;   // alla försök blev svarta → signalera blockerad (klienten hoppar över, ingen svart ruta)
 }
 
 async function dalleImage(prompt, apiKey) {
@@ -45,7 +44,7 @@ export async function onRequestPost(context) {
   if (!prompt) return Response.json({ error: "no prompt" });
   const falKey = env.FLUX_API_KEY;
   const openaiKey = env.OPENAI_API_KEY;
-  if (falKey) { try { return Response.json({ url: await fluxImage(prompt, falKey), engine: "Flux 1.1 Pro (fal.ai)" }); } catch (e) {} }
+  if (falKey) { try { const u = await fluxImage(prompt, falKey); if (u) return Response.json({ url: u, engine: "Flux 1.1 Pro (fal.ai)" }); } catch (e) {} }
   if (openaiKey) { try { return Response.json({ url: await dalleImage(prompt, openaiKey), engine: "dall-e-3" }); } catch (e) {} }
-  return Response.json({ error: "no image provider / failed" });
+  return Response.json({ error: "image blocked or failed — try a less edgy theme or re-roll" });
 }
