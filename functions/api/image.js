@@ -3,16 +3,28 @@
 // Flux 1.1 Pro (fal.ai) primär, dall-e-3 reserv. Ny bild varje gång (stokastiskt).
 
 async function fluxImage(prompt, falKey) {
-  const res = await fetch("https://fal.run/fal-ai/flux-pro/v1.1", {
-    method: "POST",
-    headers: { "Content-Type": "application/json", Authorization: `Key ${falKey}` },
-    body: JSON.stringify({ prompt: prompt.slice(0, 1800), image_size: "square_hd", num_images: 1 }),
-  });
-  if (!res.ok) throw new Error(`fal ${res.status}`);
-  const d = await res.json();
-  const url = d.images && d.images[0] && d.images[0].url;
-  if (!url) throw new Error("fal: no url");
-  return url;
+  // Flux safety-filter returnerar ibland en HELT SVART bild (~10-20KB) när en prompt triggar.
+  // En riktig bild är >100KB. Vi detekterar den lilla svarta framen via Content-Length och regenererar.
+  let lastUrl = null;
+  for (let attempt = 0; attempt < 3; attempt++) {
+    const res = await fetch("https://fal.run/fal-ai/flux-pro/v1.1", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Key ${falKey}` },
+      body: JSON.stringify({ prompt: prompt.slice(0, 1800), image_size: "square_hd", num_images: 1, seed: Math.floor(Math.random() * 1e9) }),
+    });
+    if (!res.ok) throw new Error(`fal ${res.status}`);
+    const d = await res.json();
+    const url = d.images && d.images[0] && d.images[0].url;
+    if (!url) throw new Error("fal: no url");
+    lastUrl = url;
+    try {
+      const h = await fetch(url, { method: "HEAD" });
+      const len = parseInt(h.headers.get("content-length") || "0", 10);
+      if (len === 0 || len >= 30000) return url;   // riktig bild
+      // annars: troligen safety-svart → försök igen med ny seed
+    } catch (e) { return url; }
+  }
+  return lastUrl;
 }
 
 async function dalleImage(prompt, apiKey) {
