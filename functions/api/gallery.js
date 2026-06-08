@@ -74,20 +74,27 @@ export async function onRequestPost(context) {
   if (!kvOk(env)) return Response.json({ error: "kv_not_configured" });
   let body = {};
   try { body = await request.json(); } catch {}
-  const { theme, concept, audio } = body;
-  if (!theme || !concept) return Response.json({ error: "missing theme/concept" }, { status: 400 });
+  const { theme, state } = body;
+  if (!theme || !state) return Response.json({ error: "missing theme/state" }, { status: 400 });
 
   try {
-    const id = "e" + Date.now() + Math.floor(Math.random() * 1000);
-    // Bädda in media så det består.
-    const storedConcept = { ...concept, image_url: await inline(concept.image_url) };
-    const storedAudio = { ...(audio || {}), soundtrack_url: await inline((audio || {}).soundtrack_url) };
-    const ts = Date.now();
-    const entry = { id, theme, key: normalize(theme), ts, concept: storedConcept, audio: storedAudio };
-    await kvPut(env, RES_KEY(id), JSON.stringify(entry));
+    const v = state.versions || {};
+    const imgArr = Array.isArray(v.image) ? v.image : [];
+    // Tumnagel från originalurl INNAN inlining (annars blir det en jätte-data-URI i indexet).
+    const curImg = imgArr[(state.idx && state.idx.image) || 0] || imgArr[0] || {};
+    const thumb = curImg.url && !String(curImg.url).startsWith("data:") ? curImg.url : "";
+    // Inline all media över alla versioner så inget löper ut (redan-inlinade hoppas över).
+    for (const im of imgArr) { if (im && im.url) im.url = await inline(im.url); }
+    if (Array.isArray(v.soundtrack)) for (const so of v.soundtrack) { if (so && so.url) so.url = await inline(so.url); }
 
-    const idx = await readIndex(env);
-    idx.unshift({ id, theme, key: entry.key, ts, thumb: concept.image_url || "" });
+    const ts = Date.now();
+    const id = body.id || ("e" + Date.now() + Math.floor(Math.random() * 1000));
+    const key = normalize(theme);
+    await kvPut(env, RES_KEY(id), JSON.stringify({ id, theme, key, ts, state }));
+
+    let idx = await readIndex(env);
+    idx = idx.filter((m) => m.id !== id);           // uppdatering: ta bort gammal post för samma id
+    idx.unshift({ id, theme, key, ts, thumb });
     while (idx.length > CAP) { const o = idx.pop(); await kvDel(env, RES_KEY(o.id)); }
     await kvPut(env, INDEX_KEY, JSON.stringify(idx));
     return Response.json({ id });

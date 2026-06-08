@@ -9,7 +9,6 @@ import Layout from '../layouts/Layout.astro';
   <main class="min-h-screen bg-[#0a0a0f] text-stone-100 font-sans">
     <div class="mx-auto max-w-6xl px-5 py-10 sm:py-12">
 
-      <!-- Header -->
       <header class="mb-7">
         <p class="mb-3 inline-flex items-center gap-2 rounded-full border border-[#2a2a3a] bg-[#15151f] px-3 py-1 text-xs font-medium tracking-wide text-stone-400">
           <span class="h-1.5 w-1.5 rounded-full bg-[#c6ff00]"></span>
@@ -21,28 +20,16 @@ import Layout from '../layouts/Layout.astro';
         <p class="mt-3 max-w-2xl text-base leading-relaxed text-stone-400">
           Throw it a vibe. It hands back a complete game concept — names, art direction, mechanic,
           a <span class="font-semibold text-[#ff2d78]">music brief with a generated soundtrack</span>,
-          and launch hooks. The slow part of a content factory is going from idea to greenlight.
-          This compresses it to seconds.
+          and launch hooks. Re-roll any piece on its own and flip between versions.
         </p>
       </header>
 
-      <!-- Input -->
       <form id="forge-form" class="mb-6">
         <div class="flex flex-col gap-3 sm:flex-row">
-          <input
-            id="theme"
-            type="text"
-            autocomplete="off"
-            placeholder="neon yakuza with a country vibe…"
-            class="flex-1 rounded-xl border border-[#2a2a3a] bg-[#15151f] px-4 py-3.5 text-lg text-stone-100 placeholder-stone-500 outline-none focus:border-[#c6ff00]"
-          />
-          <button
-            id="generate"
-            type="submit"
-            class="rounded-xl bg-[#c6ff00] px-7 py-3.5 text-lg font-black uppercase tracking-tight text-black transition hover:bg-[#d6ff3a] disabled:opacity-50"
-          >
-            Forge it
-          </button>
+          <input id="theme" type="text" autocomplete="off" placeholder="neon yakuza with a country vibe…"
+            class="flex-1 rounded-xl border border-[#2a2a3a] bg-[#15151f] px-4 py-3.5 text-lg text-stone-100 placeholder-stone-500 outline-none focus:border-[#c6ff00]" />
+          <button id="generate" type="submit"
+            class="rounded-xl bg-[#c6ff00] px-7 py-3.5 text-lg font-black uppercase tracking-tight text-black transition hover:bg-[#d6ff3a] disabled:opacity-50">Forge it</button>
         </div>
         <div class="mt-3 flex flex-wrap items-center gap-2 text-sm">
           <button type="button" id="surprise" class="text-[#ff2d78] hover:underline">⚡ Surprise me</button>
@@ -58,16 +45,13 @@ import Layout from '../layouts/Layout.astro';
         </div>
       </form>
 
-      <!-- Loading -->
       <div id="loading" class="hidden py-16 text-center">
         <div class="mx-auto mb-4 h-8 w-8 animate-spin rounded-full border-2 border-[#2a2a3a] border-t-[#c6ff00]"></div>
         <p id="loading-msg" class="text-stone-400">Sketching characters…</p>
       </div>
 
-      <!-- Results -->
       <section id="result" class="hidden"></section>
 
-      <!-- Footer note -->
       <footer class="mt-14 border-t border-[#1c1c28] pt-6 text-xs leading-relaxed text-stone-500">
         <p><span class="font-semibold text-stone-400">Ideation accelerator, not an art generator.</span>
         It produces direction and briefs for humans to refine — the model never ships the final asset.
@@ -79,13 +63,17 @@ import Layout from '../layouts/Layout.astro';
 </Layout>
 
 <style is:global>
-  .cf-tab {
-    display: inline-block; padding: 7px 13px; border-radius: 9px; font-size: 12px;
-    font-weight: 800; letter-spacing: -0.01em; text-transform: uppercase;
-    border: 1px solid #2a2a3a; color: #d6d3d1; background: transparent; cursor: pointer;
-  }
-  .cf-tab:hover { border-color: #c6ff00; }
-  .cf-tab.active { background: #c6ff00; color: #000; border-color: #c6ff00; }
+  .cf-tab { display:inline-block; padding:7px 13px; border-radius:9px; font-size:12px; font-weight:800; letter-spacing:-0.01em; text-transform:uppercase; border:1px solid #2a2a3a; color:#d6d3d1; background:transparent; cursor:pointer; }
+  .cf-tab:hover { border-color:#c6ff00; }
+  .cf-tab.active { background:#c6ff00; color:#000; border-color:#c6ff00; }
+  .cf-ctrl { display:inline-flex; align-items:center; gap:4px; vertical-align:middle; }
+  .cf-mini { display:inline-flex; align-items:center; justify-content:center; height:22px; min-width:22px; padding:0 5px; border:1px solid #2a2a3a; border-radius:6px; background:#15151f; color:#9aa3b2; font-size:12px; line-height:1; cursor:pointer; font-family:inherit; }
+  .cf-mini:hover:not(:disabled) { border-color:#c6ff00; color:#e6e8ee; }
+  .cf-mini:disabled { opacity:.35; cursor:default; }
+  .cf-refresh { color:#c6ff00; }
+  .cf-ver { font-size:10px; color:#5b6675; min-width:26px; text-align:center; }
+  .cf-spin { display:inline-block; width:11px; height:11px; border:2px solid #2a2a3a; border-top-color:#c6ff00; border-radius:50%; animation:cfspin .7s linear infinite; }
+  @keyframes cfspin { to { transform:rotate(360deg); } }
 </style>
 
 <script is:inline>
@@ -99,56 +87,26 @@ import Layout from '../layouts/Layout.astro';
   const recentPanel = document.getElementById('recent-panel');
   const recentCount = document.getElementById('recent-count');
 
-  const SURPRISES = [
-    'neon yakuza synthwave heist', 'haunted disco inferno', 'viking metal feast',
-    'deep sea treasure cult', 'cyberpunk samurai noodle bar', 'wild west bank robbery at dawn',
-    'baroque vampire opera', 'arctic monster hunt', 'lucha libre luchador showdown',
-    'egyptian afterlife game show', 'jurassic jungle bounty', 'voodoo new orleans jazz funeral',
-  ];
-  const LOADING_MSGS = [
-    'Sketching characters…', 'Inking the key art…', 'Designing the bonus round…',
-    'Stress-testing the max win…', 'Writing the launch hooks…',
-  ];
+  const SURPRISES = ['neon yakuza synthwave heist','haunted disco inferno','viking metal feast','deep sea treasure cult','cyberpunk samurai noodle bar','wild west bank robbery at dawn','baroque vampire opera','arctic monster hunt','lucha libre luchador showdown','egyptian afterlife game show','jurassic jungle bounty','voodoo new orleans jazz funeral'];
+  const LOADING_MSGS = ['Sketching characters…','Inking the key art…','Designing the bonus round…','Stress-testing the max win…','Writing the launch hooks…'];
 
-  const esc = (s) => String(s == null ? '' : s)
-    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-  const normalize = (s) => String(s || '').trim().toLowerCase().replace(/\s+/g, ' ');
+  const esc = (s) => String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  const normalize = (s) => String(s || '').trim().toLowerCase().replace(/\s+/g,' ');
 
   let lastTheme = '';
+  let state = null;
+  const VCAP = 6;
 
   // ---------- Delat gallery (server, Cloudflare KV) ----------
   let galleryList = [];
-
   async function refreshGallery() {
-    try {
-      const r = await fetch('/api/gallery');
-      const j = await r.json();
-      galleryList = Array.isArray(j.list) ? j.list : [];
-    } catch (e) { galleryList = []; }
+    try { const r = await fetch('/api/gallery'); const j = await r.json(); galleryList = Array.isArray(j.list) ? j.list : []; }
+    catch (e) { galleryList = []; }
     renderRecent();
   }
-
-  function findCachedId(key) {
-    const m = galleryList.find((x) => x.key === key);
-    return m ? m.id : null;
-  }
-
-  async function addEntry(theme, concept, audio) {
-    try {
-      await fetch('/api/gallery', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ theme, concept, audio }) });
-    } catch (e) {}
-    refreshGallery();
-  }
-
-  async function delEntry(id) {
-    try { await fetch('/api/gallery?id=' + encodeURIComponent(id), { method: 'DELETE' }); } catch (e) {}
-    refreshGallery();
-  }
-
-  async function clearHist() {
-    try { await fetch('/api/gallery?all=1', { method: 'DELETE' }); } catch (e) {}
-    refreshGallery();
-  }
+  const findCachedId = (key) => { const m = galleryList.find((x) => x.key === key); return m ? m.id : null; };
+  async function delEntry(id) { try { await fetch('/api/gallery?id=' + encodeURIComponent(id), { method: 'DELETE' }); } catch (e) {} refreshGallery(); }
+  async function clearHist() { try { await fetch('/api/gallery?all=1', { method: 'DELETE' }); } catch (e) {} refreshGallery(); }
 
   function timeAgo(ts) {
     const s = Math.floor((Date.now() - ts) / 1000);
@@ -157,289 +115,274 @@ import Layout from '../layouts/Layout.astro';
     if (s < 86400) return Math.floor(s / 3600) + 'h ago';
     return Math.floor(s / 86400) + 'd ago';
   }
-
   function renderRecent() {
     const hist = galleryList;
     recentCount.textContent = hist.length ? '(' + hist.length + ')' : '';
-    if (!hist.length) {
-      recentPanel.innerHTML = '<p class="px-2 py-3 text-xs text-stone-500">No saved concepts yet.</p>';
-      return;
-    }
+    if (!hist.length) { recentPanel.innerHTML = '<p class="px-2 py-3 text-xs text-stone-500">No saved concepts yet.</p>'; return; }
     recentPanel.innerHTML = hist.map((m) => `
       <div class="recent-item flex items-center gap-2 rounded-lg px-2 py-1.5 hover:bg-[#1d212c] cursor-pointer" data-id="${esc(m.id)}">
         ${m.thumb ? `<img src="${esc(m.thumb)}" onerror="this.style.display='none'" class="h-9 w-9 flex-shrink-0 rounded object-cover" />` : '<div class="h-9 w-9 flex-shrink-0 rounded bg-[#222]"></div>'}
-        <div class="min-w-0 flex-1">
-          <div class="truncate text-sm text-stone-200">${esc(m.theme)}</div>
-          <div class="text-[10px] text-stone-500">${timeAgo(m.ts)}</div>
-        </div>
+        <div class="min-w-0 flex-1"><div class="truncate text-sm text-stone-200">${esc(m.theme)}</div><div class="text-[10px] text-stone-500">${timeAgo(m.ts)}</div></div>
         <button class="flex-shrink-0 px-1 text-stone-600 hover:text-[#ff2d78]" data-del="${esc(m.id)}" title="Remove">✕</button>
       </div>`).join('') +
       `<div class="mt-1 border-t border-[#2a2a3a] pt-1"><button id="recent-clear" class="w-full rounded-lg px-2 py-1.5 text-left text-xs text-stone-500 hover:text-[#ff2d78]">Clear all</button></div>`;
-    recentPanel.querySelectorAll('.recent-item').forEach((el) => {
-      el.addEventListener('click', (ev) => { if (ev.target.closest('[data-del]')) return; loadCachedById(el.dataset.id); });
-    });
-    recentPanel.querySelectorAll('[data-del]').forEach((b) => {
-      b.addEventListener('click', (ev) => { ev.stopPropagation(); delEntry(b.dataset.del); });
-    });
+    recentPanel.querySelectorAll('.recent-item').forEach((el) => el.addEventListener('click', (ev) => { if (ev.target.closest('[data-del]')) return; loadSearch(el.dataset.id); }));
+    recentPanel.querySelectorAll('[data-del]').forEach((b) => b.addEventListener('click', (ev) => { ev.stopPropagation(); delEntry(b.dataset.del); }));
     const clr = document.getElementById('recent-clear');
     if (clr) clr.addEventListener('click', clearHist);
   }
-
   const closeRecent = () => recentPanel.classList.add('hidden');
   recentBtn.addEventListener('click', (e) => { e.stopPropagation(); recentPanel.classList.toggle('hidden'); });
   document.addEventListener('click', (e) => { if (!e.target.closest('#recent-wrap')) closeRecent(); });
 
-  // ---------- UI helpers ----------
-  document.getElementById('surprise').addEventListener('click', () => {
-    input.value = SURPRISES[Math.floor(Math.random() * SURPRISES.length)];
-    form.requestSubmit();
-  });
-  document.querySelectorAll('.chip').forEach((c) =>
-    c.addEventListener('click', () => { input.value = c.textContent; form.requestSubmit(); })
-  );
-
+  // ---------- Loading ----------
   let msgTimer;
-  function startLoading() {
-    result.classList.add('hidden');
-    loading.classList.remove('hidden');
-    btn.disabled = true;
-    let i = 0;
-    loadingMsg.textContent = LOADING_MSGS[0];
-    msgTimer = setInterval(() => { i = (i + 1) % LOADING_MSGS.length; loadingMsg.textContent = LOADING_MSGS[i]; }, 1500);
-  }
+  function startLoading() { result.classList.add('hidden'); loading.classList.remove('hidden'); btn.disabled = true; let i = 0; loadingMsg.textContent = LOADING_MSGS[0]; msgTimer = setInterval(() => { i = (i + 1) % LOADING_MSGS.length; loadingMsg.textContent = LOADING_MSGS[i]; }, 1500); }
   function stopLoading() { clearInterval(msgTimer); loading.classList.add('hidden'); btn.disabled = false; }
 
-  function rows(pairs) {
-    return pairs.filter((r) => r[1]).map((r) =>
-      `<div class="mb-3 last:mb-0"><dt class="text-[11px] uppercase tracking-wide text-stone-500">${esc(r[0])}</dt><dd class="mt-0.5 text-sm leading-relaxed text-stone-200">${esc(r[1])}</dd></div>`
-    ).join('');
+  // ---------- Version state ----------
+  function initState(c) {
+    state = {
+      id: null, theme: c.theme || lastTheme || '', imagePrompt: c.image_prompt || c.theme || lastTheme || '', conceptEngine: c.engine || '',
+      versions: {
+        title: [{ names: c.names || [], logline: c.logline || '' }],
+        art: [c.art || {}],
+        mechanic: [{ mechanic: c.mechanic || {}, math: c.math || {} }],
+        music: [{ music: c.music || {}, soundtrack_prompt: c.soundtrack_prompt || '', sfxPrompts: c.sfx || [] }],
+        hooks: [c.hooks || []],
+        image: [{ url: c.image_url || null, engine: c.engine_image || null }],
+        soundtrack: [], sfx: [],
+      },
+      idx: { title: 0, art: 0, mechanic: 0, music: 0, hooks: 0, image: 0, soundtrack: 0, sfx: 0 },
+    };
+  }
+  const cur = (comp) => (state.versions[comp] || [])[state.idx[comp]];
+  function pushVersion(comp, value) { const a = state.versions[comp]; a.push(value); while (a.length > VCAP) a.shift(); state.idx[comp] = a.length - 1; }
+  function flatConcept() {
+    const t = cur('title') || {}, m = cur('mechanic') || { mechanic: {}, math: {} }, mu = cur('music') || { music: {} };
+    return { names: t.names, logline: t.logline, art: cur('art') || {}, mechanic: m.mechanic, math: m.math, music: mu.music, hooks: cur('hooks') || [] };
   }
 
-  function buildResult(c, fromCache) {
-    const names = Array.isArray(c.names) ? c.names : [];
-    const primary = names[0] || 'Untitled';
-    const alts = names.slice(1);
-    const art = c.art || {}, mech = c.mechanic || {}, math = c.math || {}, music = c.music || {};
-    const hooks = Array.isArray(c.hooks) ? c.hooks : [];
+  // ---------- Controls ----------
+  function ctrl(comp, busy) {
+    const n = state.versions[comp].length, i = state.idx[comp];
+    const nav = n > 1 ? `<button class="cf-mini" data-nav="${comp}" data-d="-1" ${i <= 0 ? 'disabled' : ''}>‹</button><span class="cf-ver">${i + 1}/${n}</span><button class="cf-mini" data-nav="${comp}" data-d="1" ${i >= n - 1 ? 'disabled' : ''}>›</button>` : '';
+    return `<span class="cf-ctrl">${nav}<button class="cf-mini cf-refresh" data-refresh="${comp}" title="Regenerate this">${busy ? '<span class="cf-spin"></span>' : '↻'}</button></span>`;
+  }
 
-    const tabs = [
-      ['art', 'Art direction', rows([['Style', art.style], ['Palette', art.palette], ['Hero characters', art.hero_characters], ['Mood', art.mood]])],
-      ['mech', 'Mechanic', rows([['Base game', mech.base_game], ['Signature feature', mech.signature_feature], ['Bonus round', mech.bonus_round], ['Volatility', math.volatility], ['Suggested max win', math.suggested_max_win]])],
-      ['music', 'Music & audio', rows([['Genre', music.genre], ['Instrumentation', music.instrumentation], ['Base vs bonus', music.base_vs_bonus], ['Tempo', music.bpm], ['Reference vibe', music.reference_vibe]])],
-      ['hooks', 'Hooks', `<ul class="space-y-2.5">${hooks.map((h) => `<li class="flex gap-2 text-sm leading-relaxed text-stone-200"><span class="text-[#c6ff00]">▸</span><span>${esc(h)}</span></li>`).join('')}</ul>`],
-    ];
+  // ---------- Per-component render ----------
+  function rows(pairs) { return pairs.filter((r) => r[1]).map((r) => `<div class="mb-3 last:mb-0"><dt class="text-[11px] uppercase tracking-wide text-stone-500">${esc(r[0])}</dt><dd class="mt-0.5 text-sm leading-relaxed text-stone-200">${esc(r[1])}</dd></div>`).join(''); }
 
-    const imageBlock = c.image_url
-      ? `<img src="${esc(c.image_url)}" alt="Moodboard for ${esc(primary)}" class="aspect-square w-full rounded-2xl border border-[#22222e] object-cover" />`
-      : `<div class="flex aspect-square w-full items-center justify-center rounded-2xl border border-dashed border-[#2a2a3a] bg-[#13131c] p-6 text-center text-xs text-stone-500">Moodboard prompt ready, image API not wired in this run.<br/><span class="mt-2 block text-stone-600">${esc(c.image_prompt || '')}</span></div>`;
-
-    const strip = fromCache
-      ? `<div class="mb-3 flex items-center gap-3 text-xs"><span class="rounded-full bg-[#c6ff00]/15 px-2.5 py-1 font-semibold text-[#c6ff00]">⚡ From cache · no credits used</span><button id="regen-btn" type="button" class="text-stone-400 hover:text-[#ff2d78]">↻ Generate fresh</button></div>`
-      : `<div class="mb-3 text-xs"><span class="rounded-full bg-[#1d212c] px-2.5 py-1 text-stone-400">✓ Saved · re-running this vibe is free</span></div>`;
-
-    const engineLine = c.engine ? `<p class="mt-6 text-xs text-stone-500">${[
-      'Concept by ' + esc(c.engine),
-      c.image_url && c.engine_image ? 'art by ' + esc(c.engine_image) : '',
-      'SFX by ElevenLabs',
-    ].filter(Boolean).join(' &nbsp;·&nbsp; ')} &nbsp;—&nbsp; right model for each step.</p>` : '';
-
-    result.innerHTML = `
-      ${strip}
-      <div class="mb-4 flex flex-wrap items-baseline gap-x-3 gap-y-2">
+  function renderTitle(busy) {
+    const el = document.getElementById('cf-title'); if (!el) return;
+    const v = cur('title') || { names: [], logline: '' }; const names = v.names || []; const primary = names[0] || 'Untitled'; const alts = names.slice(1);
+    el.innerHTML = `<div class="flex flex-wrap items-baseline gap-x-3 gap-y-2">
         <h2 class="text-4xl font-black uppercase tracking-tight text-[#c6ff00] sm:text-5xl">${esc(primary)}</h2>
         ${alts.map((n) => `<span class="rounded-full border border-[#2a2a3a] px-3 py-1 text-sm text-stone-400">${esc(n)}</span>`).join('')}
+        ${ctrl('title', busy)}
       </div>
-      <p class="mb-6 max-w-3xl text-lg italic text-stone-300">“${esc(c.logline || '')}”</p>
-
-      <div class="grid items-start gap-5 lg:grid-cols-[minmax(0,44%)_1fr]">
-        <div class="space-y-4 lg:sticky lg:top-5 self-start">
-          ${imageBlock}
-          <div class="rounded-2xl border border-[#22222e] bg-[#13131c] p-4">
-            <div class="mb-2 flex items-center justify-between">
-              <span class="text-[11px] font-black uppercase tracking-wide text-[#ff2d78]">🎵 Soundtrack</span>
-              <span id="st-engine" class="text-[10px] text-stone-600"></span>
-            </div>
-            <div id="soundtrack-slot"><div class="flex items-center gap-2 py-2 text-xs text-stone-500"><span class="h-3 w-3 animate-spin rounded-full border-2 border-[#2a2a3a] border-t-[#ff2d78]"></span> Composing soundtrack…</div></div>
-            <div class="mt-4 mb-2 text-[11px] font-black uppercase tracking-wide text-[#ff2d78]">SFX</div>
-            <div id="sfx-slot"><div class="py-1 text-xs text-stone-500">Generating sound effects…</div></div>
-          </div>
-        </div>
-
-        <div>
-          <div class="mb-4 flex flex-wrap gap-2">
-            ${tabs.map((t, i) => `<button class="cf-tab${i === 0 ? ' active' : ''}" data-tab="${t[0]}">${esc(t[1])}</button>`).join('')}
-          </div>
-          <div class="rounded-2xl border border-[#22222e] bg-[#13131c] p-6" style="min-height:420px">
-            ${tabs.map((t, i) => `<div data-panel="${t[0]}" class="${i === 0 ? '' : 'hidden'}"><dl>${t[2]}</dl></div>`).join('')}
-          </div>
-        </div>
-      </div>
-      ${engineLine}
-      ${c.note ? `<p class="mt-2 text-xs text-stone-600">${c.note === 'no_api_key' ? 'Showing a curated sample (no API key set yet).' : c.note === 'fallback' ? 'API hiccup — showing a curated sample.' : ''}</p>` : ''}`;
-
-    result.classList.remove('hidden');
-
-    result.querySelectorAll('[data-tab]').forEach((b) => {
-      b.addEventListener('click', () => {
-        const t = b.dataset.tab;
-        result.querySelectorAll('[data-tab]').forEach((x) => x.classList.toggle('active', x.dataset.tab === t));
-        result.querySelectorAll('[data-panel]').forEach((p) => p.classList.toggle('hidden', p.dataset.panel !== t));
-      });
-    });
-    const regen = document.getElementById('regen-btn');
-    if (regen) regen.addEventListener('click', () => { if (lastTheme) generateFresh(lastTheme); });
+      <p class="mt-2 max-w-3xl text-lg italic text-stone-300">“${esc(v.logline || '')}”</p>`;
   }
-
-  function fillSoundtrack(url, engine, note) {
-    const st = document.getElementById('soundtrack-slot');
-    const stEng = document.getElementById('st-engine');
-    if (stEng) stEng.textContent = engine || '';
+  function renderImage(busy) {
+    const el = document.getElementById('cf-image'); if (!el) return;
+    const v = cur('image') || { url: null };
+    const overlay = `<div class="absolute right-2 top-2">${ctrl('image', busy)}</div>`;
+    el.innerHTML = v.url
+      ? `<div class="relative"><img src="${esc(v.url)}" alt="Moodboard" class="aspect-square w-full rounded-2xl border border-[#22222e] object-cover" />${overlay}</div>`
+      : `<div class="relative"><div class="flex aspect-square w-full items-center justify-center rounded-2xl border border-dashed border-[#2a2a3a] bg-[#13131c] p-6 text-center text-xs text-stone-500">No image (regenerate or check the image key).</div>${overlay}</div>`;
+  }
+  function renderTab(comp, busy) {
+    const el = document.getElementById('cf-panel-' + comp); if (!el) return;
+    let inner = '';
+    if (comp === 'art') { const v = cur('art') || {}; inner = rows([['Style', v.style], ['Palette', v.palette], ['Hero characters', v.hero_characters], ['Mood', v.mood]]); }
+    else if (comp === 'mechanic') { const v = cur('mechanic') || { mechanic: {}, math: {} }; inner = rows([['Base game', v.mechanic.base_game], ['Signature feature', v.mechanic.signature_feature], ['Bonus round', v.mechanic.bonus_round], ['Volatility', v.math.volatility], ['Suggested max win', v.math.suggested_max_win]]); }
+    else if (comp === 'music') { const v = (cur('music') || {}).music || {}; inner = rows([['Genre', v.genre], ['Instrumentation', v.instrumentation], ['Base vs bonus', v.base_vs_bonus], ['Tempo', v.bpm], ['Reference vibe', v.reference_vibe]]); }
+    else if (comp === 'hooks') { const v = cur('hooks') || []; inner = `<ul class="space-y-2.5">${v.map((h) => `<li class="flex gap-2 text-sm leading-relaxed text-stone-200"><span class="text-[#c6ff00]">▸</span><span>${esc(h)}</span></li>`).join('')}</ul>`; }
+    el.innerHTML = `<div class="mb-3 flex justify-end">${ctrl(comp, busy)}</div>${inner}`;
+  }
+  function setSoundtrackMsg(t) { const st = document.getElementById('soundtrack-slot'); if (st) st.innerHTML = `<div class="flex items-center gap-2 py-2 text-xs text-stone-500"><span class="h-3 w-3 animate-spin rounded-full border-2 border-[#2a2a3a] border-t-[#ff2d78]"></span> ${esc(t)}</div>`; }
+  function renderSoundtrack(busy) {
+    const st = document.getElementById('soundtrack-slot'), eng = document.getElementById('st-engine'), c = document.getElementById('cf-st-ctrl');
+    const has = state.versions.soundtrack.length; const v = cur('soundtrack');
+    if (eng) eng.textContent = (v && v.engine) || '';
+    if (c) c.innerHTML = has ? ctrl('soundtrack', busy) : (busy ? `<span class="cf-spin"></span>` : '');
     if (!st) return;
-    st.innerHTML = url
-      ? `<audio controls src="${esc(url)}" class="w-full"></audio>`
-      : `<p class="text-xs text-stone-600">Soundtrack unavailable${note === 'no_eleven_key' ? ' (no key set)' : ' — hit ↻ Generate fresh'}.</p>`;
+    if (v && v.url) st.innerHTML = `<audio controls src="${esc(v.url)}" class="w-full"></audio>`;
+    else if (!busy) st.innerHTML = `<p class="text-xs text-stone-600">Soundtrack unavailable.</p>`;
   }
-
-  function setSoundtrackMsg(t) {
-    const st = document.getElementById('soundtrack-slot');
-    if (st) st.innerHTML = `<div class="flex items-center gap-2 py-2 text-xs text-stone-500"><span class="h-3 w-3 animate-spin rounded-full border-2 border-[#2a2a3a] border-t-[#ff2d78]"></span> ${esc(t)}</div>`;
-  }
-
-  function fillSfx(sfx) {
-    const fx = document.getElementById('sfx-slot');
+  function renderSfx(busy) {
+    const fx = document.getElementById('sfx-slot'), c = document.getElementById('cf-sfx-ctrl');
+    const has = state.versions.sfx.length; const list = cur('sfx') || [];
+    if (c) c.innerHTML = has ? ctrl('sfx', busy) : (busy ? `<span class="cf-spin"></span>` : '');
     if (!fx) return;
-    if (!(sfx && sfx.length)) { fx.innerHTML = `<p class="text-xs text-stone-600">No SFX generated.</p>`; return; }
-    // Kompakta runda play-knappar — SFX är korta, ingen scrubber behövs.
-    fx.innerHTML = `<div class="flex flex-wrap gap-2">${sfx.map((s, i) => `
+    if (!list.length) { if (!busy) fx.innerHTML = `<p class="text-xs text-stone-600">No SFX.</p>`; return; }
+    fx.innerHTML = `<div class="flex flex-wrap gap-2">${list.map((s, i) => `
       <button type="button" class="sfx-chip inline-flex items-center gap-2 rounded-full border border-[#2a2a3a] bg-[#15151f] py-1 pl-1 pr-3 text-xs text-stone-300 hover:border-[#ff2d78]" data-sfx="${i}">
-        <span class="sfx-ic flex h-6 w-6 items-center justify-center rounded-full bg-[#ff2d78] text-[11px] text-black">▶</span>
-        <span>${esc(s.label)}</span>
-      </button>
-      <audio data-sfxaudio="${i}" src="${esc(s.url)}" preload="none"></audio>`).join('')}</div>`;
+        <span class="sfx-ic flex h-6 w-6 items-center justify-center rounded-full bg-[#ff2d78] text-[11px] text-black">▶</span><span>${esc(s.label)}</span>
+      </button><audio data-sfxaudio="${i}" src="${esc(s.url)}" preload="none"></audio>`).join('')}</div>`;
     const auds = fx.querySelectorAll('audio[data-sfxaudio]');
     const reset = () => { auds.forEach((o) => { o.pause(); o.currentTime = 0; }); fx.querySelectorAll('.sfx-ic').forEach((x) => (x.textContent = '▶')); };
     fx.querySelectorAll('.sfx-chip').forEach((chip) => {
-      const i = chip.dataset.sfx;
-      const au = fx.querySelector(`audio[data-sfxaudio="${i}"]`);
-      const ic = chip.querySelector('.sfx-ic');
-      chip.addEventListener('click', () => {
-        const wasPlaying = !au.paused;
-        reset();
-        if (wasPlaying) return;
-        au.play(); ic.textContent = '⏸';
-        au.onended = () => { ic.textContent = '▶'; };
-      });
+      const au = fx.querySelector(`audio[data-sfxaudio="${chip.dataset.sfx}"]`), ic = chip.querySelector('.sfx-ic');
+      chip.addEventListener('click', () => { const playing = !au.paused; reset(); if (playing) return; au.play(); ic.textContent = '⏸'; au.onended = () => { ic.textContent = '▶'; }; });
     });
   }
-
-  // Cache-hit: fyll båda direkt från sparad data.
-  function fillAudio(a) {
-    a = a || {};
-    fillSoundtrack(a.soundtrack_url, a.soundtrack_engine, a.note);
-    fillSfx(a.sfx);
+  function renderEngine() {
+    const el = document.getElementById('cf-engine'); if (!el) return;
+    const im = cur('image') || {}, so = cur('soundtrack') || {};
+    el.innerHTML = [`Concept by ${esc(state.conceptEngine || 'Claude')}`, im.engine ? 'art by ' + esc(im.engine) : '', so.engine ? 'soundtrack by ' + esc(so.engine) : '', 'SFX by ElevenLabs'].filter(Boolean).join(' &nbsp;·&nbsp; ') + ' &nbsp;—&nbsp; right model for each step.';
   }
-
-  async function loadSfx(concept) {
-    let sfx = [];
-    try {
-      const r = await fetch('/api/audio', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ sfx: concept.sfx }) });
-      const j = await r.json();
-      sfx = j.sfx || [];
-    } catch (e) {}
-    fillSfx(sfx);
-    return sfx;
+  function render(comp, busy) {
+    if (comp === 'title') renderTitle(busy);
+    else if (comp === 'image') { renderImage(busy); renderEngine(); }
+    else if (comp === 'soundtrack') { renderSoundtrack(busy); renderEngine(); }
+    else if (comp === 'sfx') renderSfx(busy);
+    else renderTab(comp, busy);
   }
+  function renderAll() { renderTitle(); renderImage(); ['art', 'mechanic', 'music', 'hooks'].forEach((t) => renderTab(t)); renderSoundtrack(); renderSfx(); renderEngine(); }
 
+  // ---------- Audio fetchers ----------
   async function pollSuno(taskId) {
-    const maxMs = 120000, interval = 4000;
-    let waited = 0;
+    let waited = 0; const interval = 4000, maxMs = 120000;
     while (waited < maxMs) {
-      await new Promise((r) => setTimeout(r, interval));
-      waited += interval;
+      await new Promise((r) => setTimeout(r, interval)); waited += interval;
       setSoundtrackMsg('Composing soundtrack with Suno… ' + Math.floor(waited / 1000) + 's');
-      try {
-        const r = await fetch('/api/soundtrack?taskId=' + encodeURIComponent(taskId));
-        const j = await r.json();
-        if (j.status === 'done' && j.url) return j.url;
-        if (j.status === 'failed') return null;
-      } catch (e) {}
+      try { const r = await fetch('/api/soundtrack?taskId=' + encodeURIComponent(taskId)); const j = await r.json(); if (j.status === 'done' && j.url) return j.url; if (j.status === 'failed') return null; } catch (e) {}
     }
     return null;
   }
+  async function fetchSoundtrack() {
+    const prompt = (cur('music') || {}).soundtrack_prompt || state.theme || '';
+    if (!prompt) return null;
+    try { const r = await fetch('/api/soundtrack', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ prompt }) }); const j = await r.json(); if (j.taskId) { const url = await pollSuno(j.taskId); if (url) return { url, engine: 'Suno V5' }; } } catch (e) {}
+    try { const r = await fetch('/api/soundtrack', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ prompt, engine: 'fal' }) }); const j = await r.json(); if (j.url) return { url: j.url, engine: j.engine || 'Stable Audio (fal.ai)' }; } catch (e) {}
+    return null;
+  }
+  async function fetchSfx() {
+    try { const r = await fetch('/api/audio', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ sfx: (cur('music') || {}).sfxPrompts || [] }) }); const j = await r.json(); return j.sfx || []; } catch (e) { return []; }
+  }
 
-  async function loadSoundtrack(concept) {
-    const prompt = concept.soundtrack_prompt || concept.theme || '';
-    if (!prompt) { fillSoundtrack(null, null); return { url: null, engine: null }; }
-    // Suno primär
+  // ---------- Refresh / nav ----------
+  async function refresh(comp) {
+    render(comp, true);
     try {
-      setSoundtrackMsg('Composing soundtrack with Suno…');
-      const r = await fetch('/api/soundtrack', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ prompt }) });
-      const j = await r.json();
-      if (j.taskId) {
-        const url = await pollSuno(j.taskId);
-        if (url) { fillSoundtrack(url, 'Suno V5'); return { url, engine: 'Suno V5' }; }
+      if (['title', 'art', 'mechanic', 'music', 'hooks'].includes(comp)) {
+        const r = await fetch('/api/section', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ theme: state.theme, section: comp, concept: flatConcept() }) });
+        const j = await r.json();
+        if (!j.error) {
+          if (comp === 'title') pushVersion('title', { names: j.names || [], logline: j.logline || '' });
+          else if (comp === 'art') pushVersion('art', j.art || {});
+          else if (comp === 'mechanic') pushVersion('mechanic', { mechanic: j.mechanic || {}, math: j.math || {} });
+          else if (comp === 'music') pushVersion('music', { music: j.music || {}, soundtrack_prompt: j.soundtrack_prompt || '', sfxPrompts: j.sfx || [] });
+          else if (comp === 'hooks') pushVersion('hooks', j.hooks || []);
+        }
+      } else if (comp === 'image') {
+        const r = await fetch('/api/image', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ prompt: state.imagePrompt }) });
+        const j = await r.json(); if (j.url) pushVersion('image', { url: j.url, engine: j.engine });
+      } else if (comp === 'soundtrack') {
+        const st = await fetchSoundtrack(); if (st) pushVersion('soundtrack', st);
+      } else if (comp === 'sfx') {
+        const sfx = await fetchSfx(); if (sfx.length) pushVersion('sfx', sfx);
       }
     } catch (e) {}
-    // fal fallback
-    setSoundtrackMsg('Composing soundtrack…');
+    render(comp, false);
+    persist();
+  }
+  function nav(comp, d) {
+    const n = state.versions[comp].length; let i = state.idx[comp] + d;
+    i = Math.max(0, Math.min(n - 1, i)); state.idx[comp] = i; render(comp, false);
+  }
+
+  // ---------- Persist ----------
+  async function persist() {
     try {
-      const r = await fetch('/api/soundtrack', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ prompt, engine: 'fal' }) });
-      const j = await r.json();
-      if (j.url) { fillSoundtrack(j.url, j.engine || 'Stable Audio (fal.ai)'); return { url: j.url, engine: j.engine }; }
+      const r = await fetch('/api/gallery', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: state.id, theme: state.theme, state: { theme: state.theme, imagePrompt: state.imagePrompt, conceptEngine: state.conceptEngine, versions: state.versions, idx: state.idx } }) });
+      const j = await r.json(); if (j.id) state.id = j.id;
     } catch (e) {}
-    fillSoundtrack(null, null);
-    return { url: null, engine: null };
+    refreshGallery();
   }
 
+  // ---------- Build skeleton ----------
+  function buildResult(fromCache) {
+    const strip = fromCache
+      ? `<div class="mb-3 flex items-center gap-3 text-xs"><span class="rounded-full bg-[#c6ff00]/15 px-2.5 py-1 font-semibold text-[#c6ff00]">⚡ Loaded from gallery</span><button id="regen-btn" type="button" class="text-stone-400 hover:text-[#ff2d78]">↻ Generate a fresh concept</button></div>`
+      : `<div class="mb-3 text-xs"><span class="rounded-full bg-[#1d212c] px-2.5 py-1 text-stone-400">✓ Saved · re-rolls and versions are kept</span></div>`;
+    const tabs = [['art', 'Art direction'], ['mechanic', 'Mechanic'], ['music', 'Music & audio'], ['hooks', 'Hooks']];
+    result.innerHTML = `
+      ${strip}
+      <div id="cf-title" class="mb-4"></div>
+      <div class="grid items-start gap-5 lg:grid-cols-[minmax(0,44%)_1fr]">
+        <div class="space-y-4 lg:sticky lg:top-5 self-start">
+          <div id="cf-image"></div>
+          <div class="rounded-2xl border border-[#22222e] bg-[#13131c] p-4">
+            <div class="mb-2 flex items-center justify-between">
+              <span class="text-[11px] font-black uppercase tracking-wide text-[#ff2d78]">🎵 Soundtrack</span>
+              <span class="flex items-center gap-2"><span id="st-engine" class="text-[10px] text-stone-600"></span><span id="cf-st-ctrl"></span></span>
+            </div>
+            <div id="soundtrack-slot"></div>
+            <div class="mt-4 mb-2 flex items-center justify-between"><span class="text-[11px] font-black uppercase tracking-wide text-[#ff2d78]">SFX</span><span id="cf-sfx-ctrl"></span></div>
+            <div id="sfx-slot"></div>
+          </div>
+        </div>
+        <div>
+          <div class="mb-4 flex flex-wrap gap-2">${tabs.map((t, i) => `<button class="cf-tab${i === 0 ? ' active' : ''}" data-tab="${t[0]}">${esc(t[1])}</button>`).join('')}</div>
+          <div class="rounded-2xl border border-[#22222e] bg-[#13131c] p-6" style="min-height:420px">
+            ${tabs.map((t, i) => `<div data-panel="${t[0]}" class="${i === 0 ? '' : 'hidden'}"><div id="cf-panel-${t[0]}"></div></div>`).join('')}
+          </div>
+        </div>
+      </div>
+      <p id="cf-engine" class="mt-6 text-xs text-stone-500"></p>`;
+    renderAll();
+    result.classList.remove('hidden');
+    const regen = document.getElementById('regen-btn');
+    if (regen) regen.addEventListener('click', () => { if (state && state.theme) generateFresh(state.theme); });
+  }
+
+  // delegation (result-elementet är stabilt; lyssnaren sätts en gång)
+  result.addEventListener('click', (e) => {
+    const tb = e.target.closest('[data-tab]');
+    if (tb) { const t = tb.dataset.tab; result.querySelectorAll('[data-tab]').forEach((x) => x.classList.toggle('active', x.dataset.tab === t)); result.querySelectorAll('[data-panel]').forEach((p) => p.classList.toggle('hidden', p.dataset.panel !== t)); return; }
+    const rf = e.target.closest('[data-refresh]'); if (rf) { refresh(rf.dataset.refresh); return; }
+    const nv = e.target.closest('[data-nav]'); if (nv) { nav(nv.dataset.nav, +nv.dataset.d); return; }
+  });
+
+  // ---------- Flows ----------
   async function generateFresh(theme) {
-    lastTheme = theme;
-    closeRecent();
-    startLoading();
+    lastTheme = theme; closeRecent(); startLoading();
     let concept;
-    try {
-      const res = await fetch('/api/concept', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ theme }) });
-      concept = await res.json();
-    } catch (err) {
-      stopLoading();
-      result.innerHTML = `<p class="text-stone-400">Something broke: ${esc(String(err))}. Try again.</p>`;
-      result.classList.remove('hidden');
-      return;
-    }
+    try { const res = await fetch('/api/concept', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ theme }) }); concept = await res.json(); }
+    catch (err) { stopLoading(); result.innerHTML = `<p class="text-stone-400">Something broke: ${esc(String(err))}. Try again.</p>`; result.classList.remove('hidden'); return; }
     stopLoading();
-    if (!concept || concept.note === 'error') {
-      result.innerHTML = `<div class="rounded-2xl border border-[#22222e] bg-[#13131c] p-6 text-stone-300">⚠️ Generation hiccupped${concept && concept.error ? ' (' + esc(concept.error) + ')' : ''}. Hit <strong class="text-[#c6ff00]">Forge it</strong> again.</div>`;
-      result.classList.remove('hidden');
-      return;
-    }
-    buildResult(concept, false);
-    const [sfx, st] = await Promise.all([loadSfx(concept), loadSoundtrack(concept)]);
-    addEntry(theme, concept, { sfx, soundtrack_url: st.url, soundtrack_engine: st.engine });
+    if (!concept || concept.note === 'error') { result.innerHTML = `<div class="rounded-2xl border border-[#22222e] bg-[#13131c] p-6 text-stone-300">⚠️ Generation hiccupped${concept && concept.error ? ' (' + esc(concept.error) + ')' : ''}. Hit <strong class="text-[#c6ff00]">Forge it</strong> again.</div>`; result.classList.remove('hidden'); return; }
+    if (!concept.theme) concept.theme = theme;
+    initState(concept);
+    buildResult(false);
+    setSoundtrackMsg('Composing soundtrack with Suno…');
+    const sfx = await fetchSfx(); if (sfx.length) { state.versions.sfx = [sfx]; state.idx.sfx = 0; } renderSfx();
+    const st = await fetchSoundtrack(); if (st) { state.versions.soundtrack = [st]; state.idx.soundtrack = 0; } renderSoundtrack();
+    persist();
   }
 
-  async function loadCachedById(id) {
+  async function loadSearch(id) {
     closeRecent();
     let data;
-    try {
-      const r = await fetch('/api/gallery?id=' + encodeURIComponent(id));
-      if (!r.ok) return;
-      data = await r.json();
-    } catch (e) { return; }
-    if (!data || !data.concept) return;
-    lastTheme = data.theme || '';
-    input.value = data.theme || input.value;
-    buildResult(data.concept, true);
-    fillAudio(data.audio);
+    try { const r = await fetch('/api/gallery?id=' + encodeURIComponent(id)); if (!r.ok) return; data = await r.json(); } catch (e) { return; }
+    if (!data || !data.state) return;
+    state = Object.assign({ id: data.id }, data.state);
+    lastTheme = state.theme || ''; input.value = state.theme || input.value;
+    buildResult(true);
     window.scrollTo({ top: result.offsetTop - 20, behavior: 'smooth' });
   }
 
   form.addEventListener('submit', (e) => {
     e.preventDefault();
-    const theme = input.value.trim();
-    if (!theme) return;
+    const theme = input.value.trim(); if (!theme) return;
     const id = findCachedId(normalize(theme));
-    if (id) loadCachedById(id);
-    else generateFresh(theme);
+    if (id) loadSearch(id); else generateFresh(theme);
   });
+
+  document.getElementById('surprise').addEventListener('click', () => { input.value = SURPRISES[Math.floor(Math.random() * SURPRISES.length)]; form.requestSubmit(); });
+  document.querySelectorAll('.chip').forEach((c) => c.addEventListener('click', () => { input.value = c.textContent; form.requestSubmit(); }));
 
   refreshGallery();
 </script>
