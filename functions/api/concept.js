@@ -1,13 +1,9 @@
 // Concept Forge — Cloudflare Pages Function
-// POST /api/concept  { theme: string }  ->  { concept JSON, image_url, sfx_url }
+// POST /api/concept  { theme: string }  ->  concept JSON (incl. sfx[] + soundtrack_prompt) + image_url
 //
-// Multi-model pipeline, rätt modell per steg:
-//   • Claude (claude-sonnet-4-6) skriver konceptet
-//   • Flux 1.1 Pro (fal.ai) målar moodboarden, dall-e-3 som reserv
-//   • ElevenLabs genererar ett bonus-trigger-ljud
-// Nycklar ligger som Cloudflare-secrets, aldrig i klienten. Allt degraderar mjukt: saknad
-// nyckel eller API-strul fäller aldrig hela svaret, och utan text-nyckel visas ett kurerat
-// exempel så demon alltid funkar.
+// Snabb fas 1: Claude skriver konceptet, Flux 1.1 Pro (fal.ai) målar moodboarden (dall-e-3 reserv).
+// Ljudet (mini-soundtrack + SFX) genereras i ett separat anrop /api/audio så första paint blir snabb.
+// Nycklar ligger som Cloudflare-secrets. Allt degraderar mjukt; utan text-nyckel visas ett kurerat exempel.
 
 const SYSTEM_PROMPT = `Du är en senior game concept director på en slot-studio i världsklass, i samma anda som Hacksaw Gaming.
 
@@ -15,10 +11,10 @@ Husstil att alltid följa:
 - Bold, graphic-novel-estetik. Clean linework, starka färgpaletter, dark humor. Allt från gritty western till neondränkt cyberpunk. Street art / urban / popkulturell attityd.
 - Mobile-first, vertikalt spel. Hög volatilitet och stora max-win-multiplar är typiskt.
 - Signaturmekaniker att utgå från eller variera: xNudge wilds, Sticky Multipliers, instant-win-loop, free spins med eskalerande bonus.
-- Musik och ljud är en IDENTITETSPELARE, inte en eftertanke: custom soundtrack som intensifieras i bonusrundor, släpps som riktig musik. Var specifik om genre, instrumentering, BPM och hur ljudbilden skiftar mellan base game och bonus.
+- Musik och ljud är en IDENTITETSPELARE: custom soundtrack som intensifieras i bonusrundor, släpps som riktig musik. Var specifik om genre, instrumentering, BPM och hur ljudbilden skiftar mellan base game och bonus.
 - Ton: självsäker, lekfull, lite respektlös. Aldrig generisk.
 
-Du får ett TEMA. Svara med ETT spelkoncept som STRIKT JSON, inga kommentarer, exakt dessa fält:
+Du får ett TEMA. Svara med ENBART giltig JSON enligt schemat. Ingen text före eller efter, inga kodblock-markörer.
 {
   "names": [3-5 korta, slagkraftiga spelnamn-kandidater, gärna ordvitsar],
   "logline": "en mening som säljer fantasin",
@@ -27,10 +23,15 @@ Du får ett TEMA. Svara med ETT spelkoncept som STRIKT JSON, inga kommentarer, e
   "math": { "volatility": "", "suggested_max_win": "" },
   "music": { "genre": "", "instrumentation": "", "base_vs_bonus": "", "bpm": "", "reference_vibe": "" },
   "hooks": [3 korta TikTok/social-vinklar för lansering],
-  "image_prompt": "en engelsk prompt för key-art moodboard: graphic-novel slot key visual, ingen text, inga riktiga varumärken/IP, dramatisk komposition",
-  "sfx_prompt": "en kort engelsk prompt för ett bonus-trigger-ljud: punchy slot win/bonus stinger som matchar temat"
+  "image_prompt": "engelsk prompt för key-art moodboard: graphic-novel slot key visual, ingen text, inga riktiga varumärken/IP, dramatisk komposition",
+  "soundtrack_prompt": "engelsk prompt för ett ~25 sek instrumentalt base-game-soundtrack som matchar musik-briefen, ange genre/instrument/tempo/känsla",
+  "sfx": [
+    { "label": "Reel spin", "prompt": "engelsk prompt för ett kort spin/reel-ljud i temats stil" },
+    { "label": "Bonus trigger", "prompt": "engelsk prompt för ett bonus-trigger-stinger" },
+    { "label": "Big win", "prompt": "engelsk prompt för ett big win-jubel-ljud" }
+  ]
 }
-Skriv art, mechanic, music, hooks och prompts på engelska (branschspråk). names och logline får gärna ha glimten i ögat.`;
+Skriv art, mechanic, music, hooks och alla prompts på engelska (branschspråk). names och logline får gärna ha glimten i ögat.`;
 
 const FALLBACK = {
   demo: true,
@@ -63,9 +64,14 @@ const FALLBACK = {
   ],
   image_prompt:
     "Graphic-novel key art, neon yakuza synthwave heist, rain-slick Tokyo backstreet at night, tattooed crime boss in a chrome kimono, glowing magenta and cyan signage, bold ink linework, cinematic dramatic composition, slot game key visual, no text, no real brands",
-  sfx_prompt: "Punchy slot bonus-trigger stinger, neon synthwave, rising tension into an impactful win chime",
+  soundtrack_prompt:
+    "25-second instrumental dark synthwave with taiko percussion, brooding analog bass and shamisen plucks, cinematic and tense, slot base-game loop, 92 BPM",
+  sfx: [
+    { label: "Reel spin", prompt: "Short synthwave slot reel spin whoosh, neon, crisp" },
+    { label: "Bonus trigger", prompt: "Punchy bonus-trigger stinger, rising taiko hit into a chime" },
+    { label: "Big win", prompt: "Triumphant big-win flourish, synth arpeggio and impact" },
+  ],
   image_url: null,
-  sfx_url: null,
 };
 
 function extractJson(text) {
@@ -75,29 +81,16 @@ function extractJson(text) {
   return JSON.parse(text.slice(s, e + 1));
 }
 
-function abToBase64(buf) {
-  const bytes = new Uint8Array(buf);
-  let bin = "";
-  const chunk = 0x8000;
-  for (let i = 0; i < bytes.length; i += chunk) {
-    bin += String.fromCharCode.apply(null, bytes.subarray(i, i + chunk));
-  }
-  return btoa(bin);
-}
-
-// ---- Text: Claude (prefill "{" tvingar rent JSON) ----
 async function generateConceptClaude(theme, apiKey) {
   const res = await fetch("https://api.anthropic.com/v1/messages", {
     method: "POST",
     headers: { "Content-Type": "application/json", "x-api-key": apiKey, "anthropic-version": "2023-06-01" },
     body: JSON.stringify({
       model: "claude-sonnet-4-6",
-      max_tokens: 1500,
+      max_tokens: 1800,
       temperature: 1,
       system: SYSTEM_PROMPT,
-      messages: [
-        { role: "user", content: `Tema: ${theme}\n\nSvara med ENBART giltig JSON enligt schemat. Ingen text före eller efter, inga kodblock-markörer.` },
-      ],
+      messages: [{ role: "user", content: `Tema: ${theme}\n\nSvara med ENBART giltig JSON enligt schemat. Ingen text före eller efter, inga kodblock-markörer.` }],
     }),
   });
   if (!res.ok) throw new Error(`anthropic ${res.status}: ${await res.text()}`);
@@ -108,7 +101,6 @@ async function generateConceptClaude(theme, apiKey) {
   return concept;
 }
 
-// ---- Text: OpenAI fallback ----
 async function generateConceptOpenAI(theme, apiKey) {
   const res = await fetch("https://api.openai.com/v1/chat/completions", {
     method: "POST",
@@ -131,7 +123,6 @@ async function generateConceptOpenAI(theme, apiKey) {
   return concept;
 }
 
-// ---- Bild: Flux 1.1 Pro via fal.ai (synkront) ----
 async function fluxImage(prompt, falKey) {
   const res = await fetch("https://fal.run/fal-ai/flux-pro/v1.1", {
     method: "POST",
@@ -145,7 +136,6 @@ async function fluxImage(prompt, falKey) {
   return url;
 }
 
-// ---- Bild: dall-e-3 fallback ----
 async function dalleImage(prompt, apiKey) {
   const res = await fetch("https://api.openai.com/v1/images/generations", {
     method: "POST",
@@ -157,18 +147,6 @@ async function dalleImage(prompt, apiKey) {
   return data.data[0].url;
 }
 
-// ---- Ljud: ElevenLabs SFX -> data-URI ----
-async function elevenSfx(prompt, apiKey) {
-  const res = await fetch("https://api.elevenlabs.io/v1/sound-generation", {
-    method: "POST",
-    headers: { "Content-Type": "application/json", "xi-api-key": apiKey },
-    body: JSON.stringify({ text: prompt.slice(0, 450), duration_seconds: 4, prompt_influence: 0.4 }),
-  });
-  if (!res.ok) throw new Error(`elevenlabs ${res.status}: ${await res.text()}`);
-  const buf = await res.arrayBuffer();
-  return "data:audio/mpeg;base64," + abToBase64(buf);
-}
-
 export async function onRequestPost(context) {
   const { request, env } = context;
   let theme = "";
@@ -178,11 +156,9 @@ export async function onRequestPost(context) {
   } catch {}
   if (!theme) theme = FALLBACK.theme;
 
-  // Tolerant mot felstavad secret (ANTROPHIC_API_KEY).
   const anthropicKey = env.ANTHROPIC_API_KEY || env.ANTROPHIC_API_KEY;
   const openaiKey = env.OPENAI_API_KEY;
   const falKey = env.FLUX_API_KEY;
-  const elevenKey = env.ELEVENLABS_API_KEY;
 
   if (!anthropicKey && !openaiKey) {
     return Response.json({ ...FALLBACK, theme, note: "no_api_key" });
@@ -194,33 +170,16 @@ export async function onRequestPost(context) {
       : await generateConceptOpenAI(theme, openaiKey);
 
     const imgPrompt = concept.image_prompt || theme;
-    const sfxPrompt = concept.sfx_prompt || `${theme} slot bonus-trigger stinger, punchy win chime`;
-
-    // Bild (Flux → dall-e fallback) + ljud parallellt, var för sig icke-fällande. Fel fångas och rapporteras.
-    async function makeImage() {
-      let err = "";
-      if (falKey) {
-        try { return { url: await fluxImage(imgPrompt, falKey), engine: "Flux 1.1 Pro (fal.ai)" }; }
-        catch (e) { err += "flux: " + String(e).slice(0, 350); }
-      }
-      if (openaiKey) {
-        try { return { url: await dalleImage(imgPrompt, openaiKey), engine: "dall-e-3" }; }
-        catch (e) { err += " || dalle: " + String(e).slice(0, 350); }
-      }
-      return { url: null, engine: null, error: err || "no image provider" };
+    let imageErr = "";
+    if (falKey) {
+      try { concept.image_url = await fluxImage(imgPrompt, falKey); concept.engine_image = "Flux 1.1 Pro (fal.ai)"; }
+      catch (e) { imageErr = "flux: " + String(e).slice(0, 300); }
     }
-
-    const [img, sfx] = await Promise.allSettled([
-      makeImage(),
-      elevenKey ? elevenSfx(sfxPrompt, elevenKey) : Promise.resolve(null),
-    ]);
-
-    const imgVal = img.status === "fulfilled" ? img.value : { url: null, engine: null, error: String(img.reason).slice(0, 350) };
-    concept.image_url = imgVal.url;
-    concept.engine_image = imgVal.engine;
-    if (!imgVal.url) concept.image_error = imgVal.error;
-    concept.sfx_url = sfx.status === "fulfilled" ? sfx.value : null;
-    if (concept.sfx_url) concept.engine_audio = "ElevenLabs";
+    if (!concept.image_url && openaiKey) {
+      try { concept.image_url = await dalleImage(imgPrompt, openaiKey); concept.engine_image = "dall-e-3"; }
+      catch (e) { imageErr += " || dalle: " + String(e).slice(0, 300); }
+    }
+    if (!concept.image_url) { concept.image_url = null; concept.image_error = imageErr || "no image provider"; }
 
     return Response.json(concept);
   } catch (e) {
