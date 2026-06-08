@@ -303,20 +303,27 @@ import Layout from '../layouts/Layout.astro';
     if (regen) regen.addEventListener('click', () => { if (lastTheme) generateFresh(lastTheme); });
   }
 
-  function fillAudio(a) {
-    a = a || {};
+  function fillSoundtrack(url, engine, note) {
     const st = document.getElementById('soundtrack-slot');
-    const fx = document.getElementById('sfx-slot');
     const stEng = document.getElementById('st-engine');
-    if (stEng) stEng.textContent = a.soundtrack_engine || '';
-    if (st) st.innerHTML = a.soundtrack_url
-      ? `<audio controls src="${esc(a.soundtrack_url)}" class="w-full"></audio>`
-      : `<p class="text-xs text-stone-600">Soundtrack unavailable${a.note === 'no_eleven_key' ? ' (no key set)' : ' — hit ↻ Generate fresh'}.</p>`;
+    if (stEng) stEng.textContent = engine || '';
+    if (!st) return;
+    st.innerHTML = url
+      ? `<audio controls src="${esc(url)}" class="w-full"></audio>`
+      : `<p class="text-xs text-stone-600">Soundtrack unavailable${note === 'no_eleven_key' ? ' (no key set)' : ' — hit ↻ Generate fresh'}.</p>`;
+  }
 
+  function setSoundtrackMsg(t) {
+    const st = document.getElementById('soundtrack-slot');
+    if (st) st.innerHTML = `<div class="flex items-center gap-2 py-2 text-xs text-stone-500"><span class="h-3 w-3 animate-spin rounded-full border-2 border-[#2a2a3a] border-t-[#ff2d78]"></span> ${esc(t)}</div>`;
+  }
+
+  function fillSfx(sfx) {
+    const fx = document.getElementById('sfx-slot');
     if (!fx) return;
-    if (!(a.sfx && a.sfx.length)) { fx.innerHTML = `<p class="text-xs text-stone-600">No SFX generated.</p>`; return; }
+    if (!(sfx && sfx.length)) { fx.innerHTML = `<p class="text-xs text-stone-600">No SFX generated.</p>`; return; }
     // Kompakta runda play-knappar — SFX är korta, ingen scrubber behövs.
-    fx.innerHTML = `<div class="flex flex-wrap gap-2">${a.sfx.map((s, i) => `
+    fx.innerHTML = `<div class="flex flex-wrap gap-2">${sfx.map((s, i) => `
       <button type="button" class="sfx-chip inline-flex items-center gap-2 rounded-full border border-[#2a2a3a] bg-[#15151f] py-1 pl-1 pr-3 text-xs text-stone-300 hover:border-[#ff2d78]" data-sfx="${i}">
         <span class="sfx-ic flex h-6 w-6 items-center justify-center rounded-full bg-[#ff2d78] text-[11px] text-black">▶</span>
         <span>${esc(s.label)}</span>
@@ -338,6 +345,65 @@ import Layout from '../layouts/Layout.astro';
     });
   }
 
+  // Cache-hit: fyll båda direkt från sparad data.
+  function fillAudio(a) {
+    a = a || {};
+    fillSoundtrack(a.soundtrack_url, a.soundtrack_engine, a.note);
+    fillSfx(a.sfx);
+  }
+
+  async function loadSfx(concept) {
+    let sfx = [];
+    try {
+      const r = await fetch('/api/audio', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ sfx: concept.sfx }) });
+      const j = await r.json();
+      sfx = j.sfx || [];
+    } catch (e) {}
+    fillSfx(sfx);
+    return sfx;
+  }
+
+  async function pollSuno(taskId) {
+    const maxMs = 120000, interval = 4000;
+    let waited = 0;
+    while (waited < maxMs) {
+      await new Promise((r) => setTimeout(r, interval));
+      waited += interval;
+      setSoundtrackMsg('Composing soundtrack with Suno… ' + Math.floor(waited / 1000) + 's');
+      try {
+        const r = await fetch('/api/soundtrack?taskId=' + encodeURIComponent(taskId));
+        const j = await r.json();
+        if (j.status === 'done' && j.url) return j.url;
+        if (j.status === 'failed') return null;
+      } catch (e) {}
+    }
+    return null;
+  }
+
+  async function loadSoundtrack(concept) {
+    const prompt = concept.soundtrack_prompt || concept.theme || '';
+    if (!prompt) { fillSoundtrack(null, null); return { url: null, engine: null }; }
+    // Suno primär
+    try {
+      setSoundtrackMsg('Composing soundtrack with Suno…');
+      const r = await fetch('/api/soundtrack', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ prompt }) });
+      const j = await r.json();
+      if (j.taskId) {
+        const url = await pollSuno(j.taskId);
+        if (url) { fillSoundtrack(url, 'Suno V5'); return { url, engine: 'Suno V5' }; }
+      }
+    } catch (e) {}
+    // fal fallback
+    setSoundtrackMsg('Composing soundtrack…');
+    try {
+      const r = await fetch('/api/soundtrack', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ prompt, engine: 'fal' }) });
+      const j = await r.json();
+      if (j.url) { fillSoundtrack(j.url, j.engine || 'Stable Audio (fal.ai)'); return { url: j.url, engine: j.engine }; }
+    } catch (e) {}
+    fillSoundtrack(null, null);
+    return { url: null, engine: null };
+  }
+
   async function generateFresh(theme) {
     lastTheme = theme;
     closeRecent();
@@ -354,13 +420,8 @@ import Layout from '../layouts/Layout.astro';
     }
     stopLoading();
     buildResult(concept, false);
-    let audio = { soundtrack_url: null, soundtrack_engine: null, sfx: [] };
-    try {
-      const r = await fetch('/api/audio', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ soundtrack_prompt: concept.soundtrack_prompt, sfx: concept.sfx }) });
-      audio = await r.json();
-    } catch (e) {}
-    fillAudio(audio);
-    addEntry(theme, concept, audio);
+    const [sfx, st] = await Promise.all([loadSfx(concept), loadSoundtrack(concept)]);
+    addEntry(theme, concept, { sfx, soundtrack_url: st.url, soundtrack_engine: st.engine });
   }
 
   function loadCachedById(id) {
