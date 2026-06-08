@@ -81,24 +81,41 @@ function extractJson(text) {
   return JSON.parse(text.slice(s, e + 1));
 }
 
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+// Claude med retry — överbelastning/timeout/parse-strul är transient, så vi försöker om.
 async function generateConceptClaude(theme, apiKey) {
-  const res = await fetch("https://api.anthropic.com/v1/messages", {
-    method: "POST",
-    headers: { "Content-Type": "application/json", "x-api-key": apiKey, "anthropic-version": "2023-06-01" },
-    body: JSON.stringify({
-      model: "claude-sonnet-4-6",
-      max_tokens: 1800,
-      temperature: 1,
-      system: SYSTEM_PROMPT,
-      messages: [{ role: "user", content: `Tema: ${theme}\n\nSvara med ENBART giltig JSON enligt schemat. Ingen text före eller efter, inga kodblock-markörer.` }],
-    }),
-  });
-  if (!res.ok) throw new Error(`anthropic ${res.status}: ${await res.text()}`);
-  const data = await res.json();
-  const concept = extractJson(data.content[0].text);
-  concept.theme = theme;
-  concept.engine = "Claude (claude-sonnet-4-6)";
-  return concept;
+  let lastErr;
+  for (let attempt = 0; attempt < 3; attempt++) {
+    try {
+      const res = await fetch("https://api.anthropic.com/v1/messages", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-api-key": apiKey, "anthropic-version": "2023-06-01" },
+        body: JSON.stringify({
+          model: "claude-sonnet-4-6",
+          max_tokens: 1800,
+          temperature: 1,
+          system: SYSTEM_PROMPT,
+          messages: [{ role: "user", content: `Tema: ${theme}\n\nSvara med ENBART giltig JSON enligt schemat. Ingen text före eller efter, inga kodblock-markörer.` }],
+        }),
+      });
+      if (!res.ok) {
+        const body = await res.text();
+        if ([429, 500, 502, 503, 529].includes(res.status) && attempt < 2) { lastErr = new Error(`anthropic ${res.status}`); await sleep(700 * (attempt + 1)); continue; }
+        throw new Error(`anthropic ${res.status}: ${body}`);
+      }
+      const data = await res.json();
+      const concept = extractJson(data.content[0].text);
+      concept.theme = theme;
+      concept.engine = "Claude (claude-sonnet-4-6)";
+      return concept;
+    } catch (e) {
+      lastErr = e;
+      if (attempt < 2) { await sleep(700 * (attempt + 1)); continue; }
+      throw e;
+    }
+  }
+  throw lastErr;
 }
 
 async function generateConceptOpenAI(theme, apiKey) {
@@ -183,6 +200,7 @@ export async function onRequestPost(context) {
 
     return Response.json(concept);
   } catch (e) {
-    return Response.json({ ...FALLBACK, theme, note: "fallback", error: String(e).slice(0, 200) });
+    // Nyckel finns men genereringen föll även efter retries → ärligt fel, inte ett orelaterat exempel.
+    return Response.json({ note: "error", error: String(e).slice(0, 200) });
   }
 }

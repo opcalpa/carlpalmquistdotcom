@@ -406,6 +406,11 @@ import Layout from '../layouts/Layout.astro';
       return;
     }
     stopLoading();
+    if (!concept || concept.note === 'error') {
+      result.innerHTML = `<div class="rounded-2xl border border-[#22222e] bg-[#13131c] p-6 text-stone-300">⚠️ Generation hiccupped${concept && concept.error ? ' (' + esc(concept.error) + ')' : ''}. Hit <strong class="text-[#c6ff00]">Forge it</strong> again.</div>`;
+      result.classList.remove('hidden');
+      return;
+    }
     buildResult(concept, false);
     const [sfx, st] = await Promise.all([loadSfx(concept), loadSoundtrack(concept)]);
     addEntry(theme, concept, { sfx, soundtrack_url: st.url, soundtrack_engine: st.engine });
