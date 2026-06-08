@@ -35,9 +35,8 @@ import Layout from '../layouts/Layout.astro';
           <button type="button" id="surprise" class="text-[#ff2d78] hover:underline">⚡ Surprise me</button>
           <span class="text-stone-600">·</span>
           <span class="text-stone-500">try:</span>
-          <button type="button" class="chip rounded-full border border-[#2a2a3a] px-3 py-1 text-stone-300 hover:border-[#c6ff00]">haunted disco</button>
-          <button type="button" class="chip rounded-full border border-[#2a2a3a] px-3 py-1 text-stone-300 hover:border-[#c6ff00]">viking metal feast</button>
-          <button type="button" class="chip rounded-full border border-[#2a2a3a] px-3 py-1 text-stone-300 hover:border-[#c6ff00]">deep sea treasure cult</button>
+          <span id="chips" class="flex flex-wrap items-center gap-2"></span>
+          <button type="button" id="chip-shuffle" class="rounded-full border border-[#2a2a3a] px-2 py-1 text-stone-400 hover:border-[#c6ff00]" title="Fler förslag">↻</button>
           <div class="relative ml-auto" id="recent-wrap">
             <button type="button" id="recent-btn" class="rounded-full border border-[#2a2a3a] px-3 py-1 text-stone-300 hover:border-[#c6ff00]">⟲ Recent <span id="recent-count" class="text-stone-500"></span> ▾</button>
             <div id="recent-panel" class="hidden absolute right-0 z-20 mt-2 w-80 max-h-96 overflow-auto rounded-xl border border-[#2a2a3a] bg-[#15151f] p-2 shadow-2xl"></div>
@@ -87,7 +86,7 @@ import Layout from '../layouts/Layout.astro';
   const recentPanel = document.getElementById('recent-panel');
   const recentCount = document.getElementById('recent-count');
 
-  const SURPRISES = ['neon yakuza synthwave heist','haunted disco inferno','viking metal feast','deep sea treasure cult','cyberpunk samurai noodle bar','wild west bank robbery at dawn','baroque vampire opera','arctic monster hunt','lucha libre luchador showdown','egyptian afterlife game show','jurassic jungle bounty','voodoo new orleans jazz funeral'];
+  const SURPRISES = ['neon yakuza synthwave heist','haunted disco inferno','viking metal feast','deep sea treasure cult','cyberpunk samurai noodle bar','wild west bank robbery at dawn','baroque vampire opera','arctic monster hunt','lucha libre luchador showdown','egyptian afterlife game show','jurassic jungle bounty','voodoo new orleans jazz funeral','haunted carnival freakshow','retro arcade hacker den','greek underworld boxing','candy factory sugar rush','pirate ghost ship raid','dumpling dojo kung fu','space western bounty hunter','gothic cathedral exorcism','tropical tiki volcano party','steampunk airship robbery','zombie football hooligans','samurai cyber dragon','wild safari jackpot stampede','noir detective speakeasy','frost giant ragnarok','day of the dead mariachi fiesta','toxic sewer mutant rave','medieval dragon siege','street graffiti monster crew','sushi conveyor chaos'];
   const LOADING_MSGS = ['Sketching characters…','Inking the key art…','Designing the bonus round…','Stress-testing the max win…','Writing the launch hooks…'];
 
   const esc = (s) => String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
@@ -152,10 +151,10 @@ import Layout from '../layouts/Layout.astro';
         music: [{ music: c.music || {}, soundtrack_prompt: c.soundtrack_prompt || '', sfxPrompts: c.sfx || [] }],
         hooks: [c.hooks || []],
         image: c.image_url ? [{ url: c.image_url, engine: c.engine_image || null }] : [],
-        soundtrack: [], sfx: [], animation: [],
+        soundtrack: [], sfx: [], animation: [], gameview: [],
       },
-      idx: { title: 0, art: 0, mechanic: 0, music: 0, hooks: 0, image: 0, soundtrack: 0, sfx: 0, animation: 0 },
-      showLoop: false, animBusy: false,
+      idx: { title: 0, art: 0, mechanic: 0, music: 0, hooks: 0, image: 0, soundtrack: 0, sfx: 0, animation: 0, gameview: 0 },
+      visualMode: 'mood', animBusy: false, gameBusy: false,
     };
   }
   const cur = (comp) => (state.versions[comp] || [])[state.idx[comp]];
@@ -199,22 +198,30 @@ import Layout from '../layouts/Layout.astro';
   }
   function renderImage(busy) {
     const el = document.getElementById('cf-image'); if (!el) return;
-    const v = cur('image') || { url: null };
+    const mood = cur('image') || { url: null };
+    const game = cur('gameview');
     const an = cur('animation');
-    const hasLoop = an && an.url;
-    const showLoop = state.showLoop && hasLoop;
-    const animBusy = state.animBusy;
+    const hasGame = !!(game && game.url), hasLoop = !!(an && an.url);
+    const animBusy = state.animBusy, gameBusy = state.gameBusy;
     const on = 'style="color:#c6ff00"';
+    let mode = state.visualMode || 'mood';
+    if (mode === 'game' && !hasGame) mode = 'mood';
+    if (mode === 'loop' && !hasLoop) mode = 'mood';
     let media;
-    if (showLoop) media = `<video src="${esc(an.url)}" autoplay muted loop playsinline class="aspect-square w-full rounded-2xl border border-[#22222e] object-cover"></video>`;
-    else if (v.url) media = `<img src="${esc(v.url)}" alt="Key art" class="aspect-square w-full rounded-2xl border border-[#22222e] object-cover" />`;
-    else media = `<div class="flex aspect-square w-full items-center justify-center rounded-2xl border border-dashed border-[#2a2a3a] bg-[#13131c] p-6 text-center text-xs text-stone-500">${busy ? '🎨 Painting key art…' : 'No image (regenerate or check the image key).'}</div>`;
-    const flip = hasLoop
-      ? `<span class="cf-ctrl"><button class="cf-mini" data-vis="still" ${!showLoop ? on : ''}>Still</button><button class="cf-mini" data-vis="loop" ${showLoop ? on : ''}>Loop</button><button class="cf-mini cf-refresh" data-refresh="animation" title="Re-roll loop">${animBusy ? '<span class="cf-spin"></span>' : '↻'}</button></span>`
-      : `<button class="cf-mini cf-refresh" data-refresh="animation" title="Animate this key art" ${(!v.url || animBusy) ? 'disabled' : ''}>${animBusy ? '<span class="cf-spin"></span>' : '✨ Animate'}</button>`;
-    const reroll = showLoop ? '' : ctrl('image', busy && !animBusy);
-    const note = animBusy ? `<div class="absolute inset-x-2 bottom-2 rounded bg-black/70 px-2 py-1 text-center text-[11px] text-[#c6ff00]">Animating with Luma Ray 2… ~1-2 min</div>` : '';
-    el.innerHTML = `<div class="relative">${media}<div class="absolute right-2 top-2 flex items-center gap-2">${reroll}${flip}</div>${note}</div>`;
+    if (mode === 'loop') media = `<video src="${esc(an.url)}" autoplay muted loop playsinline class="aspect-square w-full rounded-2xl border border-[#22222e] object-cover"></video>`;
+    else if (mode === 'game') media = `<img src="${esc(game.url)}" alt="Game view" class="aspect-square w-full rounded-2xl border border-[#22222e] object-cover" />`;
+    else media = mood.url ? `<img src="${esc(mood.url)}" alt="Key art" class="aspect-square w-full rounded-2xl border border-[#22222e] object-cover" />` : `<div class="flex aspect-square w-full items-center justify-center rounded-2xl border border-dashed border-[#2a2a3a] bg-[#13131c] p-6 text-center text-xs text-stone-500">${busy ? '🎨 Painting key art…' : 'No image yet.'}</div>`;
+    const pill = (m, label) => `<button class="cf-mini" data-vis="${m}" ${mode === m ? on : ''}>${label}</button>`;
+    let pills = pill('mood', 'Mood');
+    pills += hasGame ? pill('game', 'Game') : (gameBusy ? `<span class="cf-mini" style="opacity:.6">Game…</span>` : `<button class="cf-mini" data-refresh="gameview" ${mood.url ? '' : 'disabled'}>+ Game</button>`);
+    pills += hasLoop ? pill('loop', 'Loop') : (animBusy ? `<span class="cf-mini" style="opacity:.6">Loop…</span>` : `<button class="cf-mini" data-refresh="animation" ${mood.url ? '' : 'disabled'}>✨ Loop</button>`);
+    let reroll = '';
+    if (mode === 'mood') reroll = ctrl('image', busy && !gameBusy && !animBusy);
+    else if (mode === 'game') reroll = `<button class="cf-mini cf-refresh" data-refresh="gameview" title="Re-roll game view">${gameBusy ? '<span class="cf-spin"></span>' : '↻'}</button>`;
+    else reroll = `<button class="cf-mini cf-refresh" data-refresh="animation" title="Re-roll loop">${animBusy ? '<span class="cf-spin"></span>' : '↻'}</button>`;
+    const note = animBusy ? `<div class="absolute inset-x-2 bottom-2 rounded bg-black/70 px-2 py-1 text-center text-[11px] text-[#c6ff00]">Animating with Luma Ray 2… ~1-2 min</div>`
+      : (gameBusy ? `<div class="absolute inset-x-2 bottom-2 rounded bg-black/70 px-2 py-1 text-center text-[11px] text-[#c6ff00]">Rendering game view…</div>` : '');
+    el.innerHTML = `<div class="relative">${media}<div class="absolute right-2 top-2 flex flex-wrap items-center justify-end gap-1">${reroll}<span class="cf-ctrl">${pills}</span></div>${note}</div>`;
   }
   function renderTab(comp, busy) {
     const el = document.getElementById('cf-panel-' + comp); if (!el) return;
@@ -232,7 +239,12 @@ import Layout from '../layouts/Layout.astro';
     if (eng) eng.textContent = (v && v.engine) || '';
     if (c) c.innerHTML = ctrl('soundtrack', busy);   // ↻ alltid synlig, även när tomt → kan (om)generera
     if (!st) return;
-    if (v && v.url) st.innerHTML = `<audio controls loop src="${esc(v.url)}" class="w-full"></audio>`;
+    if (v && v.url) st.innerHTML = `<audio controls loop src="${esc(v.url)}" class="w-full"></audio>
+      <div class="mt-2 flex flex-wrap items-center gap-1.5">
+        <input id="st-more" type="text" placeholder="more: …" class="min-w-0 flex-1 rounded border border-[#2a2a3a] bg-[#15151f] px-2 py-1 text-xs text-stone-200 placeholder:text-stone-600" />
+        <input id="st-less" type="text" placeholder="less: …" class="min-w-0 flex-1 rounded border border-[#2a2a3a] bg-[#15151f] px-2 py-1 text-xs text-stone-200 placeholder:text-stone-600" />
+        <button type="button" data-reshape class="cf-mini cf-refresh" ${busy ? 'disabled' : ''}>${busy ? '<span class="cf-spin"></span>' : '↻ Reshape'}</button>
+      </div>`;
     else if (!busy) st.innerHTML = `<p class="text-xs text-stone-600">Soundtrack unavailable.</p>`;
   }
   function renderSfx(busy) {
@@ -259,7 +271,7 @@ import Layout from '../layouts/Layout.astro';
   }
   function render(comp, busy) {
     if (comp === 'title') renderTitle(busy);
-    else if (comp === 'image' || comp === 'animation') { renderImage(busy); renderEngine(); }
+    else if (comp === 'image' || comp === 'animation' || comp === 'gameview') { renderImage(busy); renderEngine(); }
     else if (comp === 'soundtrack') { renderSoundtrack(busy); renderEngine(); }
     else if (comp === 'sfx') renderSfx(busy);
     else renderTab(comp, busy);
@@ -276,8 +288,9 @@ import Layout from '../layouts/Layout.astro';
     }
     return null;
   }
-  async function fetchSoundtrack() {
-    const prompt = (cur('music') || {}).soundtrack_prompt || state.theme || '';
+  async function fetchSoundtrack(steer) {
+    let prompt = (cur('music') || {}).soundtrack_prompt || state.theme || '';
+    if (steer) prompt = prompt + ', ' + steer;
     if (!prompt) return null;
     try { const r = await fetch('/api/soundtrack', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ prompt }) }); const j = await r.json(); if (j.taskId) { const url = await pollSuno(j.taskId); if (url) return { url, engine: 'Suno V5' }; } } catch (e) {}
     try { const r = await fetch('/api/soundtrack', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ prompt, engine: 'fal' }) }); const j = await r.json(); if (j.url) return { url: j.url, engine: j.engine || 'Stable Audio (fal.ai)' }; } catch (e) {}
@@ -310,9 +323,29 @@ import Layout from '../layouts/Layout.astro';
     return null;
   }
 
+  // ---------- Game-view (hur sökningen ser ut i spelläge, Hacksaw-stil) ----------
+  function gamePrompt() {
+    const a = cur('art') || {};
+    return `In-game screenshot of a mobile slot game: ${state.theme || ''}. Vertical 6x5 reel grid filled with themed high-pay symbols plus stylised A K Q J royal symbols, a character mascot standing beside the reels, a bottom UI bar with a round spin button and balance readout, bold graphic-novel Hacksaw-style art with thick linework and halftone shading, ${a.palette || ''}, ${a.mood || ''}, vibrant game HUD, no real readable text.`.slice(0, 720);
+  }
+  async function fetchGameview() {
+    try { const r = await fetch('/api/image', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ prompt: gamePrompt() }) }); const j = await r.json(); if (j.url) return { url: j.url, engine: j.engine }; } catch (e) {}
+    return null;
+  }
+  async function reshapeSoundtrack() {
+    const more = (document.getElementById('st-more') || {}).value || '';
+    const less = (document.getElementById('st-less') || {}).value || '';
+    const steer = [more.trim() ? 'more: ' + more.trim() : '', less.trim() ? 'less: ' + less.trim() : ''].filter(Boolean).join('; ');
+    if (!steer) return;
+    render('soundtrack', true); setSoundtrackMsg('Reshaping soundtrack…');
+    const st = await fetchSoundtrack(steer); if (st) pushVersion('soundtrack', st);
+    render('soundtrack', false); persist();
+  }
+
   // ---------- Refresh / nav ----------
   async function refresh(comp) {
     if (comp === 'animation') state.animBusy = true;
+    if (comp === 'gameview') state.gameBusy = true;
     render(comp, true);
     try {
       if (['title', 'art', 'mechanic', 'music', 'hooks'].includes(comp)) {
@@ -333,10 +366,12 @@ import Layout from '../layouts/Layout.astro';
       } else if (comp === 'sfx') {
         const sfx = await fetchSfx(); if (sfx.length) pushVersion('sfx', sfx);
       } else if (comp === 'animation') {
-        const an = await fetchAnimation(); if (an) { pushVersion('animation', an); state.showLoop = true; }
+        const an = await fetchAnimation(); if (an) { pushVersion('animation', an); state.visualMode = 'loop'; }
+      } else if (comp === 'gameview') {
+        const g = await fetchGameview(); if (g) { pushVersion('gameview', g); state.visualMode = 'game'; }
       }
     } catch (e) {}
-    state.animBusy = false;
+    state.animBusy = false; state.gameBusy = false;
     render(comp, false);
     persist();
   }
@@ -395,7 +430,8 @@ import Layout from '../layouts/Layout.astro';
   result.addEventListener('click', (e) => {
     const tb = e.target.closest('[data-tab]');
     if (tb) { const t = tb.dataset.tab; result.querySelectorAll('[data-tab]').forEach((x) => x.classList.toggle('active', x.dataset.tab === t)); result.querySelectorAll('[data-panel]').forEach((p) => p.classList.toggle('hidden', p.dataset.panel !== t)); return; }
-    const vs = e.target.closest('[data-vis]'); if (vs) { state.showLoop = (vs.dataset.vis === 'loop'); renderImage(false); return; }
+    const vs = e.target.closest('[data-vis]'); if (vs) { state.visualMode = vs.dataset.vis; renderImage(false); return; }
+    const rs = e.target.closest('[data-reshape]'); if (rs) { reshapeSoundtrack(); return; }
     const rf = e.target.closest('[data-refresh]'); if (rf) { refresh(rf.dataset.refresh); return; }
     const nv = e.target.closest('[data-nav]'); if (nv) { nav(nv.dataset.nav, +nv.dataset.d); return; }
   });
@@ -418,6 +454,11 @@ import Layout from '../layouts/Layout.astro';
       (async () => {
         try { const r = await fetch('/api/image', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ prompt: state.imagePrompt }) }); const j = await r.json(); if (j.url) pushVersion('image', { url: j.url, engine: j.engine }); } catch (e) {}
         render('image', false);
+      })(),
+      (async () => {
+        state.gameBusy = true; render('gameview', true);
+        const g = await fetchGameview(); if (g) pushVersion('gameview', g);
+        state.gameBusy = false; render('gameview', false);
       })(),
       (async () => { const sfx = await fetchSfx(); if (sfx.length) { state.versions.sfx = [sfx]; state.idx.sfx = 0; } renderSfx(); })(),
       (async () => { const st = await fetchSoundtrack(); if (st) { state.versions.soundtrack = [st]; state.idx.soundtrack = 0; } renderSoundtrack(); })(),
@@ -445,7 +486,15 @@ import Layout from '../layouts/Layout.astro';
   });
 
   document.getElementById('surprise').addEventListener('click', () => { input.value = SURPRISES[Math.floor(Math.random() * SURPRISES.length)]; form.requestSubmit(); });
-  document.querySelectorAll('.chip').forEach((c) => c.addEventListener('click', () => { input.value = c.textContent; form.requestSubmit(); }));
+  const chipsEl = document.getElementById('chips');
+  function renderChips() {
+    const pool = [...SURPRISES]; const pick = [];
+    for (let i = 0; i < 7 && pool.length; i++) pick.push(pool.splice(Math.floor(Math.random() * pool.length), 1)[0]);
+    chipsEl.innerHTML = pick.map((t) => `<button type="button" class="chip rounded-full border border-[#2a2a3a] px-3 py-1 text-stone-300 hover:border-[#c6ff00]">${t}</button>`).join('');
+  }
+  chipsEl.addEventListener('click', (e) => { const c = e.target.closest('.chip'); if (c) { input.value = c.textContent; form.requestSubmit(); } });
+  document.getElementById('chip-shuffle').addEventListener('click', renderChips);
+  renderChips();
 
   refreshGallery();
 </script>
