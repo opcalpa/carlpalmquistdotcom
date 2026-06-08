@@ -18,7 +18,7 @@ async function elevenSfx(prompt, apiKey) {
     headers: { "Content-Type": "application/json", "xi-api-key": apiKey },
     body: JSON.stringify({ text: prompt.slice(0, 450), duration_seconds: 3, prompt_influence: 0.45 }),
   });
-  if (!res.ok) throw new Error(`elevenlabs sfx ${res.status}`);
+  if (!res.ok) throw new Error(`elevenlabs sfx ${res.status}: ${(await res.text()).slice(0, 180)}`);
   const buf = await res.arrayBuffer();
   return "data:audio/mpeg;base64," + abToBase64(buf);
 }
