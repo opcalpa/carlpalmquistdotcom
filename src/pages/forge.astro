@@ -144,6 +144,7 @@ import Layout from '../layouts/Layout.astro';
   function initState(c) {
     state = {
       id: null, theme: c.theme || lastTheme || '', imagePrompt: c.image_prompt || c.theme || lastTheme || '', conceptEngine: c.engine || '',
+      featureName: c.feature_name || '', featureIntro: Array.isArray(c.feature_intro) ? c.feature_intro : [],
       versions: {
         title: [{ names: c.names || [], logline: c.logline || '' }],
         art: [c.art || {}],
@@ -182,7 +183,19 @@ import Layout from '../layouts/Layout.astro';
         ${alts.map((n) => `<span class="rounded-full border border-[#2a2a3a] px-3 py-1 text-sm text-stone-400">${esc(n)}</span>`).join('')}
         ${ctrl('title', busy)}
       </div>
-      <p class="mt-2 max-w-3xl text-lg italic text-stone-300">“${esc(v.logline || '')}”</p>`;
+      <p class="mt-2 max-w-3xl text-lg italic text-stone-300">“${esc(v.logline || '')}”</p>
+      ${state.featureName ? `<p class="mt-2 text-xs font-semibold uppercase tracking-wide text-[#ff2d78]">⚡ ${esc(state.featureName)}</p>` : ''}`;
+  }
+  function renderFeatureIntro() {
+    const el = document.getElementById('cf-intro'); if (!el) return;
+    const cards = (state.featureIntro || []).slice(0, 3);
+    if (!cards.length) { el.innerHTML = ''; return; }
+    const labels = ['Mechanic', 'Bonus', 'Max win'], accent = ['#c6ff00', '#ff2d78', '#c6ff00'];
+    el.innerHTML = `<div class="grid gap-2 sm:grid-cols-3">${cards.map((c, i) => `
+      <div class="rounded-xl border border-[#22222e] bg-[#13131c] p-3 ${i === 2 ? 'ring-1 ring-[#c6ff00]/40' : ''}">
+        <div class="mb-1 text-[10px] font-black uppercase tracking-wide" style="color:${accent[i] || '#c6ff00'}">${labels[i] || ''}</div>
+        <div class="text-xs leading-relaxed text-stone-200">${esc(c)}</div>
+      </div>`).join('')}</div>`;
   }
   function renderImage(busy) {
     const el = document.getElementById('cf-image'); if (!el) return;
@@ -207,7 +220,7 @@ import Layout from '../layouts/Layout.astro';
     const el = document.getElementById('cf-panel-' + comp); if (!el) return;
     let inner = '';
     if (comp === 'art') { const v = cur('art') || {}; inner = rows([['Style', v.style], ['Palette', v.palette], ['Hero characters', v.hero_characters], ['Mood', v.mood]]); }
-    else if (comp === 'mechanic') { const v = cur('mechanic') || { mechanic: {}, math: {} }; inner = rows([['Base game', v.mechanic.base_game], ['Signature feature', v.mechanic.signature_feature], ['Bonus round', v.mechanic.bonus_round], ['Volatility', v.math.volatility], ['Suggested max win', v.math.suggested_max_win]]); }
+    else if (comp === 'mechanic') { const v = cur('mechanic') || { mechanic: {}, math: {} }; const m = v.mechanic || {}, ma = v.math || {}; inner = rows([['Grid', m.grid], ['Type', m.type], ['Base game', m.base_game], ['Signature feature', m.signature_feature], ['Bonus round', m.bonus_round], ['Bonus buy', m.bonus_buy], ['Volatility', ma.volatility], ['RTP', ma.rtp], ['Max win', ma.suggested_max_win]]); }
     else if (comp === 'music') { const v = (cur('music') || {}).music || {}; inner = rows([['Genre', v.genre], ['Instrumentation', v.instrumentation], ['Base vs bonus', v.base_vs_bonus], ['Tempo', v.bpm], ['Reference vibe', v.reference_vibe]]); }
     else if (comp === 'hooks') { const v = cur('hooks') || []; inner = `<ul class="space-y-2.5">${v.map((h) => `<li class="flex gap-2 text-sm leading-relaxed text-stone-200"><span class="text-[#c6ff00]">▸</span><span>${esc(h)}</span></li>`).join('')}</ul>`; }
     el.innerHTML = `<div class="mb-3 flex justify-end">${ctrl(comp, busy)}</div>${inner}`;
@@ -251,7 +264,7 @@ import Layout from '../layouts/Layout.astro';
     else if (comp === 'sfx') renderSfx(busy);
     else renderTab(comp, busy);
   }
-  function renderAll() { renderTitle(); renderImage(); ['art', 'mechanic', 'music', 'hooks'].forEach((t) => renderTab(t)); renderSoundtrack(); renderSfx(); renderEngine(); }
+  function renderAll() { renderTitle(); renderFeatureIntro(); renderImage(); ['art', 'mechanic', 'music', 'hooks'].forEach((t) => renderTab(t)); renderSoundtrack(); renderSfx(); renderEngine(); }
 
   // ---------- Audio fetchers ----------
   async function pollSuno(taskId) {
@@ -335,7 +348,7 @@ import Layout from '../layouts/Layout.astro';
   // ---------- Persist ----------
   async function persist() {
     try {
-      const r = await fetch('/api/gallery', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: state.id, theme: state.theme, state: { theme: state.theme, imagePrompt: state.imagePrompt, conceptEngine: state.conceptEngine, versions: state.versions, idx: state.idx } }) });
+      const r = await fetch('/api/gallery', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: state.id, theme: state.theme, state: { theme: state.theme, imagePrompt: state.imagePrompt, conceptEngine: state.conceptEngine, featureName: state.featureName, featureIntro: state.featureIntro, versions: state.versions, idx: state.idx } }) });
       const j = await r.json(); if (j.id) state.id = j.id;
     } catch (e) {}
     refreshGallery();
@@ -350,6 +363,7 @@ import Layout from '../layouts/Layout.astro';
     result.innerHTML = `
       ${strip}
       <div id="cf-title" class="mb-4"></div>
+      <div id="cf-intro" class="mb-4"></div>
       <div class="grid items-start gap-5 lg:grid-cols-[minmax(0,44%)_1fr]">
         <div class="space-y-4 lg:sticky lg:top-5 self-start">
           <div id="cf-image"></div>
