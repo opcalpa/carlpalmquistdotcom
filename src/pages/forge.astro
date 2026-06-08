@@ -203,17 +203,17 @@ import Layout from '../layouts/Layout.astro';
   function setSoundtrackMsg(t) { const st = document.getElementById('soundtrack-slot'); if (st) st.innerHTML = `<div class="flex items-center gap-2 py-2 text-xs text-stone-500"><span class="h-3 w-3 animate-spin rounded-full border-2 border-[#2a2a3a] border-t-[#ff2d78]"></span> ${esc(t)}</div>`; }
   function renderSoundtrack(busy) {
     const st = document.getElementById('soundtrack-slot'), eng = document.getElementById('st-engine'), c = document.getElementById('cf-st-ctrl');
-    const has = state.versions.soundtrack.length; const v = cur('soundtrack');
+    const v = cur('soundtrack');
     if (eng) eng.textContent = (v && v.engine) || '';
-    if (c) c.innerHTML = has ? ctrl('soundtrack', busy) : (busy ? `<span class="cf-spin"></span>` : '');
+    if (c) c.innerHTML = ctrl('soundtrack', busy);   // ↻ alltid synlig, även när tomt → kan (om)generera
     if (!st) return;
     if (v && v.url) st.innerHTML = `<audio controls src="${esc(v.url)}" class="w-full"></audio>`;
     else if (!busy) st.innerHTML = `<p class="text-xs text-stone-600">Soundtrack unavailable.</p>`;
   }
   function renderSfx(busy) {
     const fx = document.getElementById('sfx-slot'), c = document.getElementById('cf-sfx-ctrl');
-    const has = state.versions.sfx.length; const list = cur('sfx') || [];
-    if (c) c.innerHTML = has ? ctrl('sfx', busy) : (busy ? `<span class="cf-spin"></span>` : '');
+    const list = cur('sfx') || [];
+    if (c) c.innerHTML = ctrl('sfx', busy);   // ↻ alltid synlig, även vid "No SFX." → kan (om)generera
     if (!fx) return;
     if (!list.length) { if (!busy) fx.innerHTML = `<p class="text-xs text-stone-600">No SFX.</p>`; return; }
     fx.innerHTML = `<div class="flex flex-wrap gap-2">${list.map((s, i) => `
