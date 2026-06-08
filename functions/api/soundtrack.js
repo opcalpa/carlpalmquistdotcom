@@ -42,16 +42,17 @@ async function sunoStatus(taskId, key) {
   return { status: "processing" };
 }
 
-async function falMusic(prompt, falKey, seconds = 25) {
-  const res = await fetch("https://fal.run/fal-ai/stable-audio", {
+// Google Lyria 2 på fal — markant bättre instrumental än stable-audio, pålitligare endpoint.
+async function falMusic(prompt, falKey) {
+  const res = await fetch("https://fal.run/fal-ai/lyria2", {
     method: "POST",
     headers: { "Content-Type": "application/json", Authorization: `Key ${falKey}` },
-    body: JSON.stringify({ prompt: prompt.slice(0, 1000), seconds_total: seconds }),
+    body: JSON.stringify({ prompt: prompt.slice(0, 1000), negative_prompt: "low quality, distorted, muddy mix, vocals" }),
   });
-  if (!res.ok) throw new Error(`fal audio ${res.status}`);
+  if (!res.ok) throw new Error(`fal lyria ${res.status}: ${(await res.text()).slice(0, 160)}`);
   const d = await res.json();
-  const url = d.audio_file && d.audio_file.url;
-  if (!url) throw new Error("fal audio: no url");
+  const url = d.audio && d.audio.url;
+  if (!url) throw new Error("fal lyria: no url");
   return url;
 }
 
@@ -65,7 +66,7 @@ export async function onRequestPost(context) {
 
   if (body.engine === "fal") {
     if (!falKey) return Response.json({ error: "no fal key" });
-    try { return Response.json({ url: await falMusic(prompt, falKey), engine: "Stable Audio (fal.ai)" }); }
+    try { return Response.json({ url: await falMusic(prompt, falKey), engine: "Lyria 2 (fal.ai)" }); }
     catch (e) { return Response.json({ error: String(e).slice(0, 250) }); }
   }
 
