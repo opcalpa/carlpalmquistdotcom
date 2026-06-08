@@ -1,11 +1,13 @@
 // Concept Forge — Cloudflare Pages Function
-// POST /api/concept  { theme: string }  ->  { concept JSON, image_url }
+// POST /api/concept  { theme: string }  ->  { concept JSON, image_url, sfx_url }
 //
-// Hybrid på syfte: Claude skriver konceptet (stark på varumärkesstyrd copy + on-brand),
-// OpenAI/dall-e-3 målar moodboarden (Claude gör inte bild). Det speglar pitchen "rätt modell
-// per steg i en pipeline". Nycklar (ANTHROPIC_API_KEY, OPENAI_API_KEY) ligger som Cloudflare-
-// secrets, aldrig i klienten. Saknas text-nyckel eller strular API:t → kurerat exempel, så
-// demon alltid funkar.
+// Multi-model pipeline, rätt modell per steg:
+//   • Claude (claude-sonnet-4-6) skriver konceptet
+//   • Flux 1.1 Pro (fal.ai) målar moodboarden, dall-e-3 som reserv
+//   • ElevenLabs genererar ett bonus-trigger-ljud
+// Nycklar ligger som Cloudflare-secrets, aldrig i klienten. Allt degraderar mjukt: saknad
+// nyckel eller API-strul fäller aldrig hela svaret, och utan text-nyckel visas ett kurerat
+// exempel så demon alltid funkar.
 
 const SYSTEM_PROMPT = `Du är en senior game concept director på en slot-studio i världsklass, i samma anda som Hacksaw Gaming.
 
@@ -25,9 +27,10 @@ Du får ett TEMA. Svara med ETT spelkoncept som STRIKT JSON, inga kommentarer, e
   "math": { "volatility": "", "suggested_max_win": "" },
   "music": { "genre": "", "instrumentation": "", "base_vs_bonus": "", "bpm": "", "reference_vibe": "" },
   "hooks": [3 korta TikTok/social-vinklar för lansering],
-  "image_prompt": "en engelsk prompt för key-art moodboard: graphic-novel slot key visual, ingen text, inga riktiga varumärken/IP, dramatisk komposition"
+  "image_prompt": "en engelsk prompt för key-art moodboard: graphic-novel slot key visual, ingen text, inga riktiga varumärken/IP, dramatisk komposition",
+  "sfx_prompt": "en kort engelsk prompt för ett bonus-trigger-ljud: punchy slot win/bonus stinger som matchar temat"
 }
-Skriv art, mechanic, music och hooks på engelska (branschspråk). names och logline får gärna ha glimten i ögat.`;
+Skriv art, mechanic, music, hooks och prompts på engelska (branschspråk). names och logline får gärna ha glimten i ögat.`;
 
 const FALLBACK = {
   demo: true,
@@ -60,7 +63,9 @@ const FALLBACK = {
   ],
   image_prompt:
     "Graphic-novel key art, neon yakuza synthwave heist, rain-slick Tokyo backstreet at night, tattooed crime boss in a chrome kimono, glowing magenta and cyan signage, bold ink linework, cinematic dramatic composition, slot game key visual, no text, no real brands",
+  sfx_prompt: "Punchy slot bonus-trigger stinger, neon synthwave, rising tension into an impactful win chime",
   image_url: null,
+  sfx_url: null,
 };
 
 function extractJson(text) {
@@ -70,18 +75,24 @@ function extractJson(text) {
   return JSON.parse(text.slice(s, e + 1));
 }
 
-// Claude skriver konceptet. Prefill med "{" tvingar rent JSON-svar.
+function abToBase64(buf) {
+  const bytes = new Uint8Array(buf);
+  let bin = "";
+  const chunk = 0x8000;
+  for (let i = 0; i < bytes.length; i += chunk) {
+    bin += String.fromCharCode.apply(null, bytes.subarray(i, i + chunk));
+  }
+  return btoa(bin);
+}
+
+// ---- Text: Claude (prefill "{" tvingar rent JSON) ----
 async function generateConceptClaude(theme, apiKey) {
   const res = await fetch("https://api.anthropic.com/v1/messages", {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "x-api-key": apiKey,
-      "anthropic-version": "2023-06-01",
-    },
+    headers: { "Content-Type": "application/json", "x-api-key": apiKey, "anthropic-version": "2023-06-01" },
     body: JSON.stringify({
       model: "claude-sonnet-4-6",
-      max_tokens: 1400,
+      max_tokens: 1500,
       temperature: 1,
       system: SYSTEM_PROMPT,
       messages: [
@@ -98,7 +109,7 @@ async function generateConceptClaude(theme, apiKey) {
   return concept;
 }
 
-// OpenAI som text-fallback om Claude-nyckel saknas.
+// ---- Text: OpenAI fallback ----
 async function generateConceptOpenAI(theme, apiKey) {
   const res = await fetch("https://api.openai.com/v1/chat/completions", {
     method: "POST",
@@ -121,22 +132,42 @@ async function generateConceptOpenAI(theme, apiKey) {
   return concept;
 }
 
-// Moodboard via OpenAI dall-e-3 (Claude gör inte bild).
-async function generateImage(prompt, apiKey) {
+// ---- Bild: Flux 1.1 Pro via fal.ai (synkront) ----
+async function fluxImage(prompt, falKey) {
+  const res = await fetch("https://fal.run/fal-ai/flux-pro/v1.1", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: `Key ${falKey}` },
+    body: JSON.stringify({ prompt: prompt.slice(0, 1800), image_size: "square_hd", num_images: 1 }),
+  });
+  if (!res.ok) throw new Error(`fal ${res.status}: ${await res.text()}`);
+  const data = await res.json();
+  const url = data.images && data.images[0] && data.images[0].url;
+  if (!url) throw new Error("fal: no image url");
+  return url;
+}
+
+// ---- Bild: dall-e-3 fallback ----
+async function dalleImage(prompt, apiKey) {
   const res = await fetch("https://api.openai.com/v1/images/generations", {
     method: "POST",
     headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
-    body: JSON.stringify({
-      model: "dall-e-3",
-      prompt: prompt.slice(0, 3900),
-      n: 1,
-      size: "1024x1024",
-      quality: "standard",
-    }),
+    body: JSON.stringify({ model: "dall-e-3", prompt: prompt.slice(0, 3900), n: 1, size: "1024x1024", quality: "standard" }),
   });
   if (!res.ok) throw new Error(`openai image ${res.status}: ${await res.text()}`);
   const data = await res.json();
   return data.data[0].url;
+}
+
+// ---- Ljud: ElevenLabs SFX -> data-URI ----
+async function elevenSfx(prompt, apiKey) {
+  const res = await fetch("https://api.elevenlabs.io/v1/sound-generation", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", "xi-api-key": apiKey },
+    body: JSON.stringify({ text: prompt.slice(0, 450), duration_seconds: 4, prompt_influence: 0.4 }),
+  });
+  if (!res.ok) throw new Error(`elevenlabs ${res.status}: ${await res.text()}`);
+  const buf = await res.arrayBuffer();
+  return "data:audio/mpeg;base64," + abToBase64(buf);
 }
 
 export async function onRequestPost(context) {
@@ -148,10 +179,12 @@ export async function onRequestPost(context) {
   } catch {}
   if (!theme) theme = FALLBACK.theme;
 
-  const anthropicKey = env.ANTHROPIC_API_KEY;
+  // Tolerant mot felstavad secret (ANTROPHIC_API_KEY).
+  const anthropicKey = env.ANTHROPIC_API_KEY || env.ANTROPHIC_API_KEY;
   const openaiKey = env.OPENAI_API_KEY;
+  const falKey = env.FLUX_API_KEY;
+  const elevenKey = env.ELEVENLABS_API_KEY;
 
-  // Ingen text-nyckel alls → kurerat exempel (demon överlever alltid).
   if (!anthropicKey && !openaiKey) {
     return Response.json({ ...FALLBACK, theme, note: "no_api_key" });
   }
@@ -161,17 +194,30 @@ export async function onRequestPost(context) {
       ? await generateConceptClaude(theme, anthropicKey)
       : await generateConceptOpenAI(theme, openaiKey);
 
-    // Bilden får misslyckas utan att fälla konceptet.
-    if (openaiKey) {
-      try {
-        concept.image_url = await generateImage(concept.image_prompt || theme, openaiKey);
-      } catch (e) {
-        concept.image_url = null;
-        concept.image_error = String(e).slice(0, 200);
-      }
+    const imgPrompt = concept.image_prompt || theme;
+    const sfxPrompt = concept.sfx_prompt || `${theme} slot bonus-trigger stinger, punchy win chime`;
+
+    // Bild + ljud parallellt, var för sig icke-fällande.
+    const [img, sfx] = await Promise.allSettled([
+      (async () => {
+        if (falKey) {
+          try { return { url: await fluxImage(imgPrompt, falKey), engine: "Flux 1.1 Pro (fal.ai)" }; } catch (e) {}
+        }
+        if (openaiKey) return { url: await dalleImage(imgPrompt, openaiKey), engine: "dall-e-3" };
+        return null;
+      })(),
+      (async () => (elevenKey ? await elevenSfx(sfxPrompt, elevenKey) : null))(),
+    ]);
+
+    if (img.status === "fulfilled" && img.value) {
+      concept.image_url = img.value.url;
+      concept.engine_image = img.value.engine;
     } else {
       concept.image_url = null;
     }
+    concept.sfx_url = sfx.status === "fulfilled" ? sfx.value : null;
+    if (concept.sfx_url) concept.engine_audio = "ElevenLabs";
+
     return Response.json(concept);
   } catch (e) {
     return Response.json({ ...FALLBACK, theme, note: "fallback", error: String(e).slice(0, 200) });
