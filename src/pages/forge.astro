@@ -311,10 +311,31 @@ import Layout from '../layouts/Layout.astro';
     if (stEng) stEng.textContent = a.soundtrack_engine || '';
     if (st) st.innerHTML = a.soundtrack_url
       ? `<audio controls src="${esc(a.soundtrack_url)}" class="w-full"></audio>`
-      : `<p class="text-xs text-stone-600">Soundtrack unavailable${a.music_error ? ' (' + esc(a.music_error) + ')' : a.note === 'no_eleven_key' ? ' (no key set)' : ''}.</p>`;
-    if (fx) fx.innerHTML = (a.sfx && a.sfx.length)
-      ? `<div class="space-y-2.5">${a.sfx.map((s) => `<div><div class="mb-1 text-[11px] text-stone-400">${esc(s.label)}</div><audio controls src="${esc(s.url)}" class="w-full"></audio></div>`).join('')}</div>`
-      : `<p class="text-xs text-stone-600">No SFX generated.</p>`;
+      : `<p class="text-xs text-stone-600">Soundtrack unavailable${a.note === 'no_eleven_key' ? ' (no key set)' : ' — hit ↻ Generate fresh'}.</p>`;
+
+    if (!fx) return;
+    if (!(a.sfx && a.sfx.length)) { fx.innerHTML = `<p class="text-xs text-stone-600">No SFX generated.</p>`; return; }
+    // Kompakta runda play-knappar — SFX är korta, ingen scrubber behövs.
+    fx.innerHTML = `<div class="flex flex-wrap gap-2">${a.sfx.map((s, i) => `
+      <button type="button" class="sfx-chip inline-flex items-center gap-2 rounded-full border border-[#2a2a3a] bg-[#15151f] py-1 pl-1 pr-3 text-xs text-stone-300 hover:border-[#ff2d78]" data-sfx="${i}">
+        <span class="sfx-ic flex h-6 w-6 items-center justify-center rounded-full bg-[#ff2d78] text-[11px] text-black">▶</span>
+        <span>${esc(s.label)}</span>
+      </button>
+      <audio data-sfxaudio="${i}" src="${esc(s.url)}" preload="none"></audio>`).join('')}</div>`;
+    const auds = fx.querySelectorAll('audio[data-sfxaudio]');
+    const reset = () => { auds.forEach((o) => { o.pause(); o.currentTime = 0; }); fx.querySelectorAll('.sfx-ic').forEach((x) => (x.textContent = '▶')); };
+    fx.querySelectorAll('.sfx-chip').forEach((chip) => {
+      const i = chip.dataset.sfx;
+      const au = fx.querySelector(`audio[data-sfxaudio="${i}"]`);
+      const ic = chip.querySelector('.sfx-ic');
+      chip.addEventListener('click', () => {
+        const wasPlaying = !au.paused;
+        reset();
+        if (wasPlaying) return;
+        au.play(); ic.textContent = '⏸';
+        au.onended = () => { ic.textContent = '▶'; };
+      });
+    });
   }
 
   async function generateFresh(theme) {
