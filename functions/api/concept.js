@@ -93,7 +93,7 @@ async function generateConceptClaude(theme, apiKey) {
         headers: { "Content-Type": "application/json", "x-api-key": apiKey, "anthropic-version": "2023-06-01" },
         body: JSON.stringify({
           model: "claude-sonnet-4-6",
-          max_tokens: 1800,
+          max_tokens: 4000,
           temperature: 1,
           system: SYSTEM_PROMPT,
           messages: [{ role: "user", content: `Tema: ${theme}\n\nSvara med ENBART giltig JSON enligt schemat. Ingen text före eller efter, inga kodblock-markörer.` }],
