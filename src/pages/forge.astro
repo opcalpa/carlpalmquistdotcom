@@ -116,51 +116,38 @@ import Layout from '../layouts/Layout.astro';
 
   let lastTheme = '';
 
-  // ---------- History / cache (localStorage) ----------
-  const HKEY = 'cf:hist';
-  const RKEY = (id) => 'cf:res:' + id;
-  const CAP = 24;
-  const loadHist = () => { try { return JSON.parse(localStorage.getItem(HKEY) || '[]'); } catch { return []; } };
-  const resGet = (id) => { try { return JSON.parse(localStorage.getItem(RKEY(id)) || 'null'); } catch { return null; } };
-  const resDel = (id) => { try { localStorage.removeItem(RKEY(id)); } catch {} };
+  // ---------- Delat gallery (server, Cloudflare KV) ----------
+  let galleryList = [];
+
+  async function refreshGallery() {
+    try {
+      const r = await fetch('/api/gallery');
+      const j = await r.json();
+      galleryList = Array.isArray(j.list) ? j.list : [];
+    } catch (e) { galleryList = []; }
+    renderRecent();
+  }
 
   function findCachedId(key) {
-    const hist = loadHist();
-    const m = hist.find((h) => h.key === key);
-    return m && resGet(m.id) ? m.id : null;
+    const m = galleryList.find((x) => x.key === key);
+    return m ? m.id : null;
   }
 
-  function addEntry(theme, concept, audio) {
-    const id = 'e' + Date.now();
-    const meta = { id, theme, key: normalize(theme), ts: Date.now(), thumb: concept.image_url || '' };
-    const hist = loadHist();
-    hist.unshift(meta);
-    while (hist.length > CAP) { const o = hist.pop(); resDel(o.id); }
-    let stored = false, tries = 0;
-    while (!stored && tries < 10) {
-      try { localStorage.setItem(RKEY(id), JSON.stringify({ theme, concept, audio })); stored = true; }
-      catch (e) {
-        let evicted = false;
-        for (let i = hist.length - 1; i >= 0; i--) { if (hist[i].id !== id) { resDel(hist[i].id); hist.splice(i, 1); evicted = true; break; } }
-        if (!evicted) break;
-      }
-      tries++;
-    }
-    try { localStorage.setItem(HKEY, JSON.stringify(hist)); } catch {}
-    renderRecent();
+  async function addEntry(theme, concept, audio) {
+    try {
+      await fetch('/api/gallery', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ theme, concept, audio }) });
+    } catch (e) {}
+    refreshGallery();
   }
 
-  function delEntry(id) {
-    const hist = loadHist().filter((h) => h.id !== id);
-    resDel(id);
-    try { localStorage.setItem(HKEY, JSON.stringify(hist)); } catch {}
-    renderRecent();
+  async function delEntry(id) {
+    try { await fetch('/api/gallery?id=' + encodeURIComponent(id), { method: 'DELETE' }); } catch (e) {}
+    refreshGallery();
   }
 
-  function clearHist() {
-    loadHist().forEach((h) => resDel(h.id));
-    try { localStorage.removeItem(HKEY); } catch {}
-    renderRecent();
+  async function clearHist() {
+    try { await fetch('/api/gallery?all=1', { method: 'DELETE' }); } catch (e) {}
+    refreshGallery();
   }
 
   function timeAgo(ts) {
@@ -172,15 +159,15 @@ import Layout from '../layouts/Layout.astro';
   }
 
   function renderRecent() {
-    const hist = loadHist();
+    const hist = galleryList;
     recentCount.textContent = hist.length ? '(' + hist.length + ')' : '';
     if (!hist.length) {
-      recentPanel.innerHTML = '<p class="px-2 py-3 text-xs text-stone-500">No history yet. Forge something.</p>';
+      recentPanel.innerHTML = '<p class="px-2 py-3 text-xs text-stone-500">No saved concepts yet.</p>';
       return;
     }
     recentPanel.innerHTML = hist.map((m) => `
       <div class="recent-item flex items-center gap-2 rounded-lg px-2 py-1.5 hover:bg-[#1d212c] cursor-pointer" data-id="${esc(m.id)}">
-        ${m.thumb ? `<img src="${esc(m.thumb)}" class="h-9 w-9 flex-shrink-0 rounded object-cover" />` : '<div class="h-9 w-9 flex-shrink-0 rounded bg-[#222]"></div>'}
+        ${m.thumb ? `<img src="${esc(m.thumb)}" onerror="this.style.display='none'" class="h-9 w-9 flex-shrink-0 rounded object-cover" />` : '<div class="h-9 w-9 flex-shrink-0 rounded bg-[#222]"></div>'}
         <div class="min-w-0 flex-1">
           <div class="truncate text-sm text-stone-200">${esc(m.theme)}</div>
           <div class="text-[10px] text-stone-500">${timeAgo(m.ts)}</div>
@@ -424,12 +411,17 @@ import Layout from '../layouts/Layout.astro';
     addEntry(theme, concept, { sfx, soundtrack_url: st.url, soundtrack_engine: st.engine });
   }
 
-  function loadCachedById(id) {
-    const data = resGet(id);
-    if (!data) return;
+  async function loadCachedById(id) {
+    closeRecent();
+    let data;
+    try {
+      const r = await fetch('/api/gallery?id=' + encodeURIComponent(id));
+      if (!r.ok) return;
+      data = await r.json();
+    } catch (e) { return; }
+    if (!data || !data.concept) return;
     lastTheme = data.theme || '';
     input.value = data.theme || input.value;
-    closeRecent();
     buildResult(data.concept, true);
     fillAudio(data.audio);
     window.scrollTo({ top: result.offsetTop - 20, behavior: 'smooth' });
@@ -444,5 +436,5 @@ import Layout from '../layouts/Layout.astro';
     else generateFresh(theme);
   });
 
-  renderRecent();
+  refreshGallery();
 </script>
