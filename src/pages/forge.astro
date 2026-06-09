@@ -770,12 +770,17 @@ import Layout from '../layouts/Layout.astro';
         render('image', false);
       })(),
       (async () => { const sfx = await fetchSfx(); if (sfx.length) { state.versions.sfx = [sfx]; state.idx.sfx = 0; } renderSfx(); })(),
-      (async () => { const st = await fetchSoundtrack(); if (st) { state.versions.soundtrack = [st]; state.idx.soundtrack = 0; renderSoundtrack(); const a = document.querySelector('#soundtrack-slot audio'); if (a) a.play().catch(() => {}); } else renderSoundtrack(); })(),
+      (async () => { const st = await fetchSoundtrack(); if (st) { state.versions.soundtrack = [st]; state.idx.soundtrack = 0; renderSoundtrack(); autoplaySoundtrack(); } else renderSoundtrack(); })(),
     ];
     await Promise.allSettled(jobs);
     persist();
   }
 
+  // Autospela soundtracket på 50 % volym (nya sökningar + val ur Recent).
+  function autoplaySoundtrack() {
+    const a = document.querySelector('#soundtrack-slot audio');
+    if (a) { a.volume = 0.5; a.play().catch(() => {}); }
+  }
   async function loadSearch(id) {
     closeRecent();
     let data;
@@ -784,6 +789,7 @@ import Layout from '../layouts/Layout.astro';
     state = hydrate(Object.assign({ id: data.id }, data.state));
     lastTheme = state.theme || ''; input.value = state.theme || input.value;
     buildResult(true);
+    autoplaySoundtrack();
     window.scrollTo({ top: result.offsetTop - 20, behavior: 'smooth' });
   }
 
