@@ -71,6 +71,8 @@ import Layout from '../layouts/Layout.astro';
 <style is:global>
   .no-scrollbar { -ms-overflow-style:none; scrollbar-width:none; }
   .no-scrollbar::-webkit-scrollbar { display:none; }
+  /* Subtil bottenfade på textrutan → signalerar att det finns mer att scrolla */
+  .cf-scrollfade { -webkit-mask-image:linear-gradient(to bottom, #000 calc(100% - 20px), transparent); mask-image:linear-gradient(to bottom, #000 calc(100% - 20px), transparent); }
 
   /* ---- Light mode: remappar varje färg-token (Game-vyn lämnas mörk medvetet) ---- */
   /* Bakgrunder */
@@ -749,7 +751,7 @@ import Layout from '../layouts/Layout.astro';
         <div id="cf-image" class="lg:col-start-1 lg:row-start-1"></div>
         <div class="flex min-h-0 flex-col lg:col-start-2 lg:row-start-1">
           <div class="mb-3 flex flex-wrap gap-2">${tabs.map((t, i) => `<button class="cf-tab${i === 0 ? ' active' : ''}" data-tab="${t[0]}">${esc(t[1])}</button>`).join('')}</div>
-          <div class="min-h-0 flex-1 overflow-auto rounded-2xl border border-[#22222e] bg-[#13131c] p-6">
+          <div data-panelbox class="cf-scrollfade no-scrollbar min-h-0 flex-1 overflow-auto rounded-2xl border border-[#22222e] bg-[#13131c] p-6">
             ${tabs.map((t, i) => `<div data-panel="${t[0]}" class="${i === 0 ? '' : 'hidden'}"><div id="cf-panel-${t[0]}"></div></div>`).join('')}
           </div>
         </div>
@@ -768,9 +770,24 @@ import Layout from '../layouts/Layout.astro';
       <p id="cf-engine" class="mt-6 text-xs text-stone-500"></p>`;
     renderAll();
     result.classList.remove('hidden');
+    requestAnimationFrame(syncPanelHeight);
     const regen = document.getElementById('regen-btn');
     if (regen) regen.addEventListener('click', () => { if (state && state.theme) generateFresh(state.theme); });
   }
+
+  // Lås textsektionens höjd till bilddelens höjd (alltid enhetlig ruta, scroll inuti när innehållet är längre).
+  function syncPanelHeight() {
+    const img = document.getElementById('cf-image');
+    const panel = document.querySelector('#result [data-panelbox]');
+    if (!img || !panel) return;
+    if (!window.matchMedia('(min-width:1024px)').matches) { panel.style.height = ''; panel.style.maxHeight = ''; return; }
+    const tabs = panel.previousElementSibling;
+    const tabsH = tabs ? tabs.offsetHeight : 0;
+    const h = Math.max(240, Math.round(img.offsetHeight - tabsH - 12));   // 12 = tabs-radens mb-3
+    panel.style.height = h + 'px';
+    panel.style.maxHeight = h + 'px';
+  }
+  window.addEventListener('resize', syncPanelHeight);
 
   // delegation (result-elementet är stabilt; lyssnaren sätts en gång)
   result.addEventListener('click', (e) => {
