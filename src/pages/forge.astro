@@ -41,7 +41,7 @@ import Layout from '../layouts/Layout.astro';
           <div class="relative min-w-0 flex-1">
             <span id="chips" class="no-scrollbar flex items-center gap-2 overflow-x-auto whitespace-nowrap pr-7"></span>
             <div class="pointer-events-none absolute inset-y-0 right-0 w-12 bg-gradient-to-l from-[#0a0a0f] to-transparent"></div>
-            <button type="button" id="chip-more" class="absolute right-0 top-1/2 -translate-y-1/2 px-1 text-base leading-none text-stone-500 hover:text-[#c6ff00]" title="Fler förslag">›</button>
+            <button type="button" id="chip-more" class="absolute right-0 top-1/2 -translate-y-1/2 px-1 text-sm leading-none text-stone-500 hover:text-[#c6ff00]" title="Nya förslag">↻</button>
           </div>
           <div class="relative flex-none" id="recent-wrap">
             <button type="button" id="recent-btn" class="rounded-full border border-[#2a2a3a] px-3 py-1 text-stone-300 hover:border-[#c6ff00]">⟲ Recent <span id="recent-count" class="text-stone-500"></span> ▾</button>
@@ -249,7 +249,7 @@ import Layout from '../layouts/Layout.astro';
     el.innerHTML = `<div class="relative w-full max-w-md rounded-2xl border border-[#2a2a3a] bg-[#15151f] p-6 text-center shadow-2xl">
       <div class="mb-3 text-4xl">🎰</div>
       <h3 class="mb-2 text-xl font-black uppercase tracking-tight text-[#c6ff00]">Easy there, high roller</h3>
-      <p class="mb-5 text-sm leading-relaxed text-stone-300">You've spent your <strong>3 free forges</strong> — the house needs a breather. 😅 But the vault's wide open: every concept already forged is yours to play with. Hit <strong class="text-[#c6ff00]">⟲ Recent</strong> up top and dig in. Come back tomorrow for three more.</p>
+      <p class="mb-5 text-sm leading-relaxed text-stone-300">You've spent your <strong>10 free forges</strong> — the house needs a breather. 😅 But the vault's wide open: every concept already forged is yours to play with. Hit <strong class="text-[#c6ff00]">⟲ Recent</strong> up top and dig in. Come back tomorrow for more.</p>
       <div class="flex flex-col gap-2">
         <button id="cf-limit-recent" type="button" class="rounded-xl bg-[#c6ff00] px-5 py-2.5 font-black uppercase tracking-tight text-black transition hover:bg-[#d6ff3a]">⟲ Browse the gallery</button>
         <button id="cf-limit-close" type="button" class="text-xs text-stone-500 hover:text-stone-300">Maybe later</button>
@@ -732,7 +732,7 @@ import Layout from '../layouts/Layout.astro';
   async function persist() {
     let thumb = null; try { thumb = await makeThumb(); } catch (e) {}
     try {
-      const r = await fetch('/api/gallery', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: state.id, theme: state.theme, thumb, state: { theme: state.theme, imagePrompt: state.imagePrompt, conceptEngine: state.conceptEngine, featureName: state.featureName, featureIntro: state.featureIntro, versions: state.versions, idx: state.idx } }) });
+      const r = await fetch('/api/gallery', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: state.id, theme: state.theme, thumb, state: { theme: state.theme, imagePrompt: state.imagePrompt, conceptEngine: state.conceptEngine, featureName: state.featureName, featureIntro: state.featureIntro, symbolPrompts: state.symbolPrompts, versions: state.versions, idx: state.idx } }) });
       const j = await r.json(); if (j.id) state.id = j.id;
     } catch (e) {}
     refreshGallery();
@@ -740,9 +740,9 @@ import Layout from '../layouts/Layout.astro';
 
   // ---------- Build skeleton ----------
   function buildResult(fromCache) {
-    const strip = fromCache
-      ? `<div class="mb-3 flex items-center gap-3 text-xs"><span class="rounded-full bg-[#c6ff00]/15 px-2.5 py-1 font-semibold text-[#c6ff00]">⚡ Loaded from gallery</span><button id="regen-btn" type="button" class="text-stone-400 hover:text-[#ff2d78]">↻ Generate a fresh concept</button></div>`
-      : `<div class="mb-3 text-xs"><span class="rounded-full bg-[#1d212c] px-2.5 py-1 text-stone-400">✓ Saved · re-rolls and versions are kept</span></div>`;
+    // Samma rad oavsett om resultatet är nytt eller hämtat ur galleriet — användaren ska aldrig
+    // behöva tänka på cache-state. En tydlig re-roll (samma tema, ny tolkning) finns alltid.
+    const strip = `<div class="mb-3 flex items-center gap-3 text-xs"><button id="regen-btn" type="button" class="inline-flex items-center gap-1.5 rounded-full border border-[#2a2a3a] px-3 py-1 text-stone-300 transition hover:border-[#ff2d78] hover:text-[#ff2d78]">↻ Re-roll this theme</button><span class="text-stone-600">Images, audio &amp; versions are saved automatically</span></div>`;
     const tabs = [['tldr', 'TL;DR'], ['art', 'Art direction'], ['mechanic', 'Mechanic'], ['music', 'Music & audio'], ['hooks', 'Hooks']];
     result.innerHTML = `
       ${strip}
@@ -822,6 +822,9 @@ import Layout from '../layouts/Layout.astro';
       })(),
       (async () => { const sfx = await fetchSfx(); if (sfx.length) { state.versions.sfx = [sfx]; state.idx.sfx = 0; } renderSfx(); })(),
       (async () => { const st = await fetchSoundtrack(); if (st) { state.versions.soundtrack = [st]; state.idx.soundtrack = 0; renderSoundtrack(); autoplaySoundtrack(); } else renderSoundtrack(); })(),
+      // Temade reel-symboler genereras nu eagert (billiga Flux schnell-ikoner) så varje sparat koncept
+      // har en riktig produktionslik rulle i Game-vyn — inte bara A/K/Q/J/10. Kör i bakgrunden, blockar inte resultatet.
+      (async () => { const syms = await fetchSymbols(); if (syms.length) { state.versions.symbols = [syms]; state.idx.symbols = 0; computeGrid(); if (state.visualMode === 'game') renderImage(false); } })(),
     ];
     await Promise.allSettled(jobs);
     persist();
@@ -860,11 +863,8 @@ import Layout from '../layouts/Layout.astro';
     chipsEl.scrollLeft = 0;
   }
   chipsEl.addEventListener('click', (e) => { const c = e.target.closest('.chip'); if (c) { input.value = c.textContent; form.requestSubmit(); } });
-  // ›: scrolla fram fler förslag; vid slutet → shuffla in en ny uppsättning
-  document.getElementById('chip-more').addEventListener('click', () => {
-    const atEnd = chipsEl.scrollLeft + chipsEl.clientWidth >= chipsEl.scrollWidth - 8;
-    if (atEnd) renderChips(); else chipsEl.scrollBy({ left: Math.round(chipsEl.clientWidth * 0.8), behavior: 'smooth' });
-  });
+  // ↻: shuffla alltid in en ny uppsättning förslag (chipsen scrollar själva via overflow-x).
+  document.getElementById('chip-more').addEventListener('click', renderChips);
   renderChips();
 
   refreshGallery();

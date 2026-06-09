@@ -87,7 +87,7 @@ const FALLBACK = {
 };
 
 // --- Per-IP rate limit (bara på publika domänen; preview/lokalt obegränsat) ---
-const RL_CAP = 3, RL_WINDOW = 86400;   // 3 nya forges per IP per dygn
+const RL_CAP = 10, RL_WINDOW = 86400;   // 10 nya forges per IP per dygn (höjt för team-demo / delad kontors-IP)
 const rlNs = (env) => env.KV_NAMESPACE_ID || env.KV_NAMSPACE_ID;
 const rlReady = (env) => env.CF_ACCOUNT_ID && rlNs(env) && env.CF_API_TOKEN;
 const rlBase = (env) => `https://api.cloudflare.com/client/v4/accounts/${env.CF_ACCOUNT_ID}/storage/kv/namespaces/${rlNs(env)}`;
