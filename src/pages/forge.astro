@@ -156,6 +156,15 @@ import Layout from '../layouts/Layout.astro';
   .cf-spinbtn:active { transform:scale(.9); }
   .cf-spinbtn.cf-spinning { animation:cfspinbtn .42s linear; }
   @keyframes cfspinbtn { to { transform:rotate(360deg); } }
+  /* Onboarding: pulsande ring runt Recent tills man hittat dit (slutar vid klick) */
+  @keyframes cfpulse { 0%{box-shadow:0 0 0 0 rgba(198,255,0,.5)} 70%{box-shadow:0 0 0 9px rgba(198,255,0,0)} 100%{box-shadow:0 0 0 0 rgba(198,255,0,0)} }
+  .cf-pulse { animation:cfpulse 1.9s ease-out infinite; border-color:#c6ff00 !important; }
+  /* Invite: SPIN-knappen andas tills första snurr → bjuder in att trycka */
+  @keyframes cfinvite { 0%,100%{box-shadow:0 0 0 4px rgba(198,255,0,.16),0 4px 12px rgba(0,0,0,.5)} 50%{box-shadow:0 0 0 9px rgba(198,255,0,.38),0 0 24px rgba(198,255,0,.55)} }
+  .cf-spinbtn.cf-invite { animation:cfinvite 1.55s ease-in-out infinite; }
+  /* Mjuk crossfade när bild-vyn växlar (auto-rotation Mood↔Game) */
+  #cf-image img, #cf-image .cf-slot { animation:cffade .5s ease; }
+  @keyframes cffade { from{opacity:.2} to{opacity:1} }
 </style>
 
 <script is:inline>
@@ -167,6 +176,10 @@ import Layout from '../layouts/Layout.astro';
   const result = document.getElementById('result');
   const recentBtn = document.getElementById('recent-btn');
   const recentPanel = document.getElementById('recent-panel');
+  // Onboarding: pulsa Recent tills användaren hittat dit (klick), eller automatiskt efter 16 s.
+  let recentTouched = false;
+  const stopRecentPulse = () => { recentTouched = true; recentBtn.classList.remove('cf-pulse'); };
+  setTimeout(stopRecentPulse, 16000);
   const recentCount = document.getElementById('recent-count');
 
   // ---------- Ljust/mörkt tema ----------
@@ -218,6 +231,7 @@ import Layout from '../layouts/Layout.astro';
   function renderRecent() {
     const hist = galleryList;
     recentCount.textContent = hist.length ? '(' + hist.length + ')' : '';
+    if (hist.length && !recentTouched) recentBtn.classList.add('cf-pulse'); else recentBtn.classList.remove('cf-pulse');
     if (!hist.length) { recentPanel.innerHTML = '<p class="px-2 py-3 text-xs text-stone-500">No saved concepts yet.</p>'; return; }
     // Tumnagel-cell: temats initial på gradient som ligger BAKOM bilden; om bilden faller bort tas den bara bort.
     const cell = (m) => `<div class="relative h-9 w-9 flex-shrink-0 overflow-hidden rounded">
@@ -237,7 +251,7 @@ import Layout from '../layouts/Layout.astro';
     if (clr) clr.addEventListener('click', clearHist);
   }
   const closeRecent = () => recentPanel.classList.add('hidden');
-  recentBtn.addEventListener('click', (e) => { e.stopPropagation(); recentPanel.classList.toggle('hidden'); });
+  recentBtn.addEventListener('click', (e) => { e.stopPropagation(); stopRecentPulse(); recentPanel.classList.toggle('hidden'); });
   document.addEventListener('click', (e) => { if (!e.target.closest('#recent-wrap')) closeRecent(); });
 
   // Vänlig gräns-popup när IP:n gjort sina 3 forges → styr mot Recent.
@@ -398,8 +412,11 @@ import Layout from '../layouts/Layout.astro';
     else if (mode === 'game') media = buildMockupHTML();   // kodat reel-grid + AI-symboler
     else media = mood.url ? `<img src="${esc(mood.url)}" alt="Key art" class="aspect-square w-full rounded-2xl border border-[#22222e] object-cover" />` : `<div class="flex aspect-square w-full items-center justify-center rounded-2xl border border-dashed border-[#2a2a3a] bg-[#13131c] p-6 text-center text-xs text-stone-500">${busy ? '🎨 Painting key art…' : 'No image yet.'}</div>`;
     const pill = (m, label) => `<button class="cf-mini" data-vis="${m}" ${mode === m ? on : ''}>${label}</button>`;
-    let pills = pill('mood', 'Mood') + pill('game', 'Game');
-    pills += hasLoop ? pill('loop', 'Loop') : (animBusy ? `<span class="cf-mini" style="opacity:.6">Loop…</span>` : `<button class="cf-mini" data-refresh="animation" ${mood.url ? '' : 'disabled'}>▶ Loop</button>`);
+    // Loop nedtonad till sekundär (dimmad, mindre) — Mood/Game är huvudtoggeln.
+    const loopStyle = mode === 'loop' ? 'style="color:#c6ff00;font-size:10px"' : 'style="opacity:.5;font-size:10px"';
+    const loopBtn = hasLoop ? `<button class="cf-mini" data-vis="loop" ${loopStyle}>Loop</button>`
+      : (animBusy ? `<span class="cf-mini" style="opacity:.45;font-size:10px">Loop…</span>` : `<button class="cf-mini" data-refresh="animation" ${mood.url ? '' : 'disabled'} ${loopStyle}>▶ Loop</button>`);
+    let pills = pill('mood', 'Mood') + pill('game', 'Game') + loopBtn;
     let reroll = '';
     if (mode === 'mood') reroll = ctrl('image', busy && !animBusy && !symBusy);
     else if (mode === 'game') reroll = `<button class="cf-mini cf-refresh" data-refresh="symbols" title="Re-skin the symbols">${symBusy ? '<span class="cf-spin"></span>' : '↻'}</button>`;
@@ -448,7 +465,8 @@ import Layout from '../layouts/Layout.astro';
         <input id="st-more" type="text" placeholder="more: …" class="min-w-0 flex-1 rounded border border-[#2a2a3a] bg-[#15151f] px-2 py-1 text-xs text-stone-200 placeholder:text-stone-600" />
         <input id="st-less" type="text" placeholder="less: …" class="min-w-0 flex-1 rounded border border-[#2a2a3a] bg-[#15151f] px-2 py-1 text-xs text-stone-200 placeholder:text-stone-600" />
         <button type="button" data-reshape class="cf-mini cf-refresh" ${busy ? 'disabled' : ''}>${busy ? '<span class="cf-spin"></span>' : '↻ Reshape'}</button>
-      </div>`; bindSoundtrackPlayer(); }
+      </div>
+      ${(() => { const sp = ((cur('music') || {}).soundtrack_prompt || '').trim(); return sp ? `<p class="mt-2 text-[10px] italic leading-snug text-stone-500">🎚 ${esc(sp.length > 120 ? sp.slice(0, 119) + '…' : sp)}</p>` : ''; })()}`; bindSoundtrackPlayer(); }
     else if (!busy) st.innerHTML = `<p class="text-xs text-stone-600">Soundtrack unavailable.</p>`;
   }
   // Egen kompakt spelare (rosa accent) som ersätter den vita system-kontrollen; anpassar sig till tema via tokens.
@@ -475,7 +493,8 @@ import Layout from '../layouts/Layout.astro';
     fx.innerHTML = `<div class="flex flex-wrap gap-2">${list.map((s, i) => `
       <button type="button" class="sfx-chip inline-flex items-center gap-2 rounded-full border border-[#2a2a3a] bg-[#15151f] py-1 pl-1 pr-3 text-xs text-stone-300 hover:border-[#ff2d78]" data-sfx="${i}">
         <span class="sfx-ic flex h-6 w-6 items-center justify-center rounded-full bg-[#ff2d78] text-[11px] text-black">▶</span><span>${esc(s.label)}</span>
-      </button><audio data-sfxaudio="${i}" src="${esc(s.url)}" preload="none"></audio>`).join('')}</div>`;
+      </button><audio data-sfxaudio="${i}" src="${esc(s.url)}" preload="none"></audio>`).join('')}</div>
+      <p class="mt-2 text-[10px] italic text-stone-500">Custom cues forged for this theme — tap one to hear it.</p>`;
     const auds = fx.querySelectorAll('audio[data-sfxaudio]');
     const reset = () => { auds.forEach((o) => { o.pause(); o.currentTime = 0; }); fx.querySelectorAll('.sfx-ic').forEach((x) => (x.textContent = '▶')); };
     fx.querySelectorAll('.sfx-chip').forEach((chip) => {
@@ -617,7 +636,7 @@ import Layout from '../layouts/Layout.astro';
           <div class="cf-meter"><span>Balance</span><b>10,000</b></div>
           <div class="cf-meter"><span>Volatility</span><span class="cf-vol">${volBars(vol)}</span></div>
           <div class="cf-bet"><span class="cf-step">−</span><div class="cf-meter" style="align-items:center"><span>Bet</span><b>2.00</b></div><span class="cf-step">+</span></div>
-          <button class="cf-spinbtn${state.spinning ? ' cf-spinning' : ''}" data-spin title="Spin">⟳</button>
+          <button class="cf-spinbtn${state.spinning ? ' cf-spinning' : (state.spun ? '' : ' cf-invite')}" data-spin title="Spin">⟳</button>
           <span class="cf-ic">A</span>
         </div>
       </div>
@@ -636,6 +655,7 @@ import Layout from '../layouts/Layout.astro';
   }
   function spinMockup() {
     if (state.spinning) return;
+    state.spun = true; stopViewAuto();   // användaren har snurrat → sluta puls/auto-rotera
     state.spinning = true; spinCount++; computeGrid(); renderImage(false);
     // Eskalerande utfall: reel varje snurr, bonus varannan, big win vart fjärde — lätt staggrat.
     playSfxObj(sfxByHint('spin', 0));
@@ -773,7 +793,26 @@ import Layout from '../layouts/Layout.astro';
     requestAnimationFrame(syncPanelHeight);
     const regen = document.getElementById('regen-btn');
     if (regen) regen.addEventListener('click', () => { if (state && state.theme) generateFresh(state.theme); });
+    state.spun = false; viewTouched = false; startViewAuto();   // bjud in att upptäcka Game-vyn
   }
+
+  // Auto-rotera Mood↔Game var 7:e sek så nya användare upptäcker Game-vyn — slutar permanent
+  // vid första egna interaktion (vy-klick/snurr), pausar när fliken är dold, hoppar över Loop.
+  let viewAutoTimer = null, viewTouched = false, viewCycles = 0;
+  function startViewAuto() {
+    clearInterval(viewAutoTimer); viewCycles = 0;
+    viewAutoTimer = setInterval(() => {
+      if (viewTouched || document.hidden || state.spinning) return;
+      const canGame = ((cur('symbols') || []).length > 0);
+      if (state.visualMode === 'game') state.visualMode = 'mood';
+      else if (canGame) { state.visualMode = 'game'; ensureSymbols(); }
+      else return;   // inga symboler än → stanna på Mood tills de kommit
+      renderImage(false);
+      // Efter ~3 varv: sluta nagga, landa på Game (mer imponerande) och stäng av.
+      if (++viewCycles >= 6) { if (state.visualMode !== 'game' && canGame) { state.visualMode = 'game'; renderImage(false); } clearInterval(viewAutoTimer); }
+    }, 7000);
+  }
+  function stopViewAuto() { viewTouched = true; clearInterval(viewAutoTimer); }
 
   // Lås textsektionens höjd till bilddelens höjd (alltid enhetlig ruta, scroll inuti när innehållet är längre).
   function syncPanelHeight() {
@@ -793,7 +832,7 @@ import Layout from '../layouts/Layout.astro';
   result.addEventListener('click', (e) => {
     const tb = e.target.closest('[data-tab]');
     if (tb) { const t = tb.dataset.tab; result.querySelectorAll('[data-tab]').forEach((x) => x.classList.toggle('active', x.dataset.tab === t)); result.querySelectorAll('[data-panel]').forEach((p) => p.classList.toggle('hidden', p.dataset.panel !== t)); return; }
-    const vs = e.target.closest('[data-vis]'); if (vs) { state.visualMode = vs.dataset.vis; renderImage(false); if (vs.dataset.vis === 'game') ensureSymbols(); return; }
+    const vs = e.target.closest('[data-vis]'); if (vs) { stopViewAuto(); state.visualMode = vs.dataset.vis; renderImage(false); if (vs.dataset.vis === 'game') ensureSymbols(); return; }
     const sp = e.target.closest('[data-spin]'); if (sp) { spinMockup(); return; }
     const rs = e.target.closest('[data-reshape]'); if (rs) { reshapeSoundtrack(); return; }
     const rf = e.target.closest('[data-refresh]'); if (rf) { refresh(rf.dataset.refresh); return; }
