@@ -29,8 +29,12 @@ import Layout from '../layouts/Layout.astro';
 
       <form id="forge-form" class="mb-6">
         <div class="flex flex-col gap-3 sm:flex-row">
-          <input id="theme" type="text" autocomplete="off" placeholder="neon yakuza with a country vibe…"
-            class="flex-1 rounded-xl border border-[#2a2a3a] bg-[#15151f] px-4 py-3.5 text-lg text-stone-100 placeholder-stone-500 outline-none focus:border-[#c6ff00]" />
+          <div class="relative flex-1">
+            <input id="theme" type="text" autocomplete="off" placeholder="neon yakuza with a country vibe…"
+              class="w-full rounded-xl border border-[#2a2a3a] bg-[#15151f] px-4 py-3.5 text-lg text-stone-100 placeholder-stone-500 outline-none focus:border-[#c6ff00]" />
+            <!-- Google-style autocomplete: visas bara när fältet fokuseras och är tomt (recent forges promotar redan spenderade credits) -->
+            <div id="ac-panel" class="hidden absolute left-0 right-0 top-full z-30 mt-2 max-h-[60vh] overflow-auto rounded-xl border border-[#2a2a3a] bg-[#15151f] p-1.5 shadow-2xl"></div>
+          </div>
           <button id="generate" type="submit"
             class="rounded-xl bg-[#c6ff00] px-7 py-3.5 text-lg font-black uppercase tracking-tight text-black transition hover:bg-[#d6ff3a] disabled:opacity-50">Forge it</button>
         </div>
@@ -1003,6 +1007,35 @@ import Layout from '../layouts/Layout.astro';
   // ↻: shuffla alltid in en ny uppsättning förslag (chipsen scrollar själva via overflow-x).
   document.getElementById('chip-more').addEventListener('click', renderChips);
   renderChips();
+
+  // ---------- Google-style autocomplete: dropdown vid fokus på tomt sökfält ----------
+  // Recent (redan forgeade koncept ur galleriet) ligger överst — gratis att öppna, så de
+  // promotar credits som redan spenderats. Därunder några färska förslag att forga.
+  const acPanel = document.getElementById('ac-panel');
+  const ICO_CLOCK = '<svg viewBox="0 0 24 24" fill="none" class="h-4 w-4 flex-shrink-0 text-stone-500"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.6"/><path d="M12 7.5V12l3 1.8" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+  const ICO_SEARCH = '<svg viewBox="0 0 24 24" fill="none" class="h-4 w-4 flex-shrink-0 text-stone-500"><circle cx="11" cy="11" r="7" stroke="currentColor" stroke-width="1.6"/><path d="M20 20l-3.6-3.6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>';
+  function buildAc() {
+    const recent = galleryList.slice(0, 8);
+    const taken = new Set(recent.map((m) => normalize(m.theme || '')));
+    const suggs = SURPRISES.filter((s) => !taken.has(normalize(s))).slice(0, 5);
+    const row = (ico, label, attr) => `<div class="ac-item flex items-center gap-3 rounded-lg px-3 py-2.5 cursor-pointer hover:bg-[#1d212c]" ${attr}>${ico}<span class="truncate text-sm text-stone-200">${esc(label)}</span></div>`;
+    let html = recent.map((m) => row(ICO_CLOCK, m.theme, `data-id="${esc(m.id)}"`)).join('');
+    if (recent.length && suggs.length) html += '<div class="my-1 border-t border-[#2a2a3a]"></div>';
+    html += suggs.map((s) => row(ICO_SEARCH, s, `data-q="${esc(s)}"`)).join('');
+    acPanel.innerHTML = html;
+    acPanel.querySelectorAll('.ac-item').forEach((el) => el.addEventListener('mousedown', (ev) => {
+      ev.preventDefault();  // håll kvar fokus så klicket hinner registreras före blur
+      closeAc();
+      if (el.dataset.id) loadSearch(el.dataset.id);
+      else if (el.dataset.q) { input.value = el.dataset.q; form.requestSubmit(); }
+    }));
+  }
+  function openAc() { if (input.value.trim()) return; buildAc(); if (acPanel.innerHTML.trim()) { stopRecentPulse(); acPanel.classList.remove('hidden'); } }
+  function closeAc() { acPanel.classList.add('hidden'); }
+  input.addEventListener('focus', openAc);
+  input.addEventListener('input', () => { input.value.trim() ? closeAc() : openAc(); });
+  input.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeAc(); });
+  document.addEventListener('click', (e) => { if (e.target !== input && !e.target.closest('#ac-panel')) closeAc(); });
 
   refreshGallery();
 </script>
