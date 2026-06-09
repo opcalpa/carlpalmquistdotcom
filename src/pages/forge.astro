@@ -31,13 +31,16 @@ import Layout from '../layouts/Layout.astro';
           <button id="generate" type="submit"
             class="rounded-xl bg-[#c6ff00] px-7 py-3.5 text-lg font-black uppercase tracking-tight text-black transition hover:bg-[#d6ff3a] disabled:opacity-50">Forge it</button>
         </div>
-        <div class="mt-3 flex flex-wrap items-center gap-2 text-sm">
-          <button type="button" id="surprise" class="text-[#ff2d78] hover:underline">⚡ Surprise me</button>
-          <span class="text-stone-600">·</span>
-          <span class="text-stone-500">try:</span>
-          <span id="chips" class="flex flex-wrap items-center gap-2"></span>
-          <button type="button" id="chip-shuffle" class="rounded-full border border-[#2a2a3a] px-2 py-1 text-stone-400 hover:border-[#c6ff00]" title="Fler förslag">↻</button>
-          <div class="relative ml-auto" id="recent-wrap">
+        <div class="mt-3 flex items-center gap-2 text-sm">
+          <button type="button" id="surprise" class="flex-none text-[#ff2d78] hover:underline">⚡ Surprise me</button>
+          <span class="flex-none text-stone-600">·</span>
+          <span class="flex-none text-stone-500">try:</span>
+          <div class="relative min-w-0 flex-1">
+            <span id="chips" class="no-scrollbar flex items-center gap-2 overflow-x-auto whitespace-nowrap pr-7"></span>
+            <div class="pointer-events-none absolute inset-y-0 right-0 w-12 bg-gradient-to-l from-[#0a0a0f] to-transparent"></div>
+            <button type="button" id="chip-more" class="absolute right-0 top-1/2 -translate-y-1/2 px-1 text-base leading-none text-stone-500 hover:text-[#c6ff00]" title="Fler förslag">›</button>
+          </div>
+          <div class="relative flex-none" id="recent-wrap">
             <button type="button" id="recent-btn" class="rounded-full border border-[#2a2a3a] px-3 py-1 text-stone-300 hover:border-[#c6ff00]">⟲ Recent <span id="recent-count" class="text-stone-500"></span> ▾</button>
             <div id="recent-panel" class="hidden absolute right-0 z-20 mt-2 w-80 max-h-96 overflow-auto rounded-xl border border-[#2a2a3a] bg-[#15151f] p-2 shadow-2xl"></div>
           </div>
@@ -62,6 +65,8 @@ import Layout from '../layouts/Layout.astro';
 </Layout>
 
 <style is:global>
+  .no-scrollbar { -ms-overflow-style:none; scrollbar-width:none; }
+  .no-scrollbar::-webkit-scrollbar { display:none; }
   .cf-tab { display:inline-block; padding:7px 13px; border-radius:9px; font-size:12px; font-weight:800; letter-spacing:-0.01em; text-transform:uppercase; border:1px solid #2a2a3a; color:#d6d3d1; background:transparent; cursor:pointer; }
   .cf-tab:hover { border-color:#c6ff00; }
   .cf-tab.active { background:#c6ff00; color:#000; border-color:#c6ff00; }
@@ -286,7 +291,7 @@ import Layout from '../layouts/Layout.astro';
     else if (comp === 'mechanic') { const v = cur('mechanic') || { mechanic: {}, math: {} }; const m = v.mechanic || {}, ma = v.math || {}; inner = rows([['Grid', m.grid], ['Type', m.type], ['Base game', m.base_game], ['Signature feature', m.signature_feature], ['Bonus round', m.bonus_round], ['Bonus buy', m.bonus_buy], ['Volatility', ma.volatility], ['RTP', ma.rtp], ['Max win', ma.suggested_max_win]]); }
     else if (comp === 'music') { const v = (cur('music') || {}).music || {}; inner = rows([['Genre', v.genre], ['Instrumentation', v.instrumentation], ['Base vs bonus', v.base_vs_bonus], ['Tempo', v.bpm], ['Reference vibe', v.reference_vibe]]); }
     else if (comp === 'hooks') { const v = cur('hooks') || []; inner = `<ul class="space-y-2.5">${v.map((h) => `<li class="flex gap-2 text-sm leading-relaxed text-stone-200"><span class="text-[#c6ff00]">▸</span><span>${esc(h)}</span></li>`).join('')}</ul>`; }
-    el.innerHTML = `<div class="mb-3 flex justify-end">${ctrl(comp, busy)}</div>${inner}`;
+    el.innerHTML = `<div class="relative"><div class="absolute right-0 top-0 z-10">${ctrl(comp, busy)}</div><div class="pr-9">${inner}</div></div>`;
   }
   function setSoundtrackMsg(t) { const st = document.getElementById('soundtrack-slot'); if (st) st.innerHTML = `<div class="flex items-center gap-2 py-2 text-xs text-stone-500"><span class="h-3 w-3 animate-spin rounded-full border-2 border-[#2a2a3a] border-t-[#ff2d78]"></span> ${esc(t)}</div>`; }
   function renderSoundtrack(busy) {
@@ -559,28 +564,24 @@ import Layout from '../layouts/Layout.astro';
     result.innerHTML = `
       ${strip}
       <div id="cf-title" class="mb-4"></div>
-      <div class="grid items-start gap-5 lg:grid-cols-[minmax(0,44%)_1fr]">
-        <div class="space-y-4">
-          <div id="cf-image"></div>
-          <div class="rounded-2xl border border-[#22222e] bg-[#13131c] p-4">
-            <div class="mb-2 flex items-center justify-between">
-              <span class="text-[11px] font-black uppercase tracking-wide text-[#ff2d78]">🎵 Soundtrack</span>
-              <span class="flex items-center gap-2"><span id="st-engine" class="text-[10px] text-stone-600"></span><span id="cf-st-ctrl"></span></span>
-            </div>
-            <div id="soundtrack-slot"></div>
+      <div class="grid items-stretch gap-5 lg:grid-cols-[minmax(0,44%)_1fr]">
+        <div id="cf-image" class="lg:col-start-1 lg:row-start-1"></div>
+        <div class="flex min-h-0 flex-col lg:col-start-2 lg:row-start-1">
+          <div class="mb-3 flex flex-wrap gap-2">${tabs.map((t, i) => `<button class="cf-tab${i === 0 ? ' active' : ''}" data-tab="${t[0]}">${esc(t[1])}</button>`).join('')}</div>
+          <div class="min-h-0 flex-1 overflow-auto rounded-2xl border border-[#22222e] bg-[#13131c] p-6">
+            ${tabs.map((t, i) => `<div data-panel="${t[0]}" class="${i === 0 ? '' : 'hidden'}"><div id="cf-panel-${t[0]}"></div></div>`).join('')}
           </div>
         </div>
-        <div class="space-y-4">
-          <div>
-            <div class="mb-3 flex flex-wrap gap-2">${tabs.map((t, i) => `<button class="cf-tab${i === 0 ? ' active' : ''}" data-tab="${t[0]}">${esc(t[1])}</button>`).join('')}</div>
-            <div class="rounded-2xl border border-[#22222e] bg-[#13131c] p-6" style="min-height:340px">
-              ${tabs.map((t, i) => `<div data-panel="${t[0]}" class="${i === 0 ? '' : 'hidden'}"><div id="cf-panel-${t[0]}"></div></div>`).join('')}
-            </div>
+        <div class="rounded-2xl border border-[#22222e] bg-[#13131c] p-4 lg:col-start-1 lg:row-start-2">
+          <div class="mb-2 flex items-center justify-between">
+            <span class="text-[11px] font-black uppercase tracking-wide text-[#ff2d78]">🎵 Soundtrack</span>
+            <span class="flex items-center gap-2"><span id="st-engine" class="text-[10px] text-stone-600"></span><span id="cf-st-ctrl"></span></span>
           </div>
-          <div class="rounded-2xl border border-[#22222e] bg-[#13131c] p-4">
-            <div class="mb-2 flex items-center justify-between"><span class="text-[11px] font-black uppercase tracking-wide text-[#ff2d78]">🔊 SFX</span><span id="cf-sfx-ctrl"></span></div>
-            <div id="sfx-slot"></div>
-          </div>
+          <div id="soundtrack-slot"></div>
+        </div>
+        <div class="rounded-2xl border border-[#22222e] bg-[#13131c] p-4 lg:col-start-2 lg:row-start-2">
+          <div class="mb-2 flex items-center justify-between"><span class="text-[11px] font-black uppercase tracking-wide text-[#ff2d78]">🔊 SFX</span><span id="cf-sfx-ctrl"></span></div>
+          <div id="sfx-slot"></div>
         </div>
       </div>
       <p id="cf-engine" class="mt-6 text-xs text-stone-500"></p>`;
@@ -649,11 +650,16 @@ import Layout from '../layouts/Layout.astro';
   const chipsEl = document.getElementById('chips');
   function renderChips() {
     const pool = [...SURPRISES]; const pick = [];
-    for (let i = 0; i < 7 && pool.length; i++) pick.push(pool.splice(Math.floor(Math.random() * pool.length), 1)[0]);
-    chipsEl.innerHTML = pick.map((t) => `<button type="button" class="chip rounded-full border border-[#2a2a3a] px-3 py-1 text-stone-300 hover:border-[#c6ff00]">${t}</button>`).join('');
+    for (let i = 0; i < 12 && pool.length; i++) pick.push(pool.splice(Math.floor(Math.random() * pool.length), 1)[0]);
+    chipsEl.innerHTML = pick.map((t) => `<button type="button" class="chip shrink-0 rounded-full border border-[#2a2a3a] px-3 py-1 text-stone-300 hover:border-[#c6ff00]">${t}</button>`).join('');
+    chipsEl.scrollLeft = 0;
   }
   chipsEl.addEventListener('click', (e) => { const c = e.target.closest('.chip'); if (c) { input.value = c.textContent; form.requestSubmit(); } });
-  document.getElementById('chip-shuffle').addEventListener('click', renderChips);
+  // ›: scrolla fram fler förslag; vid slutet → shuffla in en ny uppsättning
+  document.getElementById('chip-more').addEventListener('click', () => {
+    const atEnd = chipsEl.scrollLeft + chipsEl.clientWidth >= chipsEl.scrollWidth - 8;
+    if (atEnd) renderChips(); else chipsEl.scrollBy({ left: Math.round(chipsEl.clientWidth * 0.8), behavior: 'smooth' });
+  });
   renderChips();
 
   refreshGallery();
