@@ -377,10 +377,19 @@ import Layout from '../layouts/Layout.astro';
   function stopPong() { pong.running = false; cancelAnimationFrame(pong.raf); if (pong.cleanup) { pong.cleanup(); pong.cleanup = null; } }
 
   // ---------- Version state ----------
+  // Fallback-TL;DR om konceptet saknar feature_intro (Claude utelämnar det ibland) → bygg 3 kort
+  // ur mekaniken så fliken aldrig visar "No summary yet." (mekanik / bonus / max win, samma ordning som korten).
+  function tldrFromConcept(c) {
+    const m = (c && c.mechanic) || {}, ma = (c && c.math) || {}, out = [];
+    if (m.signature_feature || m.base_game) out.push(m.signature_feature || m.base_game);
+    if (m.bonus_round) out.push(m.bonus_round);
+    if (ma.suggested_max_win) { const w = String(ma.suggested_max_win); out.push('MAX WIN ' + w + (/x/i.test(w) ? '' : 'x')); }
+    return out;
+  }
   function initState(c) {
     state = {
       id: null, theme: c.theme || lastTheme || '', imagePrompt: c.image_prompt || c.theme || lastTheme || '', conceptEngine: c.engine || '',
-      featureName: c.feature_name || '', featureIntro: Array.isArray(c.feature_intro) ? c.feature_intro : [],
+      featureName: c.feature_name || '', featureIntro: (Array.isArray(c.feature_intro) && c.feature_intro.length) ? c.feature_intro : tldrFromConcept(c),
       symbolPrompts: Array.isArray(c.symbols) ? c.symbols : [],
       versions: {
         title: [{ names: c.names || [], logline: c.logline || '' }],

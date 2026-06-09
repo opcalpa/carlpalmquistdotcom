@@ -98,34 +98,69 @@ async function fluxIcon(prompt, falKey) {
   return null;
 }
 
+// Soundtrack-reparation: Google Lyria 2 på fal är synkron (url direkt) → idealt för server-side backfill.
+async function falMusic(prompt, falKey) {
+  const res = await fetch("https://fal.run/fal-ai/lyria2", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: `Key ${falKey}` },
+    body: JSON.stringify({ prompt: String(prompt).slice(0, 1000), negative_prompt: "low quality, distorted, muddy mix, vocals" }),
+  });
+  if (!res.ok) throw new Error(`fal lyria ${res.status}`);
+  const d = await res.json();
+  const url = d.audio && d.audio.url;
+  if (!url) throw new Error("fal lyria: no url");
+  return url;
+}
+
+// Reparerar EN gallery-post: fyller bara det som saknas (symboler / TL;DR / soundtrack). Idempotent.
 async function backfillOne(env, id, dry) {
   const raw = await kvGet(env, RES_KEY(id));
   if (!raw) return { id, status: "not_found" };
   const entry = JSON.parse(raw);
   const st = entry.state || {};
-  st.versions = st.versions || {};
-  const existing = Array.isArray(st.versions.symbols) ? st.versions.symbols : [];
-  if (existing.length && Array.isArray(existing[0]) && existing[0].length) return { id, theme: entry.theme, status: "skip_has_symbols" };
+  st.versions = st.versions || {}; st.idx = st.idx || {};
+  const v = st.versions;
+  const cur = (k) => { const a = v[k] || []; const i = st.idx[k] || 0; return a[i] || a[0] || null; };
+  const fixed = [];
 
-  const prompts = await symbolPrompts(entry.theme, env.ANTHROPIC_API_KEY || env.ANTROPHIC_API_KEY);
-  if (!prompts.length) return { id, theme: entry.theme, status: "no_prompts" };
-  if (dry) return { id, theme: entry.theme, status: "would_backfill", prompts: prompts.map((p) => p.label) };
-
-  const urls = await Promise.allSettled(prompts.map((p) => fluxIcon(p.prompt || p.label, env.FLUX_API_KEY)));
-  const syms = [];
-  for (let i = 0; i < prompts.length; i++) {
-    const u = urls[i].status === "fulfilled" ? urls[i].value : null;
-    if (u) syms.push({ label: prompts[i].label || `Symbol ${i + 1}`, url: await inline(u) });
+  // 1) Temade reel-symboler (Claude-prompts → Flux schnell)
+  const hasSym = Array.isArray(v.symbols) && Array.isArray(v.symbols[0]) && v.symbols[0].length;
+  if (!hasSym) {
+    const prompts = await symbolPrompts(entry.theme, env.ANTHROPIC_API_KEY || env.ANTROPHIC_API_KEY);
+    if (prompts.length && dry) fixed.push("symbols?");
+    else if (prompts.length) {
+      const urls = await Promise.allSettled(prompts.map((p) => fluxIcon(p.prompt || p.label, env.FLUX_API_KEY)));
+      const syms = [];
+      for (let i = 0; i < prompts.length; i++) { const u = urls[i].status === "fulfilled" ? urls[i].value : null; if (u) syms.push({ label: prompts[i].label || `Symbol ${i + 1}`, url: await inline(u) }); }
+      if (syms.length) { st.symbolPrompts = prompts; v.symbols = [syms]; st.idx.symbols = 0; fixed.push("symbols"); }
+    }
   }
-  if (!syms.length) return { id, theme: entry.theme, status: "all_icons_failed" };
 
-  st.symbolPrompts = prompts;
-  st.versions.symbols = [syms];
-  st.idx = st.idx || {};
-  st.idx.symbols = 0;
+  // 2) TL;DR (featureIntro) — syntetisera ur mekaniken (ingen LLM), samma logik som klientens fallback
+  if (!(Array.isArray(st.featureIntro) && st.featureIntro.length)) {
+    const mech = cur("mechanic") || {}; const m = mech.mechanic || {}, ma = mech.math || {}; const cards = [];
+    if (m.signature_feature || m.base_game) cards.push(m.signature_feature || m.base_game);
+    if (m.bonus_round) cards.push(m.bonus_round);
+    if (ma.suggested_max_win) { const w = String(ma.suggested_max_win); cards.push("MAX WIN " + w + (/x/i.test(w) ? "" : "x")); }
+    if (cards.length && dry) fixed.push("tldr?");
+    else if (cards.length) { st.featureIntro = cards; fixed.push("tldr"); }
+  }
+
+  // 3) Soundtrack — fal Lyria 2 (synkron) om spåret saknas
+  if (!((cur("soundtrack") || {}).url)) {
+    const prompt = ((cur("music") || {}).soundtrack_prompt || entry.theme || "").trim();
+    if (prompt && dry) fixed.push("soundtrack?");
+    else if (prompt) {
+      try { const u = await falMusic(prompt, env.FLUX_API_KEY); v.soundtrack = [{ url: await inline(u), engine: "Google Lyria 2 (fal.ai)" }]; st.idx.soundtrack = 0; fixed.push("soundtrack"); }
+      catch (e) { fixed.push("soundtrack_failed"); }
+    }
+  }
+
+  if (!fixed.length) return { id, theme: entry.theme, status: "complete" };
+  if (dry) return { id, theme: entry.theme, status: "would_fix", fixed };
   entry.state = st;
   await kvPut(env, RES_KEY(id), JSON.stringify(entry));
-  return { id, theme: entry.theme, status: "backfilled", count: syms.length };
+  return { id, theme: entry.theme, status: "fixed", fixed };
 }
 
 export async function onRequestGet(context) {
