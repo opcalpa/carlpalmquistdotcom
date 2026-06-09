@@ -333,8 +333,8 @@ import Layout from '../layouts/Layout.astro';
   // ---------- Game-view (hur sökningen ser ut i spelläge, Hacksaw-stil) ----------
   function gamePrompt() {
     const a = cur('art') || {};
-    const base = (state.imagePrompt || state.theme || '').slice(0, 340);   // Claudes IP-rensade beskrivning, ej råa temat
-    return `In-game screenshot of a mobile slot game. Vertical 6x5 reel grid of glowing themed high-pay symbols plus stylised A K Q J royal letter symbols, a character mascot beside the reels, a bottom UI bar with a round spin button and balance readout, bold comic graphic-novel art with thick ink linework and halftone shading, ${a.palette || ''}, bright well-lit high-contrast colourful glowing game HUD, clean readable layout. No real brands, no copyrighted characters, no real text. Scene: ${base}`.slice(0, 720);
+    const theme = (state.theme || '').slice(0, 80);
+    return `A screenshot of a mobile slot machine game interface. MAIN FOCUS: a 5x4 grid of separate square reel tiles with clear dividing frames that fills most of the screen — each tile holds exactly one symbol: mostly glowing stylised letter symbols (A K Q J 10) plus a few themed emblem icons. Flat game-UI screenshot, NOT a poster or splash art, the reel grid dominates the composition. A slim themed character at one side, a bottom bar with a round SPIN button and a balance readout. Bold comic graphic-novel art, thick ink linework, halftone shading, ${a.palette || ''}, bright high-contrast colourful glowing UI. Theme: ${theme}. No real brands, no copyrighted characters, no real readable words.`.slice(0, 720);
   }
   async function fetchGameview() {
     try { const r = await fetch('/api/image', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ prompt: gamePrompt() }) }); const j = await r.json(); if (j.url) return { url: j.url, engine: j.engine }; } catch (e) {}
