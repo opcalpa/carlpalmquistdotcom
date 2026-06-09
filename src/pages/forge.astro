@@ -44,7 +44,7 @@ import Layout from '../layouts/Layout.astro';
             <button type="button" id="chip-more" class="absolute right-0 top-1/2 -translate-y-1/2 px-1 text-sm leading-none text-stone-500 hover:text-[#c6ff00]" title="Nya förslag">↻</button>
           </div>
           <div class="relative flex-none" id="recent-wrap">
-            <button type="button" id="recent-btn" class="rounded-full border border-[#2a2a3a] px-3 py-1 text-stone-300 hover:border-[#c6ff00]">⟲ Recent <span id="recent-count" class="text-stone-500"></span> ▾</button>
+            <button type="button" id="recent-btn" class="rounded-full border border-[#2a2a3a] px-3 py-1 text-stone-300 hover:border-[#c6ff00]">⟲ Gallery <span id="recent-count" class="text-stone-500"></span> ▾</button>
             <div id="recent-panel" class="hidden absolute right-0 z-20 mt-2 w-80 max-h-96 overflow-auto rounded-xl border border-[#2a2a3a] bg-[#15151f] p-2 shadow-2xl"></div>
           </div>
         </div>
@@ -63,6 +63,7 @@ import Layout from '../layouts/Layout.astro';
         <button type="button" id="nav-prev" class="cf-swipe cf-swipe-l hidden" title="Previous concept (←)" aria-label="Previous">‹</button>
         <section id="result" class="hidden"></section>
         <button type="button" id="nav-next" class="cf-swipe cf-swipe-r hidden" title="Next concept (→)" aria-label="Next">›</button>
+        <div id="nav-counter" class="hidden absolute left-1/2 bottom-0 -translate-x-1/2 translate-y-7 rounded-full border border-[#2a2a3a] bg-[#15151f]/80 px-3 py-1 text-xs tabular-nums text-stone-400"></div>
       </div>
 
       <footer class="mt-14 border-t border-[#1c1c28] pt-6 text-xs leading-relaxed text-stone-500">
@@ -271,11 +272,13 @@ import Layout from '../layouts/Layout.astro';
   document.addEventListener('click', (e) => { if (!e.target.closest('#recent-wrap')) closeRecent(); });
 
   // ---------- Prev/Next-karusell: bläddra galleriet direkt på resultatet (utan Recent) ----------
-  const navPrev = document.getElementById('nav-prev'), navNext = document.getElementById('nav-next');
-  // Visa pilarna bara när ett resultat syns och det finns mer än ett koncept att bläddra mellan.
+  const navPrev = document.getElementById('nav-prev'), navNext = document.getElementById('nav-next'), navCounter = document.getElementById('nav-counter');
+  // Visa pilar + "n / total"-räknare bara när ett resultat syns och det finns mer än ett koncept att bläddra mellan.
   function updateSwipeVis() {
     const show = !result.classList.contains('hidden') && galleryList.length > 1;
     navPrev.classList.toggle('hidden', !show); navNext.classList.toggle('hidden', !show);
+    navCounter.classList.toggle('hidden', !show);
+    if (show) { let idx = galleryList.findIndex((m) => m.id === (state && state.id)); if (idx === -1) idx = 0; navCounter.textContent = (idx + 1) + ' / ' + galleryList.length; }
   }
   // Vänster = nyare granne (idx-1), höger = äldre (idx+1), wrappar runt. Hoppar över aktuell.
   function navConcept(dir) {
@@ -314,7 +317,7 @@ import Layout from '../layouts/Layout.astro';
     el.innerHTML = `<div class="relative w-full max-w-md rounded-2xl border border-[#2a2a3a] bg-[#15151f] p-6 text-center shadow-2xl">
       <div class="mb-3 text-4xl">🎰</div>
       <h3 class="mb-2 text-xl font-black uppercase tracking-tight text-[#c6ff00]">Easy there, high roller</h3>
-      <p class="mb-5 text-sm leading-relaxed text-stone-300">You've spent your <strong>10 free forges</strong> — the house needs a breather. 😅 But the vault's wide open: every concept already forged is yours to play with. Hit <strong class="text-[#c6ff00]">⟲ Recent</strong> up top and dig in. Come back tomorrow for more.</p>
+      <p class="mb-5 text-sm leading-relaxed text-stone-300">You've spent your <strong>10 free forges</strong> — the house needs a breather. 😅 But the vault's wide open: every concept already forged is yours to play with. Hit <strong class="text-[#c6ff00]">⟲ Gallery</strong> up top and dig in. Come back tomorrow for more.</p>
       <div class="flex flex-col gap-2">
         <button id="cf-limit-recent" type="button" class="rounded-xl bg-[#c6ff00] px-5 py-2.5 font-black uppercase tracking-tight text-black transition hover:bg-[#d6ff3a]">⟲ Browse the gallery</button>
         <button id="cf-limit-close" type="button" class="text-xs text-stone-500 hover:text-stone-300">Maybe later</button>
