@@ -209,9 +209,10 @@ import Layout from '../layouts/Layout.astro';
     const hist = galleryList;
     recentCount.textContent = hist.length ? '(' + hist.length + ')' : '';
     if (!hist.length) { recentPanel.innerHTML = '<p class="px-2 py-3 text-xs text-stone-500">No saved concepts yet.</p>'; return; }
+    const ph = (m) => `<div class="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded bg-gradient-to-br from-[#2a2a3a] to-[#15151f] text-xs font-black text-stone-500">${esc(String(m.theme || '?').trim().charAt(0).toUpperCase())}</div>`;
     recentPanel.innerHTML = hist.map((m) => `
       <div class="recent-item flex items-center gap-2 rounded-lg px-2 py-1.5 hover:bg-[#1d212c] cursor-pointer" data-id="${esc(m.id)}">
-        ${m.thumb ? `<img src="${esc(m.thumb)}" onerror="this.style.display='none'" class="h-9 w-9 flex-shrink-0 rounded object-cover" />` : '<div class="h-9 w-9 flex-shrink-0 rounded bg-[#222]"></div>'}
+        ${m.thumb ? `<img src="${esc(m.thumb)}" onerror="this.outerHTML='${ph(m).replace(/'/g, "\\'")}'" class="h-9 w-9 flex-shrink-0 rounded object-cover" />` : ph(m)}
         <div class="min-w-0 flex-1"><div class="truncate text-sm text-stone-200">${esc(m.theme)}</div><div class="text-[10px] text-stone-500">${timeAgo(m.ts)}</div></div>
         <button class="flex-shrink-0 px-1 text-stone-600 hover:text-[#ff2d78]" data-del="${esc(m.id)}" title="Remove">✕</button>
       </div>`).join('') +
@@ -680,9 +681,22 @@ import Layout from '../layouts/Layout.astro';
   }
 
   // ---------- Persist ----------
-  async function persist() {
+  // Liten, varaktig tumnagel (64px JPEG data-URI) från nuvarande key art → galleri-indexet.
+  // Funkar på data:-bilder (inlinade, same-origin) och CORS-vänliga URL:er; faller mjukt till null.
+  async function makeThumb() {
+    const im = cur('image'); if (!im || !im.url) return null;
     try {
-      const r = await fetch('/api/gallery', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: state.id, theme: state.theme, state: { theme: state.theme, imagePrompt: state.imagePrompt, conceptEngine: state.conceptEngine, featureName: state.featureName, featureIntro: state.featureIntro, versions: state.versions, idx: state.idx } }) });
+      const img = new Image(); img.crossOrigin = 'anonymous';
+      await new Promise((res, rej) => { img.onload = res; img.onerror = rej; img.src = im.url; });
+      const cv = document.createElement('canvas'); cv.width = 64; cv.height = 64;
+      cv.getContext('2d').drawImage(img, 0, 0, 64, 64);
+      return cv.toDataURL('image/jpeg', 0.7);
+    } catch (e) { return null; }
+  }
+  async function persist() {
+    let thumb = null; try { thumb = await makeThumb(); } catch (e) {}
+    try {
+      const r = await fetch('/api/gallery', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: state.id, theme: state.theme, thumb, state: { theme: state.theme, imagePrompt: state.imagePrompt, conceptEngine: state.conceptEngine, featureName: state.featureName, featureIntro: state.featureIntro, versions: state.versions, idx: state.idx } }) });
       const j = await r.json(); if (j.id) state.id = j.id;
     } catch (e) {}
     refreshGallery();

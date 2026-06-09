@@ -82,7 +82,9 @@ export async function onRequestPost(context) {
     const imgArr = Array.isArray(v.image) ? v.image : [];
     // Tumnagel från originalurl INNAN inlining (annars blir det en jätte-data-URI i indexet).
     const curImg = imgArr[(state.idx && state.idx.image) || 0] || imgArr[0] || {};
-    const thumb = curImg.url && !String(curImg.url).startsWith("data:") ? curImg.url : "";
+    // Tumnagel: helst klientens lilla data-URI (varaktig), annars original-url (ej en data: helbild → för stor för indexet).
+    const bodyThumb = (typeof body.thumb === "string" && body.thumb.startsWith("data:") && body.thumb.length < 60000) ? body.thumb : "";
+    let thumb = bodyThumb || (curImg.url && !String(curImg.url).startsWith("data:") ? curImg.url : "");
     // Inline all media över alla versioner så inget löper ut (redan-inlinade hoppas över).
     for (const im of imgArr) { if (im && im.url) im.url = await inline(im.url); }
     if (Array.isArray(v.gameview)) for (const g of v.gameview) { if (g && g.url) g.url = await inline(g.url); }
@@ -95,6 +97,7 @@ export async function onRequestPost(context) {
     await kvPut(env, RES_KEY(id), JSON.stringify({ id, theme, key, ts, state }));
 
     let idx = await readIndex(env);
+    if (!thumb) { const prev = idx.find((m) => m.id === id); if (prev && prev.thumb) thumb = prev.thumb; }   // blanka aldrig en befintlig tumnagel
     idx = idx.filter((m) => m.id !== id);           // uppdatering: ta bort gammal post för samma id
     idx.unshift({ id, theme, key, ts, thumb });
     while (idx.length > CAP) { const o = idx.pop(); await kvDel(env, RES_KEY(o.id)); }
