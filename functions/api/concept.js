@@ -32,8 +32,12 @@ Du får ett TEMA. Svara med ENBART giltig JSON enligt schemat. Ingen text före 
     { "label": "Reel spin", "prompt": "engelsk prompt för ett kort spin/reel-ljud i temats stil" },
     { "label": "Bonus trigger", "prompt": "engelsk prompt för ett bonus-trigger-stinger" },
     { "label": "Big win", "prompt": "engelsk prompt för ett big win-jubel-ljud" }
+  ],
+  "symbols": [
+    3 st temats HÖG-symboler (de berättar storyn) — varje { "label": "1-2 ord, t.ex. 'Fox Mask'", "prompt": "engelsk prompt för EN ensam ikon (rävmask, katana, dryck osv), inget rutnät, ingen UI, ingen text/bokstäver, isolerad mot mörk bakgrund" }
   ]
 }
+Symbolerna ska vara konkreta FÖREMÅL/karaktärsemblem (inte A/K/Q/J/10 — dem renderar UI:t själv). Håll varje symbol-prompt kort och fokuserad på ETT motiv.
 Skriv art, mechanic, music, hooks och alla prompts på engelska (branschspråk). names och logline får gärna ha glimten i ögat.`;
 
 const FALLBACK = {
@@ -73,6 +77,11 @@ const FALLBACK = {
     { label: "Reel spin", prompt: "Short synthwave slot reel spin whoosh, neon, crisp" },
     { label: "Bonus trigger", prompt: "Punchy bonus-trigger stinger, rising taiko hit into a chime" },
     { label: "Big win", prompt: "Triumphant big-win flourish, synth arpeggio and impact" },
+  ],
+  symbols: [
+    { label: "Oyabun", prompt: "tattooed crime boss in a chrome kimono, bust portrait emblem" },
+    { label: "Neon Koi", prompt: "glowing neon koi fish guardian, electric cyan" },
+    { label: "Chrome Blade", prompt: "crossed chrome katana blades, magenta glint" },
   ],
   image_url: null,
 };

@@ -73,6 +73,40 @@ import Layout from '../layouts/Layout.astro';
   .cf-ver { font-size:10px; color:#5b6675; min-width:26px; text-align:center; }
   .cf-spin { display:inline-block; width:11px; height:11px; border:2px solid #2a2a3a; border-top-color:#c6ff00; border-radius:50%; animation:cfspin .7s linear infinite; }
   @keyframes cfspin { to { transform:rotate(360deg); } }
+
+  /* ---- Nivå 2: komposit game-vy (key art mood-bg + kodad reel-ram/HUD + AI-symboler) ---- */
+  .cf-slot { position:relative; width:100%; aspect-ratio:1/1; overflow:hidden; border-radius:16px; border:1px solid hsl(var(--hue,80) 45% 22%); background:#08080d; }
+  .cf-slot-bg { position:absolute; inset:0; background-size:cover; background-position:center; transform:scale(1.05); }
+  .cf-slot-scrim { position:absolute; inset:0; background:radial-gradient(125% 95% at 50% 42%, transparent 28%, rgba(5,5,9,.5) 80%), linear-gradient(180deg, rgba(5,5,9,.5) 0%, transparent 20%, transparent 64%, rgba(5,5,9,.82) 100%); }
+  .cf-slot-fallbg { position:absolute; inset:0; background:radial-gradient(120% 75% at 50% 0%, hsl(var(--hue,80) 55% 13%) 0%, #0b0b11 72%); }
+  .cf-slot-inner { position:absolute; inset:0; display:flex; flex-direction:column; gap:6px; padding:11px; }
+  .cf-slot-top { display:flex; align-items:center; gap:7px; flex-wrap:wrap; padding-right:120px; min-height:22px; }
+  .cf-slot-title { font-weight:900; text-transform:uppercase; letter-spacing:-.02em; font-size:clamp(13px,3vw,20px); line-height:1; color:#fff; text-shadow:0 2px 6px rgba(0,0,0,.9), 0 1px 0 #000; }
+  .cf-slot-feat { font-size:9px; font-weight:800; text-transform:uppercase; letter-spacing:.02em; color:#0a0a0f; background:hsl(var(--hue,80) 90% 62%); border-radius:999px; padding:3px 8px; white-space:nowrap; box-shadow:0 1px 4px rgba(0,0,0,.5); }
+  .cf-reels { flex:1; min-height:0; display:flex; align-items:center; justify-content:center; }
+  .cf-frame { position:relative; width:76%; height:100%; padding:7px; border-radius:13px; border:2px solid hsl(var(--hue,80) 62% 48%); background:linear-gradient(180deg, hsl(var(--hue,80) 40% 12% / .8), hsl(var(--hue,80) 35% 6% / .88)); box-shadow:0 0 0 3px rgba(0,0,0,.45), 0 0 26px hsl(var(--hue,80) 70% 42% / .4), inset 0 0 34px rgba(0,0,0,.55); }
+  .cf-grid { width:100%; height:100%; display:grid; gap:4px; }
+  .cf-cell { position:relative; display:flex; align-items:center; justify-content:center; overflow:hidden; border-radius:8px; border:1px solid hsl(var(--hue,80) 50% 32% / .55); background:linear-gradient(160deg, hsl(var(--hue,80) 30% 15% / .82), hsl(var(--hue,80) 28% 7% / .9)); box-shadow:inset 0 1px 0 hsl(var(--hue,80) 55% 34% / .4); }
+  .cf-cell img { width:88%; height:88%; object-fit:contain; filter:drop-shadow(0 2px 5px rgba(0,0,0,.6)); }
+  .cf-cell.cf-letter { font-weight:900; font-style:italic; font-size:clamp(12px,3.1vw,24px); letter-spacing:-.03em; color:hsl(var(--hue,80) 82% 66%); text-shadow:0 0 7px hsl(var(--hue,80) 85% 48% / .6), 0 2px 3px rgba(0,0,0,.8); }
+  .cf-grid.cf-spinning .cf-cell { animation:cfreel .42s ease; }
+  @keyframes cfreel { 0% { transform:translateY(-9%); filter:blur(3px); opacity:.45; } 100% { transform:none; filter:blur(0); opacity:1; } }
+  .cf-hud { display:flex; align-items:center; gap:6px; }
+  .cf-hud .cf-ic { width:28px; height:28px; flex:none; border-radius:8px; background:rgba(21,21,31,.85); border:1px solid #2a2a3a; color:#cbd2dd; font-size:13px; display:flex; align-items:center; justify-content:center; }
+  .cf-buy { flex:none; display:flex; flex-direction:column; align-items:center; justify-content:center; line-height:1.05; padding:4px 9px; border-radius:9px; background:linear-gradient(#ffd23f,#f3a51c); color:#3a2700; font-weight:900; font-size:8px; text-transform:uppercase; letter-spacing:.02em; box-shadow:0 2px 6px rgba(0,0,0,.5); }
+  .cf-buy b { font-size:10px; }
+  .cf-meter { display:flex; flex-direction:column; line-height:1.15; text-shadow:0 1px 3px rgba(0,0,0,.9); }
+  .cf-meter span { font-size:7px; color:#aeb6c4; text-transform:uppercase; letter-spacing:.05em; }
+  .cf-meter b { font-size:12px; color:#fff; font-weight:800; }
+  .cf-vol { display:flex; align-items:center; gap:2px; }
+  .cf-vol i { width:4px; height:10px; border-radius:1px; background:#3a3a4a; }
+  .cf-vol i.on { background:#ff2d78; }
+  .cf-bet { display:flex; align-items:center; gap:5px; }
+  .cf-step { width:23px; height:23px; flex:none; border-radius:50%; background:rgba(21,21,31,.85); border:1px solid #2a2a3a; color:#cbd2dd; font-size:14px; font-weight:800; display:flex; align-items:center; justify-content:center; cursor:pointer; }
+  .cf-spinbtn { margin-left:auto; flex:none; width:50px; height:50px; border:none; border-radius:50%; background:radial-gradient(circle at 50% 32%, #d9ff5a, #9ed400); color:#0a0a0f; font-size:22px; font-weight:900; display:flex; align-items:center; justify-content:center; cursor:pointer; box-shadow:0 0 0 4px rgba(198,255,0,.16), 0 4px 12px rgba(0,0,0,.5); transition:transform .1s; }
+  .cf-spinbtn:active { transform:scale(.9); }
+  .cf-spinbtn.cf-spinning { animation:cfspinbtn .42s linear; }
+  @keyframes cfspinbtn { to { transform:rotate(360deg); } }
 </style>
 
 <script is:inline>
@@ -145,6 +179,7 @@ import Layout from '../layouts/Layout.astro';
     state = {
       id: null, theme: c.theme || lastTheme || '', imagePrompt: c.image_prompt || c.theme || lastTheme || '', conceptEngine: c.engine || '',
       featureName: c.feature_name || '', featureIntro: Array.isArray(c.feature_intro) ? c.feature_intro : [],
+      symbolPrompts: Array.isArray(c.symbols) ? c.symbols : [],
       versions: {
         title: [{ names: c.names || [], logline: c.logline || '' }],
         art: [c.art || {}],
@@ -152,11 +187,22 @@ import Layout from '../layouts/Layout.astro';
         music: [{ music: c.music || {}, soundtrack_prompt: c.soundtrack_prompt || '', sfxPrompts: c.sfx || [] }],
         hooks: [c.hooks || []],
         image: c.image_url ? [{ url: c.image_url, engine: c.engine_image || null }] : [],
-        soundtrack: [], sfx: [], animation: [], gameview: [],
+        soundtrack: [], sfx: [], animation: [], gameview: [], symbols: [],
       },
-      idx: { title: 0, art: 0, mechanic: 0, music: 0, hooks: 0, image: 0, soundtrack: 0, sfx: 0, animation: 0, gameview: 0 },
-      visualMode: 'mood', animBusy: false, gameBusy: false,
+      idx: { title: 0, art: 0, mechanic: 0, music: 0, hooks: 0, image: 0, soundtrack: 0, sfx: 0, animation: 0, gameview: 0, symbols: 0 },
+      visualMode: 'mood', animBusy: false, gameBusy: false, symbolsBusy: false, grid: null, spinning: false,
     };
+  }
+  // Bakåtkompat: äldre sparade states saknar symbols/grid-fält → fyll i så de inte kraschar.
+  function hydrate(s) {
+    s.versions = s.versions || {};
+    if (!Array.isArray(s.versions.symbols)) s.versions.symbols = [];
+    s.idx = s.idx || {};
+    if (s.idx.symbols == null) s.idx.symbols = 0;
+    if (!Array.isArray(s.symbolPrompts)) s.symbolPrompts = [];
+    if (s.visualMode == null) s.visualMode = 'mood';
+    s.symbolsBusy = false; s.grid = null; s.spinning = false;
+    return s;
   }
   const cur = (comp) => (state.versions[comp] || [])[state.idx[comp]];
   function pushVersion(comp, value) { const a = state.versions[comp] || (state.versions[comp] = []); a.push(value); while (a.length > VCAP) a.shift(); state.idx[comp] = a.length - 1; }
@@ -200,28 +246,25 @@ import Layout from '../layouts/Layout.astro';
   function renderImage(busy) {
     const el = document.getElementById('cf-image'); if (!el) return;
     const mood = cur('image') || { url: null };
-    const game = cur('gameview');
     const an = cur('animation');
-    const hasGame = !!(game && game.url), hasLoop = !!(an && an.url);
-    const animBusy = state.animBusy, gameBusy = state.gameBusy;
+    const hasLoop = !!(an && an.url);
+    const animBusy = state.animBusy, symBusy = state.symbolsBusy;
     const on = 'style="color:#c6ff00"';
     let mode = state.visualMode || 'mood';
-    if (mode === 'game' && !hasGame) mode = 'mood';
-    if (mode === 'loop' && !hasLoop) mode = 'mood';
+    if (mode === 'loop' && !hasLoop) mode = 'mood';   // 'game' är alltid tillgängligt (gridet ritas i kod)
     let media;
     if (mode === 'loop') media = `<video src="${esc(an.url)}" autoplay muted loop playsinline class="aspect-square w-full rounded-2xl border border-[#22222e] object-cover"></video>`;
-    else if (mode === 'game') media = `<div class="relative aspect-square w-full overflow-hidden rounded-2xl border border-[#22222e] bg-[#13131c]"><div class="absolute inset-0 flex items-center justify-center p-6 text-center text-xs text-stone-500">Game view failed to load. Hit ↻ to re-roll.</div><img src="${esc(game.url)}" alt="Game view" class="absolute inset-0 h-full w-full object-cover" onerror="this.style.display='none'" /></div>`;
+    else if (mode === 'game') media = buildMockupHTML();   // kodat reel-grid + AI-symboler
     else media = mood.url ? `<img src="${esc(mood.url)}" alt="Key art" class="aspect-square w-full rounded-2xl border border-[#22222e] object-cover" />` : `<div class="flex aspect-square w-full items-center justify-center rounded-2xl border border-dashed border-[#2a2a3a] bg-[#13131c] p-6 text-center text-xs text-stone-500">${busy ? '🎨 Painting key art…' : 'No image yet.'}</div>`;
     const pill = (m, label) => `<button class="cf-mini" data-vis="${m}" ${mode === m ? on : ''}>${label}</button>`;
-    let pills = pill('mood', 'Mood');
-    pills += hasGame ? pill('game', 'Game') : (gameBusy ? `<span class="cf-mini" style="opacity:.6">Game…</span>` : `<button class="cf-mini" data-refresh="gameview" ${mood.url ? '' : 'disabled'}>+ Game</button>`);
+    let pills = pill('mood', 'Mood') + pill('game', 'Game');
     pills += hasLoop ? pill('loop', 'Loop') : (animBusy ? `<span class="cf-mini" style="opacity:.6">Loop…</span>` : `<button class="cf-mini" data-refresh="animation" ${mood.url ? '' : 'disabled'}>▶ Loop</button>`);
     let reroll = '';
-    if (mode === 'mood') reroll = ctrl('image', busy && !gameBusy && !animBusy);
-    else if (mode === 'game') reroll = `<button class="cf-mini cf-refresh" data-refresh="gameview" title="Re-roll game view">${gameBusy ? '<span class="cf-spin"></span>' : '↻'}</button>`;
+    if (mode === 'mood') reroll = ctrl('image', busy && !animBusy && !symBusy);
+    else if (mode === 'game') reroll = `<button class="cf-mini cf-refresh" data-refresh="symbols" title="Re-skin the symbols">${symBusy ? '<span class="cf-spin"></span>' : '↻'}</button>`;
     else reroll = `<button class="cf-mini cf-refresh" data-refresh="animation" title="Re-roll loop">${animBusy ? '<span class="cf-spin"></span>' : '↻'}</button>`;
     const note = animBusy ? `<div class="absolute inset-x-2 bottom-2 rounded bg-black/70 px-2 py-1 text-center text-[11px] text-[#c6ff00]">Animating with Luma Ray 2… ~1-2 min</div>`
-      : (gameBusy ? `<div class="absolute inset-x-2 bottom-2 rounded bg-black/70 px-2 py-1 text-center text-[11px] text-[#c6ff00]">Rendering game view…</div>` : '');
+      : (symBusy && mode === 'game' ? `<div class="absolute inset-x-2 bottom-2 rounded bg-black/70 px-2 py-1 text-center text-[11px] text-[#c6ff00]">Generating themed symbols with Flux…</div>` : '');
     el.innerHTML = `<div class="relative">${media}<div class="absolute right-2 top-2 flex flex-wrap items-center justify-end gap-1">${reroll}<span class="cf-ctrl">${pills}</span></div>${note}</div>`;
   }
   function renderTab(comp, busy) {
@@ -272,7 +315,7 @@ import Layout from '../layouts/Layout.astro';
   }
   function render(comp, busy) {
     if (comp === 'title') renderTitle(busy);
-    else if (comp === 'image' || comp === 'animation' || comp === 'gameview') { renderImage(busy); renderEngine(); }
+    else if (comp === 'image' || comp === 'animation' || comp === 'gameview' || comp === 'symbols') { renderImage(busy); renderEngine(); }
     else if (comp === 'soundtrack') { renderSoundtrack(busy); renderEngine(); }
     else if (comp === 'sfx') renderSfx(busy);
     else renderTab(comp, busy);
@@ -318,10 +361,9 @@ import Layout from '../layouts/Layout.astro';
     return `Subtle live-gameplay loop of this slot game screen. Ambient motion only: reel symbols shimmer and gently pulse with soft glow, the character mascot makes small idle movements, neon UI elements flicker softly. No spinning reels, no camera cut, keep the layout identical, seamless loop.`;
   }
   async function fetchAnimation() {
-    const fromGame = state.visualMode === 'game' && !!(cur('gameview') || {}).url;
-    const src = fromGame ? cur('gameview') : cur('image');
+    const src = cur('image');   // animera alltid key art (Game-läget är kodat, ingen bild att animera)
     if (!src || !src.url) return null;
-    const prompt = fromGame ? gameMotionPrompt() : motionPrompt();
+    const prompt = motionPrompt();
     try {
       const r = await fetch('/api/animate', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ imageUrl: src.url, prompt }) });
       const j = await r.json(); if (!j.requestId) return null;
@@ -341,6 +383,97 @@ import Layout from '../layouts/Layout.astro';
     try { const r = await fetch('/api/image', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ prompt: gamePrompt() }) }); const j = await r.json(); if (j.url) return { url: j.url, engine: j.engine }; } catch (e) {}
     return null;
   }
+
+  // ---------- Game-mockup: kodat reel-grid (struktur i HTML/CSS, AI-symboler droppas in) ----------
+  const LETTERS = ['A', 'K', 'Q', 'J', '10'];
+  function hashHue(s) { let h = 0; s = String(s || ''); for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0; return h % 360; }
+  function gridDims() {
+    const m = (cur('mechanic') || {}).mechanic || {};
+    const g = String(m.grid || '').match(/(\d+)\s*[x×]\s*(\d+)/i);
+    let cols = 5, rows = 4;
+    if (g) { cols = Math.min(7, Math.max(3, +g[1])); rows = Math.min(6, Math.max(3, +g[2])); }
+    return { cols, rows };
+  }
+  // Bygg cell-arrangemanget en gång (stabilt mellan renders) — SPIN reshufflar.
+  // ~45 % av cellerna blir temade symboler (jämnt fördelat), resten stiliserade bokstavsbrickor.
+  function computeGrid() {
+    const { cols, rows } = gridDims();
+    const total = cols * rows;
+    const syms = (cur('symbols') || []).filter((s) => s && s.url);
+    const pool = [];
+    if (syms.length) {
+      const per = Math.max(2, Math.round((total * 0.45) / syms.length));
+      syms.forEach((s) => { for (let k = 0; k < per; k++) pool.push({ t: 's', url: s.url, label: s.label }); });
+    }
+    let li = 0;
+    while (pool.length < total) pool.push({ t: 'l', ch: LETTERS[li++ % LETTERS.length] });
+    for (let i = pool.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); const tmp = pool[i]; pool[i] = pool[j]; pool[j] = tmp; }
+    state.grid = { cols, rows, cells: pool.slice(0, total) };
+  }
+  function volBars(v) {
+    const map = { 'low': 2, 'medium': 3, 'med': 3, 'high': 4, 'very high': 5, 'extreme': 5 };
+    const n = map[String(v || '').trim().toLowerCase()] || 4;
+    let s = ''; for (let i = 0; i < 5; i++) s += `<i class="${i < n ? 'on' : ''}"></i>`; return s;
+  }
+  function buildMockupHTML() {
+    if (!state.grid) computeGrid();
+    const g = state.grid; if (!g) return '';
+    const name = (cur('title') || {}).names && (cur('title').names[0]) || state.theme || 'Untitled';
+    const m = cur('mechanic') || { mechanic: {}, math: {} };
+    const buy = (m.mechanic || {}).bonus_buy || '', vol = (m.math || {}).volatility;
+    const hue = hashHue(state.theme);
+    const bg = (cur('image') || {}).url;   // key art = mood-miljö + karaktär bakom hjulen
+    const cells = g.cells.map((c) => c.t === 's'
+      ? `<div class="cf-cell"><img src="${esc(c.url)}" alt="${esc(c.label)}" loading="lazy" onerror="this.parentNode.classList.add('cf-letter');this.parentNode.textContent='★'" /></div>`
+      : `<div class="cf-cell cf-letter">${esc(c.ch)}</div>`).join('');
+    return `<div class="cf-slot" style="--hue:${hue}">
+      ${bg ? `<div class="cf-slot-bg" style="background-image:url('${esc(bg)}')"></div><div class="cf-slot-scrim"></div>` : `<div class="cf-slot-fallbg"></div>`}
+      <div class="cf-slot-inner">
+        <div class="cf-slot-top">
+          <span class="cf-slot-title">${esc(name)}</span>
+          ${state.featureName ? `<span class="cf-slot-feat">⚡ ${esc(state.featureName)}</span>` : ''}
+        </div>
+        <div class="cf-reels">
+          <div class="cf-frame"><div class="cf-grid${state.spinning ? ' cf-spinning' : ''}" style="grid-template-columns:repeat(${g.cols},1fr);grid-template-rows:repeat(${g.rows},1fr)">${cells}</div></div>
+        </div>
+        <div class="cf-hud">
+          <span class="cf-ic">☰</span>
+          ${buy ? `<div class="cf-buy">Buy<b>Bonus</b><span style="font-size:8px">${esc(buy)}</span></div>` : ''}
+          <div class="cf-meter"><span>Balance</span><b>10,000</b></div>
+          <div class="cf-meter"><span>Volatility</span><span class="cf-vol">${volBars(vol)}</span></div>
+          <div class="cf-bet"><span class="cf-step">−</span><div class="cf-meter" style="align-items:center"><span>Bet</span><b>2.00</b></div><span class="cf-step">+</span></div>
+          <button class="cf-spinbtn${state.spinning ? ' cf-spinning' : ''}" data-spin title="Spin">⟳</button>
+          <span class="cf-ic">A</span>
+        </div>
+      </div>
+    </div>`;
+  }
+  let spinTimer;
+  function spinMockup() {
+    if (state.spinning) return;
+    state.spinning = true; computeGrid(); renderImage(false);
+    const sfx = (cur('sfx') || [])[0];
+    if (sfx && sfx.url) { try { const a = new Audio(sfx.url); a.volume = 0.6; a.play().catch(() => {}); } catch (e) {} }
+    clearTimeout(spinTimer);
+    spinTimer = setTimeout(() => { state.spinning = false; renderImage(false); }, 440);
+  }
+  async function fetchSymbols() {
+    const prompts = state.symbolPrompts || [];
+    if (!prompts.length) return [];
+    try { const r = await fetch('/api/symbols', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ symbols: prompts }) }); const j = await r.json(); return Array.isArray(j.symbols) ? j.symbols : []; } catch (e) { return []; }
+  }
+  // Lazy: symbolerna genereras först när man öppnar Game-vyn (spar credits vid vanlig forge).
+  async function ensureSymbols() {
+    if (state.symbolsBusy) return;
+    if ((cur('symbols') || []).length) return;          // redan genererade
+    if (!(state.symbolPrompts || []).length) return;    // inget att generera
+    state.symbolsBusy = true; renderImage(false);
+    const syms = await fetchSymbols();
+    if (syms.length) { state.versions.symbols = [syms]; state.idx.symbols = 0; }
+    state.symbolsBusy = false; computeGrid();
+    if (state.visualMode === 'game') renderImage(false);
+    persist();
+  }
   async function reshapeSoundtrack() {
     const more = (document.getElementById('st-more') || {}).value || '';
     const less = (document.getElementById('st-less') || {}).value || '';
@@ -355,6 +488,7 @@ import Layout from '../layouts/Layout.astro';
   async function refresh(comp) {
     if (comp === 'animation') state.animBusy = true;
     if (comp === 'gameview') state.gameBusy = true;
+    if (comp === 'symbols') { state.symbolsBusy = true; state.visualMode = 'game'; }
     render(comp, true);
     try {
       if (['title', 'art', 'mechanic', 'music', 'hooks'].includes(comp)) {
@@ -380,9 +514,13 @@ import Layout from '../layouts/Layout.astro';
         const g = await fetchGameview();
         if (g) { pushVersion('gameview', g); state.visualMode = 'game'; }
         else { pushVersion('gameview', { url: null }); state.visualMode = 'mood'; }   // blockerad → rensa ev. svart, flippa till Mood
+      } else if (comp === 'symbols') {
+        const syms = await fetchSymbols();
+        if (syms.length) { pushVersion('symbols', syms); computeGrid(); }
+        state.visualMode = 'game';
       }
     } catch (e) {}
-    state.animBusy = false; state.gameBusy = false;
+    state.animBusy = false; state.gameBusy = false; state.symbolsBusy = false;
     render(comp, false);
     persist();
   }
@@ -441,7 +579,8 @@ import Layout from '../layouts/Layout.astro';
   result.addEventListener('click', (e) => {
     const tb = e.target.closest('[data-tab]');
     if (tb) { const t = tb.dataset.tab; result.querySelectorAll('[data-tab]').forEach((x) => x.classList.toggle('active', x.dataset.tab === t)); result.querySelectorAll('[data-panel]').forEach((p) => p.classList.toggle('hidden', p.dataset.panel !== t)); return; }
-    const vs = e.target.closest('[data-vis]'); if (vs) { state.visualMode = vs.dataset.vis; renderImage(false); return; }
+    const vs = e.target.closest('[data-vis]'); if (vs) { state.visualMode = vs.dataset.vis; renderImage(false); if (vs.dataset.vis === 'game') ensureSymbols(); return; }
+    const sp = e.target.closest('[data-spin]'); if (sp) { spinMockup(); return; }
     const rs = e.target.closest('[data-reshape]'); if (rs) { reshapeSoundtrack(); return; }
     const rf = e.target.closest('[data-refresh]'); if (rf) { refresh(rf.dataset.refresh); return; }
     const nv = e.target.closest('[data-nav]'); if (nv) { nav(nv.dataset.nav, +nv.dataset.d); return; }
@@ -466,11 +605,6 @@ import Layout from '../layouts/Layout.astro';
         try { const r = await fetch('/api/image', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ prompt: state.imagePrompt }) }); const j = await r.json(); if (j.url) pushVersion('image', { url: j.url, engine: j.engine }); } catch (e) {}
         render('image', false);
       })(),
-      (async () => {
-        state.gameBusy = true; render('gameview', true);
-        const g = await fetchGameview(); if (g) pushVersion('gameview', g);
-        state.gameBusy = false; render('gameview', false);
-      })(),
       (async () => { const sfx = await fetchSfx(); if (sfx.length) { state.versions.sfx = [sfx]; state.idx.sfx = 0; } renderSfx(); })(),
       (async () => { const st = await fetchSoundtrack(); if (st) { state.versions.soundtrack = [st]; state.idx.soundtrack = 0; renderSoundtrack(); const a = document.querySelector('#soundtrack-slot audio'); if (a) a.play().catch(() => {}); } else renderSoundtrack(); })(),
     ];
@@ -483,7 +617,7 @@ import Layout from '../layouts/Layout.astro';
     let data;
     try { const r = await fetch('/api/gallery?id=' + encodeURIComponent(id)); if (!r.ok) return; data = await r.json(); } catch (e) { return; }
     if (!data || !data.state) return;
-    state = Object.assign({ id: data.id }, data.state);
+    state = hydrate(Object.assign({ id: data.id }, data.state));
     lastTheme = state.theme || ''; input.value = state.theme || input.value;
     buildResult(true);
     window.scrollTo({ top: result.offsetTop - 20, behavior: 'smooth' });
