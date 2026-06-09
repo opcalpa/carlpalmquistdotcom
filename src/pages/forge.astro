@@ -465,12 +465,24 @@ import Layout from '../layouts/Layout.astro';
       </div>
     </div>`;
   }
-  let spinTimer;
+  let spinTimer, spinCount = 0;
+  // Hitta ett SFX på etikett-nyckelord (Reel spin / Bonus trigger / Big win), med index-reserv.
+  function sfxByHint(hint, fallbackIdx) {
+    const list = cur('sfx') || [];
+    return list.find((s) => s && (s.label || '').toLowerCase().includes(hint)) || list[fallbackIdx] || null;
+  }
+  function playSfxObj(s, delay) {
+    if (!s || !s.url) return;
+    const fire = () => { try { const a = new Audio(s.url); a.volume = 0.6; a.play().catch(() => {}); } catch (e) {} };
+    delay ? setTimeout(fire, delay) : fire();
+  }
   function spinMockup() {
     if (state.spinning) return;
-    state.spinning = true; computeGrid(); renderImage(false);
-    const sfx = (cur('sfx') || [])[0];
-    if (sfx && sfx.url) { try { const a = new Audio(sfx.url); a.volume = 0.6; a.play().catch(() => {}); } catch (e) {} }
+    state.spinning = true; spinCount++; computeGrid(); renderImage(false);
+    // Eskalerande utfall: reel varje snurr, bonus varannan, big win vart fjärde — lätt staggrat.
+    playSfxObj(sfxByHint('spin', 0));
+    if (spinCount % 2 === 0) playSfxObj(sfxByHint('bonus', 1), 180);
+    if (spinCount % 4 === 0) playSfxObj(sfxByHint('big', 2), 360);
     clearTimeout(spinTimer);
     spinTimer = setTimeout(() => { state.spinning = false; renderImage(false); }, 440);
   }
