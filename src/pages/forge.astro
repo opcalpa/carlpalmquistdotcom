@@ -69,10 +69,10 @@ import Layout from '../layouts/Layout.astro';
         <button type="button" id="nav-prev" class="cf-swipe cf-swipe-l hidden" title="Previous concept (←)" aria-label="Previous">‹</button>
         <section id="result" class="hidden"></section>
         <button type="button" id="nav-next" class="cf-swipe cf-swipe-r hidden" title="Next concept (→)" aria-label="Next">›</button>
-        <div id="nav-counter" class="hidden absolute left-1/2 bottom-0 -translate-x-1/2 translate-y-7 rounded-full border border-[#2a2a3a] bg-[#15151f]/80 px-3 py-1 text-xs tabular-nums text-stone-400"></div>
       </div>
 
       <footer class="mt-14 border-t border-[#1c1c28] pt-6 text-xs leading-relaxed text-stone-500">
+        <div id="nav-counter" class="hidden mx-auto mb-5 w-fit rounded-full border border-[#2a2a3a] bg-[#15151f]/80 px-3 py-1 text-xs tabular-nums text-stone-400"></div>
         <p><span class="font-semibold text-stone-400">Ideation accelerator, not an art generator.</span>
         It produces direction and briefs for humans to refine — the model never ships the final asset.
         That keeps it on the right side of regulatory art audits.</p>
@@ -138,6 +138,11 @@ import Layout from '../layouts/Layout.astro';
   #cf-upvote.cf-voted { border-color:#c6ff00; color:#c6ff00; }
   #cf-upvote.cf-voted .cf-up-ico { transform:translateY(-1px); display:inline-block; }
   .cf-light #cf-upvote.cf-voted { border-color:#0a8f54; color:#0a8f54; }
+  /* Karusell-räknaren (X / N): ljus pill i light mode (annars helt mörk) */
+  .cf-light #nav-counter { background:rgba(255,255,255,.8); border-color:#d7d9e1; color:#33353d; }
+  /* Tydlig textmarkering (default-selektionen syns knappt mot den mörka sökrutan) */
+  ::selection { background:#ff2d78; color:#fff; }
+  ::-moz-selection { background:#ff2d78; color:#fff; }
   .cf-ver { font-size:10px; color:#5b6675; min-width:26px; text-align:center; }
   .cf-spin { display:inline-block; width:11px; height:11px; border:2px solid #2a2a3a; border-top-color:#c6ff00; border-radius:50%; animation:cfspin .7s linear infinite; }
   @keyframes cfspin { to { transform:rotate(360deg); } }
@@ -274,7 +279,7 @@ import Layout from '../layouts/Layout.astro';
     recentPanel.innerHTML = hist.map((m) => `
       <div class="recent-item flex items-center gap-2 rounded-lg px-2 py-1.5 hover:bg-[#1d212c] cursor-pointer" data-id="${esc(m.id)}">
         ${cell(m)}
-        <div class="min-w-0 flex-1"><div class="truncate text-sm text-stone-200">${esc(m.theme)}</div><div class="text-[10px] text-stone-500">${timeAgo(m.ts)}${m.votes ? ' · ▲ ' + m.votes : ''}</div></div>
+        <div class="min-w-0 flex-1"><div class="truncate text-sm text-stone-200">${esc(m.theme)}</div><div class="text-[10px] text-stone-500">${timeAgo(m.ts)} · ▲ ${m.votes || 0}</div></div>
         <button class="flex-shrink-0 px-1 text-stone-600 hover:text-[#ff2d78]" data-del="${esc(m.id)}" title="Remove">✕</button>
       </div>`).join('') +
       `<div class="mt-1 border-t border-[#2a2a3a] pt-1"><button id="recent-clear" class="w-full rounded-lg px-2 py-1.5 text-left text-xs text-stone-500 hover:text-[#ff2d78]">Clear all</button></div>`;
@@ -1082,8 +1087,8 @@ import Layout from '../layouts/Layout.astro';
     const recent = galleryList.slice(0, 8);
     const taken = new Set(recent.map((m) => normalize(m.theme || '')));
     const suggs = SURPRISES.filter((s) => !taken.has(normalize(s))).slice(0, 5);
-    const row = (ico, label, attr) => `<div class="ac-item flex items-center gap-3 rounded-lg px-3 py-2.5 cursor-pointer hover:bg-[#1d212c]" ${attr}>${ico}<span class="truncate text-sm text-stone-200">${esc(label)}</span></div>`;
-    let html = recent.map((m) => row(ICO_CLOCK, m.theme, `data-id="${esc(m.id)}"`)).join('');
+    const row = (ico, label, attr, trail = '') => `<div class="ac-item flex items-center gap-3 rounded-lg px-3 py-2.5 cursor-pointer hover:bg-[#1d212c]" ${attr}>${ico}<span class="min-w-0 flex-1 truncate text-sm text-stone-200">${esc(label)}</span>${trail}</div>`;
+    let html = recent.map((m) => row(ICO_CLOCK, m.theme, `data-id="${esc(m.id)}"`, `<span class="flex-none text-xs tabular-nums text-stone-500">▲ ${m.votes || 0}</span>`)).join('');
     if (recent.length && suggs.length) html += '<div class="my-1 border-t border-[#2a2a3a]"></div>';
     html += suggs.map((s) => row(ICO_SEARCH, s, `data-q="${esc(s)}"`)).join('');
     acPanel.innerHTML = html;
