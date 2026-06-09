@@ -95,10 +95,41 @@ const projects = [
     ],
     stack:
       'React and TypeScript for the screens. Supabase for the database, login, and file storage. Cloudflare to host it. Claude and OpenAI for the AI helpers.',
-    image: '/images/Screenshots/produlog.png',
-    imageAlt: 'Produlog dashboard',
+    image: '/images/Screenshots/produlog-hero.png',
+    imageAlt: 'Produlog landing page',
     href: 'https://getprodulog.com',
     cta: 'getprodulog.com',
+  },
+  {
+    name: 'Concept Forge',
+    metric: '2026',
+    role: 'Live demo · Product · Engineering',
+    intro:
+      'Throw it a vibe and it forges a whole slot-game concept in one pass — name, art direction, a themed reel, a generated soundtrack, sound effects and launch hooks. One prompt, a full creative pipeline you can play with in the browser.',
+    image: '/images/Screenshots/concept-forge.png',
+    imageAlt: 'Concept Forge demo',
+    href: '/forge',
+    cta: 'Try the live demo',
+  },
+  {
+    name: 'My own operating system',
+    metric: 'Built for myself',
+    role: 'Product · Engineering · Used daily',
+    intro:
+      "The clearest proof of how I'd build a self-improving loop for a client is the one I run on myself. All my tasks, notes and documents live as plain text an AI can read and act on, with a small app sitting on top of it.",
+    highlightsLabel: 'What it proves',
+    highlights: [
+      "Everything the system needs lives as plain markdown in one place, including the corrections I've given it over time. If it isn't written down, the system can't act on it, and that's the unglamorous part most companies skip.",
+      "When I drop in a screenshot of something to handle, it gets read, drafted into the right document and filed where it belongs, so the analysis and the legwork happen without me.",
+      "The app is disposable and I rebuild it in an afternoon when my needs change, but the markdown underneath never moves, because that's where the value actually sits.",
+      "It prepares and drafts everything, but I make the last call on anything that gets sent, paid or published. The loop runs on its own right up to the decision that matters.",
+    ],
+    stack:
+      "Node with a thin front end I rebuild on demand, plain markdown for all the data, Claude Code as the engine, and a few APIs like Calendar wired straight in. It runs entirely on my own machine.",
+    image: '/images/Screenshots/pa-loop.svg',
+    imageAlt: 'A self-improving loop',
+    href: null,
+    cta: 'Personal',
   },
   {
     name: 'Epidemic Sound — Partner API',
@@ -223,100 +254,6 @@ const links = [
       </div>
     </section>
 
-    <!-- ABOUT -->
-    <section class="border-t border-stone-200 px-6 py-24 md:py-32">
-      <div class="mx-auto max-w-6xl">
-        <p
-          class="mb-12 text-xs font-medium tracking-[0.2em] text-stone-500 uppercase"
-        >
-          About
-        </p>
-        <div class="grid gap-12 md:grid-cols-12 md:gap-16">
-          <div class="md:col-span-5">
-            <div
-              class="relative aspect-[4/5] w-full overflow-hidden rounded-2xl bg-stone-100 ring-1 ring-stone-200"
-            >
-              <img
-                src="/images/Profile/carl.jpg"
-                alt="Carl Palmquist"
-                class="absolute inset-0 h-full w-full object-cover"
-              />
-            </div>
-          </div>
-          <div class="md:col-span-7">
-            <h2
-              class="text-3xl leading-tight font-medium tracking-tight text-stone-900 md:text-4xl lg:text-5xl"
-            >
-              Hi, I'm Carl.
-            </h2>
-            <div
-              class="mt-8 space-y-5 text-lg leading-relaxed text-stone-700 md:text-xl"
-            >
-              <p>
-                Eight years at Epidemic Sound across product, partnerships, and
-                engineering. The last three on the Partner API team, owning
-                partner onboarding, the feedback loop into engineering, and the
-                commercial models that priced the platform. It grew past <span
-                  class="text-stone-900">ten million</span> monthly active users
-                during that stretch.
-              </p>
-              <p>
-                Now I split my time between my own products (<a
-                  href="https://renofine.com"
-                  class="text-stone-900 underline decoration-stone-300 underline-offset-[4px] transition hover:decoration-stone-900"
-                  >Renofine</a
-                >, <a
-                  href="https://getprodulog.com"
-                  class="text-stone-900 underline decoration-stone-300 underline-offset-[4px] transition hover:decoration-stone-900"
-                  >Produlog</a
-                >) and consulting work. I build, I package, I demo. AI-native,
-                solo, opinionated.
-              </p>
-            </div>
-            <ul
-              class="mt-10 flex flex-wrap gap-x-8 gap-y-3 text-sm text-stone-500"
-            >
-              <li>Based in Stockholm</li>
-              <li>Available remote</li>
-              <li>Booking new projects</li>
-            </ul>
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <!-- HOW I BUILD -->
-    <section class="border-t border-stone-200 bg-stone-50 px-6 py-24 md:py-32">
-      <div class="mx-auto max-w-6xl">
-        <p
-          class="mb-12 text-xs font-medium tracking-[0.2em] text-stone-500 uppercase"
-        >
-          How I build
-        </p>
-        <ul class="space-y-12 md:space-y-16">
-          {
-            buildPrinciples.map((p, i) => (
-              <li class="grid grid-cols-12 gap-4 md:gap-8">
-                <div class="col-span-12 md:col-span-3">
-                  <span class="text-sm tracking-tight text-stone-400">
-                    0{i + 1}
-                  </span>
-                </div>
-                <div class="col-span-12 md:col-span-9">
-                  <h3 class="text-2xl font-medium tracking-tight text-stone-900 md:text-3xl">
-                    {p.title}
-                  </h3>
-                  <p class="mt-4 max-w-2xl text-lg leading-relaxed text-stone-700">
-                    {p.description}
-                  </p>
-                </div>
-              </li>
-            ))
-          }
-        </ul>
-      </div>
-    </section>
-
     <!-- WORK -->
     <section id="work" class="border-t border-stone-200 px-6 py-24 md:py-32">
       <div class="mx-auto max-w-6xl">
@@ -409,6 +346,100 @@ const links = [
             ))
           }
         </div>
+      </div>
+    </section>
+
+    <!-- ABOUT -->
+    <section class="border-t border-stone-200 px-6 py-24 md:py-32">
+      <div class="mx-auto max-w-6xl">
+        <p
+          class="mb-12 text-xs font-medium tracking-[0.2em] text-stone-500 uppercase"
+        >
+          About
+        </p>
+        <div class="grid gap-12 md:grid-cols-12 md:gap-16">
+          <div class="md:col-span-5">
+            <div
+              class="relative aspect-[4/5] w-full overflow-hidden rounded-2xl bg-stone-100 ring-1 ring-stone-200"
+            >
+              <img
+                src="/images/Profile/carl.jpg"
+                alt="Carl Palmquist"
+                class="absolute inset-0 h-full w-full object-cover"
+              />
+            </div>
+          </div>
+          <div class="md:col-span-7">
+            <h2
+              class="text-3xl leading-tight font-medium tracking-tight text-stone-900 md:text-4xl lg:text-5xl"
+            >
+              Hi, I'm Carl.
+            </h2>
+            <div
+              class="mt-8 space-y-5 text-lg leading-relaxed text-stone-700 md:text-xl"
+            >
+              <p>
+                Eight years at Epidemic Sound across product, partnerships, and
+                engineering. The last three on the Partner API team, owning
+                partner onboarding, the feedback loop into engineering, and the
+                commercial models that priced the platform. It grew past <span
+                  class="text-stone-900">ten million</span> monthly active users
+                during that stretch.
+              </p>
+              <p>
+                Now I split my time between my own products (<a
+                  href="https://renofine.com"
+                  class="text-stone-900 underline decoration-stone-300 underline-offset-[4px] transition hover:decoration-stone-900"
+                  >Renofine</a
+                >, <a
+                  href="https://getprodulog.com"
+                  class="text-stone-900 underline decoration-stone-300 underline-offset-[4px] transition hover:decoration-stone-900"
+                  >Produlog</a
+                >) and consulting work. I build, I package, I demo. AI-native,
+                solo, opinionated.
+              </p>
+            </div>
+            <ul
+              class="mt-10 flex flex-wrap gap-x-8 gap-y-3 text-sm text-stone-500"
+            >
+              <li>Based in Stockholm</li>
+              <li>Available remote</li>
+              <li>Booking new projects</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- HOW I BUILD -->
+    <section class="border-t border-stone-200 bg-stone-50 px-6 py-24 md:py-32">
+      <div class="mx-auto max-w-6xl">
+        <p
+          class="mb-12 text-xs font-medium tracking-[0.2em] text-stone-500 uppercase"
+        >
+          How I build
+        </p>
+        <ul class="space-y-12 md:space-y-16">
+          {
+            buildPrinciples.map((p, i) => (
+              <li class="grid grid-cols-12 gap-4 md:gap-8">
+                <div class="col-span-12 md:col-span-3">
+                  <span class="text-sm tracking-tight text-stone-400">
+                    0{i + 1}
+                  </span>
+                </div>
+                <div class="col-span-12 md:col-span-9">
+                  <h3 class="text-2xl font-medium tracking-tight text-stone-900 md:text-3xl">
+                    {p.title}
+                  </h3>
+                  <p class="mt-4 max-w-2xl text-lg leading-relaxed text-stone-700">
+                    {p.description}
+                  </p>
+                </div>
+              </li>
+            ))
+          }
+        </ul>
       </div>
     </section>
 
