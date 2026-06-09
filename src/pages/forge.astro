@@ -10,10 +10,13 @@ import Layout from '../layouts/Layout.astro';
     <div class="mx-auto max-w-6xl px-5 py-10 sm:py-12">
 
       <header class="mb-7">
-        <p class="mb-3 inline-flex items-center gap-2 rounded-full border border-[#2a2a3a] bg-[#15151f] px-3 py-1 text-xs font-medium tracking-wide text-stone-400">
-          <span class="h-1.5 w-1.5 rounded-full bg-[#c6ff00]"></span>
-          A Carl Palmquist demo · slot ideation accelerator
-        </p>
+        <div class="mb-3 flex items-center justify-between gap-3">
+          <p class="inline-flex items-center gap-2 rounded-full border border-[#2a2a3a] bg-[#15151f] px-3 py-1 text-xs font-medium tracking-wide text-stone-400">
+            <span class="h-1.5 w-1.5 rounded-full bg-[#c6ff00]"></span>
+            A Carl Palmquist demo · slot ideation accelerator
+          </p>
+          <button type="button" id="theme-toggle" class="flex-none rounded-full border border-[#2a2a3a] bg-[#15151f] px-3 py-1 text-xs font-medium text-stone-300 hover:border-[#c6ff00]" title="Växla ljust/mörkt">☀️ Light</button>
+        </div>
         <h1 class="text-5xl font-black uppercase leading-[0.95] tracking-tight sm:text-6xl">
           Concept <span class="text-[#c6ff00]">Forge</span>
         </h1>
@@ -47,9 +50,10 @@ import Layout from '../layouts/Layout.astro';
         </div>
       </form>
 
-      <div id="loading" class="hidden py-16 text-center">
-        <div class="mx-auto mb-4 h-8 w-8 animate-spin rounded-full border-2 border-[#2a2a3a] border-t-[#c6ff00]"></div>
-        <p id="loading-msg" class="text-stone-400">Sketching characters…</p>
+      <div id="loading" class="hidden py-10">
+        <canvas id="pong" class="mx-auto block w-full max-w-3xl rounded-2xl border border-[#22222e] bg-[#0c0c12]" style="aspect-ratio:2/1"></canvas>
+        <p id="loading-msg" class="mt-4 text-center text-stone-400">Sketching characters…</p>
+        <p class="mt-1 text-center text-xs text-stone-600">⚡ Beat the house while it forges — move your paddle with the mouse</p>
       </div>
 
       <section id="result" class="hidden"></section>
@@ -67,6 +71,36 @@ import Layout from '../layouts/Layout.astro';
 <style is:global>
   .no-scrollbar { -ms-overflow-style:none; scrollbar-width:none; }
   .no-scrollbar::-webkit-scrollbar { display:none; }
+
+  /* ---- Light mode: remappar varje färg-token (Game-vyn lämnas mörk medvetet) ---- */
+  /* Bakgrunder */
+  .cf-light .bg-\[\#0a0a0f\] { background-color:#f3f4f7 !important; }
+  .cf-light .bg-\[\#13131c\] { background-color:#ffffff !important; }
+  .cf-light .bg-\[\#15151f\] { background-color:#eceef2 !important; }
+  .cf-light .bg-\[\#1d212c\] { background-color:#e3e8f0 !important; }
+  /* Kanter */
+  .cf-light .border-\[\#2a2a3a\] { border-color:#d7d9e1 !important; }
+  .cf-light .border-\[\#22222e\] { border-color:#e1e3e9 !important; }
+  .cf-light .border-\[\#1c1c28\] { border-color:#e7e9ef !important; }
+  /* Text (stone-skala) */
+  .cf-light .text-stone-100 { color:#15161a !important; }
+  .cf-light .text-stone-200 { color:#202128 !important; }
+  .cf-light .text-stone-300 { color:#33353d !important; }
+  .cf-light .text-stone-400 { color:#4b4d57 !important; }
+  .cf-light .text-stone-500 { color:#6a6d78 !important; }
+  .cf-light .text-stone-600 { color:#9499a4 !important; }
+  .cf-light .placeholder-stone-500::placeholder { color:#9aa0ac !important; }
+  /* Accenter som text → mörkas för kontrast mot ljust (knappar/dot/ring behåller neon) */
+  .cf-light .text-\[\#c6ff00\] { color:#4f9c00 !important; }
+  .cf-light .text-\[\#ff2d78\] { color:#d81b60 !important; }
+  /* Chips-fade tonar mot ljus bakgrund i light mode */
+  .cf-light .from-\[\#0a0a0f\] { --tw-gradient-from:#f3f4f7 var(--tw-gradient-from-position) !important; --tw-gradient-to:rgb(243 244 247 / 0) var(--tw-gradient-to-position) !important; }
+  /* Komponent-CSS (cf-tab / cf-mini) i light */
+  .cf-light .cf-tab { border-color:#d7d9e1; color:#33353d; }
+  .cf-light .cf-tab:hover { border-color:#4f9c00; }
+  .cf-light .cf-mini { border-color:#d7d9e1; background:#eceef2; color:#5b6675; }
+  .cf-light .cf-mini:hover:not(:disabled) { border-color:#4f9c00; color:#1a1a1f; }
+  /* Pong-arenan förblir mörk (egen kanvas), men dess ram följer light */
   .cf-tab { display:inline-block; padding:7px 13px; border-radius:9px; font-size:12px; font-weight:800; letter-spacing:-0.01em; text-transform:uppercase; border:1px solid #2a2a3a; color:#d6d3d1; background:transparent; cursor:pointer; }
   .cf-tab:hover { border-color:#c6ff00; }
   .cf-tab.active { background:#c6ff00; color:#000; border-color:#c6ff00; }
@@ -125,6 +159,24 @@ import Layout from '../layouts/Layout.astro';
   const recentPanel = document.getElementById('recent-panel');
   const recentCount = document.getElementById('recent-count');
 
+  // ---------- Ljust/mörkt tema ----------
+  function applyTheme(light) {
+    document.documentElement.classList.toggle('cf-light', light);
+    const tb = document.getElementById('theme-toggle');
+    if (tb) tb.textContent = light ? '🌙 Dark' : '☀️ Light';
+  }
+  (function initTheme() {
+    let light = false;
+    try { light = localStorage.getItem('forge-theme') === 'light'; } catch (e) {}
+    applyTheme(light);
+    const tb = document.getElementById('theme-toggle');
+    if (tb) tb.addEventListener('click', () => {
+      const next = !document.documentElement.classList.contains('cf-light');
+      applyTheme(next);
+      try { localStorage.setItem('forge-theme', next ? 'light' : 'dark'); } catch (e) {}
+    });
+  })();
+
   const SURPRISES = ['neon yakuza synthwave heist','haunted disco inferno','viking metal feast','deep sea treasure cult','cyberpunk samurai noodle bar','wild west bank robbery at dawn','baroque vampire opera','arctic monster hunt','lucha libre luchador showdown','egyptian afterlife game show','jurassic jungle bounty','voodoo new orleans jazz funeral','haunted carnival freakshow','retro arcade hacker den','greek underworld boxing','candy factory sugar rush','pirate ghost ship raid','dumpling dojo kung fu','space western bounty hunter','gothic cathedral exorcism','tropical tiki volcano party','steampunk airship robbery','zombie football hooligans','samurai cyber dragon','wild safari jackpot stampede','noir detective speakeasy','frost giant ragnarok','day of the dead mariachi fiesta','toxic sewer mutant rave','medieval dragon siege','street graffiti monster crew','sushi conveyor chaos'];
   const LOADING_MSGS = ['Sketching characters…','Inking the key art…','Designing the bonus round…','Stress-testing the max win…','Writing the launch hooks…'];
 
@@ -176,8 +228,53 @@ import Layout from '../layouts/Layout.astro';
   // ---------- Loading ----------
   let msgTimer;
   const holdAudio = new Audio('/hold-music.mp3'); holdAudio.loop = true; holdAudio.volume = 0.45;
-  function startLoading() { result.classList.add('hidden'); loading.classList.remove('hidden'); btn.disabled = true; try { holdAudio.currentTime = 0; holdAudio.play().catch(() => {}); } catch (e) {} let i = 0; loadingMsg.textContent = LOADING_MSGS[0]; msgTimer = setInterval(() => { i = (i + 1) % LOADING_MSGS.length; loadingMsg.textContent = LOADING_MSGS[i]; }, 1500); }
-  function stopLoading() { clearInterval(msgTimer); loading.classList.add('hidden'); btn.disabled = false; try { holdAudio.pause(); } catch (e) {} }
+  function startLoading() { result.classList.add('hidden'); loading.classList.remove('hidden'); btn.disabled = true; try { holdAudio.currentTime = 0; holdAudio.play().catch(() => {}); } catch (e) {} let i = 0; loadingMsg.textContent = LOADING_MSGS[0]; msgTimer = setInterval(() => { i = (i + 1) % LOADING_MSGS.length; loadingMsg.textContent = LOADING_MSGS[i]; }, 1500); startPong(); }
+  function stopLoading() { clearInterval(msgTimer); loading.classList.add('hidden'); btn.disabled = false; try { holdAudio.pause(); } catch (e) {} stopPong(); }
+
+  // ---------- Pong-loader: du mot datorn medan konceptet genereras ----------
+  const pong = { raf: 0, running: false, cleanup: null };
+  function startPong() {
+    const c = document.getElementById('pong'); if (!c) return;
+    const ctx = c.getContext('2d'); if (!ctx) return;
+    const dpr = window.devicePixelRatio || 1;
+    const rect = c.getBoundingClientRect();
+    const w = Math.max(320, Math.round(rect.width)), h = Math.round(rect.height) || Math.round(w / 2);
+    c.width = w * dpr; c.height = h * dpr; ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    const PADH = h * 0.2, PADW = 8, R = Math.max(5, h * 0.02), SPD = w * 0.0065;
+    const st = { py: h / 2 - PADH / 2, cy: h / 2 - PADH / 2, bx: w / 2, by: h / 2, bvx: -SPD, bvy: SPD * 0.5, ps: 0, cs: 0, mouse: null };
+    const onMove = (e) => { const r = c.getBoundingClientRect(); st.mouse = ((e.touches ? e.touches[0].clientY : e.clientY) - r.top); };
+    c.addEventListener('mousemove', onMove); c.addEventListener('touchmove', onMove, { passive: true });
+    pong.cleanup = () => { c.removeEventListener('mousemove', onMove); c.removeEventListener('touchmove', onMove); };
+    const reset = (dir) => { st.bx = w / 2; st.by = h / 2; st.bvx = dir * SPD; st.bvy = (Math.random() * 2 - 1) * SPD * 0.8; };
+    pong.running = true;
+    const frame = () => {
+      if (!pong.running) return;
+      if (st.mouse != null) st.py += ((st.mouse - PADH / 2) - st.py) * 0.28;
+      st.py = Math.max(0, Math.min(h - PADH, st.py));
+      const cpuStep = h * 0.014;   // släpning → slagbar
+      st.cy += Math.max(-cpuStep, Math.min(cpuStep, (st.by - PADH / 2 - st.cy) * 0.11));
+      st.cy = Math.max(0, Math.min(h - PADH, st.cy));
+      st.bx += st.bvx; st.by += st.bvy;
+      if (st.by < R) { st.by = R; st.bvy = Math.abs(st.bvy); }
+      if (st.by > h - R) { st.by = h - R; st.bvy = -Math.abs(st.bvy); }
+      if (st.bx - R < PADW + 4 && st.by > st.py && st.by < st.py + PADH && st.bvx < 0) { st.bvx = Math.abs(st.bvx) * 1.05; st.bvy = ((st.by - (st.py + PADH / 2)) / (PADH / 2)) * SPD; }
+      if (st.bx + R > w - PADW - 4 && st.by > st.cy && st.by < st.cy + PADH && st.bvx > 0) { st.bvx = -Math.abs(st.bvx) * 1.05; st.bvy = ((st.by - (st.cy + PADH / 2)) / (PADH / 2)) * SPD; }
+      if (st.bx < -R) { st.cs++; reset(-1); }
+      if (st.bx > w + R) { st.ps++; reset(1); }
+      ctx.clearRect(0, 0, w, h);
+      ctx.strokeStyle = '#22222e'; ctx.lineWidth = 2; ctx.setLineDash([6, 10]); ctx.beginPath(); ctx.moveTo(w / 2, 0); ctx.lineTo(w / 2, h); ctx.stroke(); ctx.setLineDash([]);
+      ctx.fillStyle = '#5b6675'; ctx.font = `800 ${Math.round(h * 0.07)}px ui-sans-serif,system-ui,sans-serif`; ctx.textAlign = 'center';
+      ctx.fillText('YOU', w * 0.32, h * 0.12); ctx.fillText('HOUSE', w * 0.68, h * 0.12);
+      ctx.fillStyle = '#9aa3b2'; ctx.font = `800 ${Math.round(h * 0.16)}px ui-sans-serif,system-ui,sans-serif`;
+      ctx.fillText(st.ps, w * 0.32, h * 0.3); ctx.fillText(st.cs, w * 0.68, h * 0.3);
+      ctx.fillStyle = '#c6ff00'; ctx.fillRect(4, st.py, PADW, PADH);
+      ctx.fillStyle = '#ff2d78'; ctx.fillRect(w - PADW - 4, st.cy, PADW, PADH);
+      ctx.fillStyle = '#e7eaf0'; ctx.beginPath(); ctx.arc(st.bx, st.by, R, 0, Math.PI * 2); ctx.fill();
+      pong.raf = requestAnimationFrame(frame);
+    };
+    pong.raf = requestAnimationFrame(frame);
+  }
+  function stopPong() { pong.running = false; cancelAnimationFrame(pong.raf); if (pong.cleanup) { pong.cleanup(); pong.cleanup = null; } }
 
   // ---------- Version state ----------
   function initState(c) {
