@@ -100,16 +100,22 @@ async function fluxIcon(prompt, falKey) {
 
 // Soundtrack-reparation: Google Lyria 2 på fal är synkron (url direkt) → idealt för server-side backfill.
 async function falMusic(prompt, falKey) {
-  const res = await fetch("https://fal.run/fal-ai/lyria2", {
-    method: "POST",
-    headers: { "Content-Type": "application/json", Authorization: `Key ${falKey}` },
-    body: JSON.stringify({ prompt: String(prompt).slice(0, 1000), negative_prompt: "low quality, distorted, muddy mix, vocals" }),
-  });
-  if (!res.ok) throw new Error(`fal lyria ${res.status}`);
-  const d = await res.json();
-  const url = d.audio && d.audio.url;
-  if (!url) throw new Error("fal lyria: no url");
-  return url;
+  let lastErr;
+  for (let attempt = 0; attempt < 2; attempt++) {
+    try {
+      const res = await fetch("https://fal.run/fal-ai/lyria2", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Key ${falKey}` },
+        body: JSON.stringify({ prompt: String(prompt).slice(0, 1000), negative_prompt: "low quality, distorted, muddy mix, vocals" }),
+      });
+      if (!res.ok) throw new Error(`fal lyria ${res.status}: ${(await res.text()).slice(0, 120)}`);
+      const d = await res.json();
+      const url = d.audio && d.audio.url;
+      if (!url) throw new Error("fal lyria: no url in " + JSON.stringify(d).slice(0, 120));
+      return url;
+    } catch (e) { lastErr = e; await sleep(800); }
+  }
+  throw lastErr;
 }
 
 // Reparerar EN gallery-post: fyller bara det som saknas (symboler / TL;DR / soundtrack). Idempotent.
@@ -152,7 +158,7 @@ async function backfillOne(env, id, dry) {
     if (prompt && dry) fixed.push("soundtrack?");
     else if (prompt) {
       try { const u = await falMusic(prompt, env.FLUX_API_KEY); v.soundtrack = [{ url: await inline(u), engine: "Google Lyria 2 (fal.ai)" }]; st.idx.soundtrack = 0; fixed.push("soundtrack"); }
-      catch (e) { fixed.push("soundtrack_failed"); }
+      catch (e) { fixed.push("soundtrack_failed:" + String(e && e.message || e).slice(0, 100)); }
     }
   }
 
