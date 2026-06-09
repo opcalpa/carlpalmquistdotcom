@@ -152,9 +152,15 @@ async function backfillOne(env, id, dry) {
     else if (cards.length) { st.featureIntro = cards; fixed.push("tldr"); }
   }
 
-  // 3) Soundtrack — fal Lyria 2 (synkron) om spåret saknas
+  // 3) Soundtrack — fal Lyria 2 (synkron) om spåret saknas.
+  // Lyria 422:ar prompts som namnger riktiga artister/IP (reference_vibe innehåller ofta det),
+  // så bygg en ren musikalisk prompt ur genre/instrumentering/BPM och utelämna vibe-referensen.
   if (!((cur("soundtrack") || {}).url)) {
-    const prompt = ((cur("music") || {}).soundtrack_prompt || entry.theme || "").trim();
+    const mus = (cur("music") || {}).music || {};
+    const bpm = (String(mus.bpm || "").match(/\d+/) || [])[0];
+    let prompt = [mus.genre, (typeof mus.instrumentation === "string" ? mus.instrumentation : ""), bpm ? bpm + " BPM" : ""].filter(Boolean).join(", ").trim();
+    if (!prompt) prompt = entry.theme || "";
+    prompt = (prompt + ", instrumental, no vocals, high quality, seamless loop").slice(0, 800);
     if (prompt && dry) fixed.push("soundtrack?");
     else if (prompt) {
       try { const u = await falMusic(prompt, env.FLUX_API_KEY); v.soundtrack = [{ url: await inline(u), engine: "Google Lyria 2 (fal.ai)" }]; st.idx.soundtrack = 0; fixed.push("soundtrack"); }
