@@ -376,7 +376,9 @@ import Layout from '../layouts/Layout.astro';
       } else if (comp === 'animation') {
         const an = await fetchAnimation(); if (an) { pushVersion('animation', an); state.visualMode = 'loop'; }
       } else if (comp === 'gameview') {
-        const g = await fetchGameview(); if (g) { pushVersion('gameview', g); state.visualMode = 'game'; }
+        const g = await fetchGameview();
+        if (g) { pushVersion('gameview', g); state.visualMode = 'game'; }
+        else { pushVersion('gameview', { url: null }); state.visualMode = 'mood'; }   // blockerad → rensa ev. svart, flippa till Mood
       }
     } catch (e) {}
     state.animBusy = false; state.gameBusy = false;
