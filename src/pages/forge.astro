@@ -50,6 +50,9 @@ import Layout from '../layouts/Layout.astro';
         </div>
       </form>
 
+      <!-- Tunn avdelare: signalerar att ovan är sökfältet, nedan är resultatet (à la Google) -->
+      <div class="mt-8 mb-7 border-t border-[#1c1c28]"></div>
+
       <div id="loading" class="hidden py-10">
         <canvas id="pong" class="mx-auto block w-full max-w-3xl rounded-2xl border border-[#22222e] bg-[#0c0c12]" style="aspect-ratio:2/1"></canvas>
         <p id="loading-msg" class="mt-4 text-center text-stone-400">Sketching characters…</p>
@@ -582,12 +585,23 @@ import Layout from '../layouts/Layout.astro';
     }
     return null;
   }
+  // Ren, Lyria-säker musikprompt ur briefen (genre/instrumentering/BPM). Lyria 422:ar prompts som
+  // namnger riktiga artister/IP (de sitter i soundtrack_prompt/reference_vibe) → används för fal-fallbacken.
+  function cleanMusicPrompt() {
+    const mus = (cur('music') || {}).music || {};
+    const bpm = (String(mus.bpm || '').match(/\d+/) || [])[0];
+    let p = [mus.genre, (typeof mus.instrumentation === 'string' ? mus.instrumentation : ''), bpm ? bpm + ' BPM' : ''].filter(Boolean).join(', ').trim();
+    if (!p) p = state.theme || '';
+    return (p + ', instrumental, no vocals, high quality, seamless loop').slice(0, 800);
+  }
   async function fetchSoundtrack(steer) {
     let prompt = (cur('music') || {}).soundtrack_prompt || state.theme || '';
     if (steer) prompt = prompt + ', ' + steer;
     if (!prompt) return null;
     try { const r = await fetch('/api/soundtrack', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ prompt }) }); const j = await r.json(); if (j.taskId) { const url = await pollSuno(j.taskId); if (url) return { url, engine: 'Suno V5' }; } } catch (e) {}
-    try { const r = await fetch('/api/soundtrack', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ prompt, engine: 'fal' }) }); const j = await r.json(); if (j.url) return { url: j.url, engine: j.engine || 'Stable Audio (fal.ai)' }; } catch (e) {}
+    // Fallback: fal Lyria med REN prompt (Suno tål artistnamn, Lyria gör inte).
+    let falPrompt = cleanMusicPrompt(); if (steer) falPrompt = (falPrompt + ', ' + steer).slice(0, 800);
+    try { const r = await fetch('/api/soundtrack', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ prompt: falPrompt, engine: 'fal' }) }); const j = await r.json(); if (j.url) return { url: j.url, engine: j.engine || 'Lyria 2 (fal.ai)' }; } catch (e) {}
     return null;
   }
   async function fetchSfx() {
@@ -711,7 +725,7 @@ import Layout from '../layouts/Layout.astro';
   }
   function spinMockup() {
     if (state.spinning) return;
-    state.spun = true; stopViewAuto();   // användaren har snurrat → sluta puls/auto-rotera
+    state.spun = true;   // snurr släcker invite-glowen, men rotationen fortsätter (bara Mood/Game-knapp stoppar den)
     state.spinning = true; spinCount++; computeGrid(); renderImage(false);
     // Eskalerande utfall: reel varje snurr, bonus varannan, big win vart fjärde — lätt staggrat.
     playSfxObj(sfxByHint('spin', 0));
@@ -855,9 +869,11 @@ import Layout from '../layouts/Layout.astro';
 
   // Auto-rotera Mood↔Game var 7:e sek så nya användare upptäcker Game-vyn — slutar permanent
   // vid första egna interaktion (vy-klick/snurr), pausar när fliken är dold, hoppar över Loop.
-  let viewAutoTimer = null, viewTouched = false, viewCycles = 0;
+  // Rotationen fortsätter tills användaren AKTIVT väljer en vy via Mood/Game-knapparna (data-vis).
+  // Ett klick mitt på bilden (snurr) räcker inte. Pausar artigt när fliken är dold / mitt i snurr.
+  let viewAutoTimer = null, viewTouched = false;
   function startViewAuto() {
-    clearInterval(viewAutoTimer); viewCycles = 0;
+    clearInterval(viewAutoTimer);
     viewAutoTimer = setInterval(() => {
       if (viewTouched || document.hidden || state.spinning) return;
       const canGame = ((cur('symbols') || []).length > 0);
@@ -865,8 +881,6 @@ import Layout from '../layouts/Layout.astro';
       else if (canGame) { state.visualMode = 'game'; ensureSymbols(); }
       else return;   // inga symboler än → stanna på Mood tills de kommit
       renderImage(false);
-      // Efter ~3 varv: sluta nagga, landa på Game (mer imponerande) och stäng av.
-      if (++viewCycles >= 6) { if (state.visualMode !== 'game' && canGame) { state.visualMode = 'game'; renderImage(false); } clearInterval(viewAutoTimer); }
     }, 7000);
   }
   function stopViewAuto() { viewTouched = true; clearInterval(viewAutoTimer); }
