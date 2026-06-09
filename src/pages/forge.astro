@@ -56,7 +56,11 @@ import Layout from '../layouts/Layout.astro';
         <p class="mt-1 text-center text-xs text-stone-600">⚡ Beat the house while it forges — move your paddle with the mouse</p>
       </div>
 
-      <section id="result" class="hidden"></section>
+      <div id="result-wrap" class="relative">
+        <button type="button" id="nav-prev" class="cf-swipe cf-swipe-l hidden" title="Previous concept (←)" aria-label="Previous">‹</button>
+        <section id="result" class="hidden"></section>
+        <button type="button" id="nav-next" class="cf-swipe cf-swipe-r hidden" title="Next concept (→)" aria-label="Next">›</button>
+      </div>
 
       <footer class="mt-14 border-t border-[#1c1c28] pt-6 text-xs leading-relaxed text-stone-500">
         <p><span class="font-semibold text-stone-400">Ideation accelerator, not an art generator.</span>
@@ -165,6 +169,13 @@ import Layout from '../layouts/Layout.astro';
   /* Mjuk crossfade när bild-vyn växlar (auto-rotation Mood↔Game) */
   #cf-image img, #cf-image .cf-slot { animation:cffade .5s ease; }
   @keyframes cffade { from{opacity:.2} to{opacity:1} }
+  /* Prev/Next-karusell: diskreta chevroner i marginalen (bläddra galleriet utan Recent) */
+  .cf-swipe { position:absolute; top:46%; transform:translateY(-50%); z-index:20; width:46px; height:74px; display:flex; align-items:center; justify-content:center; border:none; background:transparent; color:#ff2d78; font-size:34px; font-weight:300; line-height:1; cursor:pointer; opacity:.32; transition:opacity .15s, transform .15s; }
+  .cf-swipe:hover { opacity:1; transform:translateY(-50%) scale(1.12); }
+  .cf-swipe-l { left:-3.25rem; } .cf-swipe-r { right:-3.25rem; }
+  @media (max-width:1180px) { .cf-swipe { background:rgba(12,12,18,.55); border-radius:12px; opacity:.5; } .cf-swipe-l { left:4px; } .cf-swipe-r { right:4px; } }
+  /* Tap-again-bekräftelse på ↻ (förhindrar dyra mistryck under demo) */
+  .cf-confirm { border-color:#ffb020 !important; color:#ffb020 !important; box-shadow:0 0 0 2px rgba(255,176,32,.28); }
 </style>
 
 <script is:inline>
@@ -216,6 +227,7 @@ import Layout from '../layouts/Layout.astro';
     try { const r = await fetch('/api/gallery'); const j = await r.json(); galleryList = Array.isArray(j.list) ? j.list : []; }
     catch (e) { galleryList = []; }
     renderRecent();
+    if (typeof updateSwipeVis === 'function') updateSwipeVis();
   }
   const findCachedId = (key) => { const m = galleryList.find((x) => x.key === key); return m ? m.id : null; };
   async function delEntry(id) { try { await fetch('/api/gallery?id=' + encodeURIComponent(id), { method: 'DELETE' }); } catch (e) {} refreshGallery(); }
@@ -254,6 +266,41 @@ import Layout from '../layouts/Layout.astro';
   recentBtn.addEventListener('click', (e) => { e.stopPropagation(); stopRecentPulse(); recentPanel.classList.toggle('hidden'); });
   document.addEventListener('click', (e) => { if (!e.target.closest('#recent-wrap')) closeRecent(); });
 
+  // ---------- Prev/Next-karusell: bläddra galleriet direkt på resultatet (utan Recent) ----------
+  const navPrev = document.getElementById('nav-prev'), navNext = document.getElementById('nav-next');
+  // Visa pilarna bara när ett resultat syns och det finns mer än ett koncept att bläddra mellan.
+  function updateSwipeVis() {
+    const show = !result.classList.contains('hidden') && galleryList.length > 1;
+    navPrev.classList.toggle('hidden', !show); navNext.classList.toggle('hidden', !show);
+  }
+  // Vänster = nyare granne (idx-1), höger = äldre (idx+1), wrappar runt. Hoppar över aktuell.
+  function navConcept(dir) {
+    if (galleryList.length < 2) return;
+    stopRecentPulse();
+    let idx = galleryList.findIndex((m) => m.id === state.id);
+    if (idx === -1) idx = 0;
+    const t = (idx + dir + galleryList.length) % galleryList.length;
+    const target = galleryList[t]; if (target && target.id !== state.id) loadSearch(target.id);
+  }
+  navPrev.addEventListener('click', () => navConcept(-1));
+  navNext.addEventListener('click', () => navConcept(1));
+  // Piltangenter (när man inte skriver i ett fält)
+  document.addEventListener('keydown', (e) => {
+    if (result.classList.contains('hidden')) return;
+    const tag = (e.target.tagName || '').toLowerCase();
+    if (tag === 'input' || tag === 'textarea') return;
+    if (e.key === 'ArrowLeft') { e.preventDefault(); navConcept(-1); }
+    else if (e.key === 'ArrowRight') { e.preventDefault(); navConcept(1); }
+  });
+  // Touch-swipe på resultatet (horisontell drag > 60 px)
+  let touchX = null, touchY = null;
+  result.addEventListener('touchstart', (e) => { const t = e.changedTouches[0]; touchX = t.clientX; touchY = t.clientY; }, { passive: true });
+  result.addEventListener('touchend', (e) => {
+    if (touchX == null) return; const t = e.changedTouches[0];
+    const dx = t.clientX - touchX, dy = t.clientY - touchY; touchX = null;
+    if (Math.abs(dx) > 60 && Math.abs(dx) > Math.abs(dy) * 1.5) navConcept(dx < 0 ? 1 : -1);
+  }, { passive: true });
+
   // Vänlig gräns-popup när IP:n gjort sina 3 forges → styr mot Recent.
   function showLimitPopup() {
     if (document.getElementById('cf-limit')) return;
@@ -281,7 +328,7 @@ import Layout from '../layouts/Layout.astro';
   // ---------- Loading ----------
   let msgTimer;
   const holdAudio = new Audio('/hold-music.mp3'); holdAudio.loop = true; holdAudio.volume = 0.45;
-  function startLoading() { result.classList.add('hidden'); loading.classList.remove('hidden'); btn.disabled = true; try { holdAudio.currentTime = 0; holdAudio.play().catch(() => {}); } catch (e) {} let i = 0; loadingMsg.textContent = LOADING_MSGS[0]; msgTimer = setInterval(() => { i = (i + 1) % LOADING_MSGS.length; loadingMsg.textContent = LOADING_MSGS[i]; }, 1500); startPong(); }
+  function startLoading() { result.classList.add('hidden'); loading.classList.remove('hidden'); btn.disabled = true; try { holdAudio.currentTime = 0; holdAudio.play().catch(() => {}); } catch (e) {} let i = 0; loadingMsg.textContent = LOADING_MSGS[0]; msgTimer = setInterval(() => { i = (i + 1) % LOADING_MSGS.length; loadingMsg.textContent = LOADING_MSGS[i]; }, 1500); startPong(); updateSwipeVis(); }
   function stopLoading() { clearInterval(msgTimer); loading.classList.add('hidden'); btn.disabled = false; try { holdAudio.pause(); } catch (e) {} stopPong(); }
 
   // ---------- Pong-loader: du mot datorn medan konceptet genereras ----------
@@ -794,6 +841,7 @@ import Layout from '../layouts/Layout.astro';
     const regen = document.getElementById('regen-btn');
     if (regen) regen.addEventListener('click', () => { if (state && state.theme) generateFresh(state.theme); });
     state.spun = false; viewTouched = false; startViewAuto();   // bjud in att upptäcka Game-vyn
+    updateSwipeVis();
   }
 
   // Auto-rotera Mood↔Game var 7:e sek så nya användare upptäcker Game-vyn — slutar permanent
@@ -835,7 +883,17 @@ import Layout from '../layouts/Layout.astro';
     const vs = e.target.closest('[data-vis]'); if (vs) { stopViewAuto(); state.visualMode = vs.dataset.vis; renderImage(false); if (vs.dataset.vis === 'game') ensureSymbols(); return; }
     const sp = e.target.closest('[data-spin]'); if (sp) { spinMockup(); return; }
     const rs = e.target.closest('[data-reshape]'); if (rs) { reshapeSoundtrack(); return; }
-    const rf = e.target.closest('[data-refresh]'); if (rf) { refresh(rf.dataset.refresh); return; }
+    const rf = e.target.closest('[data-refresh]');
+    if (rf) {
+      // Tap-again-bekräftelse: första trycket beväpnar (gulorange), andra inom 2,5 s kör. Hindrar dyra mistryck.
+      if (rf.getAttribute('data-armed') !== '1') {
+        rf.setAttribute('data-armed', '1'); rf.classList.add('cf-confirm'); rf.title = 'Tap again to confirm';
+        clearTimeout(rf._armT); rf._armT = setTimeout(() => { rf.removeAttribute('data-armed'); rf.classList.remove('cf-confirm'); }, 2500);
+        return;
+      }
+      clearTimeout(rf._armT); rf.removeAttribute('data-armed'); rf.classList.remove('cf-confirm');
+      refresh(rf.dataset.refresh); return;
+    }
     const nv = e.target.closest('[data-nav]'); if (nv) { nav(nv.dataset.nav, +nv.dataset.d); return; }
   });
 
