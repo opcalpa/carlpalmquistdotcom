@@ -90,9 +90,17 @@ import Layout from '../layouts/Layout.astro';
   .cf-light .text-stone-500 { color:#6a6d78 !important; }
   .cf-light .text-stone-600 { color:#9499a4 !important; }
   .cf-light .placeholder-stone-500::placeholder { color:#9aa0ac !important; }
-  /* Accenter som text → mörkas för kontrast mot ljust (knappar/dot/ring behåller neon) */
+  /* Accenter i light mode: lime-grönt blir för svagt mot ljust → byt ALLT lime mot mörkare grön (rosa behålls). */
   .cf-light .text-\[\#c6ff00\] { color:#4f9c00 !important; }
   .cf-light .text-\[\#ff2d78\] { color:#d81b60 !important; }
+  .cf-light .bg-\[\#c6ff00\] { background-color:#4f9c00 !important; color:#fff !important; }
+  .cf-light .bg-\[\#d6ff3a\] { background-color:#5cb300 !important; }
+  .cf-light .bg-\[\#c6ff00\]\/15 { background-color:rgba(79,156,0,.15) !important; }
+  .cf-light .border-\[\#c6ff00\] { border-color:#4f9c00 !important; }
+  .cf-light .focus\:border-\[\#c6ff00\]:focus { border-color:#4f9c00 !important; }
+  .cf-light .ring-\[\#c6ff00\]\/40 { --tw-ring-color:rgba(79,156,0,.4) !important; }
+  .cf-light .cf-tab.active { background:#4f9c00; color:#fff; border-color:#4f9c00; }
+  .cf-light .cf-refresh { color:#4f9c00; }
   /* Chips-fade tonar mot ljus bakgrund i light mode */
   .cf-light .from-\[\#0a0a0f\] { --tw-gradient-from:#f3f4f7 var(--tw-gradient-from-position) !important; --tw-gradient-to:rgb(243 244 247 / 0) var(--tw-gradient-to-position) !important; }
   /* Komponent-CSS (cf-tab / cf-mini) i light */
@@ -209,10 +217,14 @@ import Layout from '../layouts/Layout.astro';
     const hist = galleryList;
     recentCount.textContent = hist.length ? '(' + hist.length + ')' : '';
     if (!hist.length) { recentPanel.innerHTML = '<p class="px-2 py-3 text-xs text-stone-500">No saved concepts yet.</p>'; return; }
-    const ph = (m) => `<div class="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded bg-gradient-to-br from-[#2a2a3a] to-[#15151f] text-xs font-black text-stone-500">${esc(String(m.theme || '?').trim().charAt(0).toUpperCase())}</div>`;
+    // Tumnagel-cell: temats initial på gradient som ligger BAKOM bilden; om bilden faller bort tas den bara bort.
+    const cell = (m) => `<div class="relative h-9 w-9 flex-shrink-0 overflow-hidden rounded">
+        <div class="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-[#2a2a3a] to-[#15151f] text-xs font-black text-stone-500">${esc(String(m.theme || '?').trim().charAt(0).toUpperCase())}</div>
+        ${m.thumb ? `<img src="${esc(m.thumb)}" onerror="this.remove()" class="absolute inset-0 h-9 w-9 object-cover" />` : ''}
+      </div>`;
     recentPanel.innerHTML = hist.map((m) => `
       <div class="recent-item flex items-center gap-2 rounded-lg px-2 py-1.5 hover:bg-[#1d212c] cursor-pointer" data-id="${esc(m.id)}">
-        ${m.thumb ? `<img src="${esc(m.thumb)}" onerror="this.outerHTML='${ph(m).replace(/'/g, "\\'")}'" class="h-9 w-9 flex-shrink-0 rounded object-cover" />` : ph(m)}
+        ${cell(m)}
         <div class="min-w-0 flex-1"><div class="truncate text-sm text-stone-200">${esc(m.theme)}</div><div class="text-[10px] text-stone-500">${timeAgo(m.ts)}</div></div>
         <button class="flex-shrink-0 px-1 text-stone-600 hover:text-[#ff2d78]" data-del="${esc(m.id)}" title="Remove">✕</button>
       </div>`).join('') +
@@ -398,11 +410,11 @@ import Layout from '../layouts/Layout.astro';
     const el = document.getElementById('cf-panel-' + comp); if (!el) return;
     if (comp === 'tldr') {   // pitch-först-sammanfattning (ersätter de tre lösa boxarna) — emoji per sektion
       const cards = (state.featureIntro || []).slice(0, 3);
-      const meta = [['🎰', 'Mechanic', '#c6ff00'], ['🎁', 'Bonus', '#ff2d78'], ['🏆', 'Max win', '#c6ff00']];
+      const meta = [['🎰', 'Mechanic', 'text-[#c6ff00]'], ['🎁', 'Bonus', 'text-[#ff2d78]'], ['🏆', 'Max win', 'text-[#c6ff00]']];
       el.innerHTML = cards.length
         ? `<div class="grid gap-3">${cards.map((c, i) => `
             <div class="rounded-xl border border-[#22222e] bg-[#15151f] p-3.5 ${i === 2 ? 'ring-1 ring-[#c6ff00]/40' : ''}">
-              <div class="mb-1 flex items-center gap-2 text-[10px] font-black uppercase tracking-wide" style="color:${(meta[i] || [])[2] || '#c6ff00'}"><span class="text-base leading-none">${(meta[i] || [])[0] || '•'}</span>${(meta[i] || [])[1] || ''}</div>
+              <div class="mb-1 flex items-center gap-2 text-[10px] font-black uppercase tracking-wide ${(meta[i] || [])[2] || 'text-[#c6ff00]'}"><span class="text-base leading-none">${(meta[i] || [])[0] || '•'}</span>${(meta[i] || [])[1] || ''}</div>
               <div class="text-sm leading-relaxed text-stone-200">${esc(c)}</div>
             </div>`).join('')}</div>`
         : `<p class="text-sm text-stone-500">No summary yet.</p>`;
@@ -422,13 +434,35 @@ import Layout from '../layouts/Layout.astro';
     if (eng) eng.textContent = (v && v.engine) || '';
     if (c) c.innerHTML = ctrl('soundtrack', busy);   // ↻ alltid synlig, även när tomt → kan (om)generera
     if (!st) return;
-    if (v && v.url) st.innerHTML = `<audio controls loop src="${esc(v.url)}" class="w-full"></audio>
+    if (v && v.url) { st.innerHTML = `<audio data-st loop src="${esc(v.url)}"></audio>
+      <div class="flex items-center gap-3 rounded-xl border border-[#22222e] bg-[#15151f] px-3 py-2">
+        <button type="button" data-st-toggle class="flex h-9 w-9 flex-none items-center justify-center rounded-full bg-[#ff2d78] text-sm text-white transition hover:brightness-110">▶</button>
+        <div class="min-w-0 flex-1">
+          <div data-st-bar class="group relative h-1.5 cursor-pointer rounded-full bg-[#2a2a3a]"><div data-st-fill class="absolute inset-y-0 left-0 rounded-full bg-[#ff2d78]" style="width:0%"></div></div>
+          <div class="mt-1.5 flex justify-between text-[10px] tabular-nums text-stone-500"><span data-st-cur>0:00</span><span data-st-dur>0:00</span></div>
+        </div>
+      </div>
       <div class="mt-2 flex flex-wrap items-center gap-1.5">
         <input id="st-more" type="text" placeholder="more: …" class="min-w-0 flex-1 rounded border border-[#2a2a3a] bg-[#15151f] px-2 py-1 text-xs text-stone-200 placeholder:text-stone-600" />
         <input id="st-less" type="text" placeholder="less: …" class="min-w-0 flex-1 rounded border border-[#2a2a3a] bg-[#15151f] px-2 py-1 text-xs text-stone-200 placeholder:text-stone-600" />
         <button type="button" data-reshape class="cf-mini cf-refresh" ${busy ? 'disabled' : ''}>${busy ? '<span class="cf-spin"></span>' : '↻ Reshape'}</button>
-      </div>`;
+      </div>`; bindSoundtrackPlayer(); }
     else if (!busy) st.innerHTML = `<p class="text-xs text-stone-600">Soundtrack unavailable.</p>`;
+  }
+  // Egen kompakt spelare (rosa accent) som ersätter den vita system-kontrollen; anpassar sig till tema via tokens.
+  function bindSoundtrackPlayer() {
+    const st = document.getElementById('soundtrack-slot'); if (!st) return;
+    const a = st.querySelector('audio[data-st]'); if (!a) return;
+    const toggle = st.querySelector('[data-st-toggle]'), bar = st.querySelector('[data-st-bar]'), fill = st.querySelector('[data-st-fill]'), curEl = st.querySelector('[data-st-cur]'), durEl = st.querySelector('[data-st-dur]');
+    const fmt = (s) => { if (!isFinite(s) || s < 0) return '0:00'; s = Math.floor(s); return Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0'); };
+    const setIcon = () => { if (toggle) toggle.textContent = a.paused ? '▶' : '⏸'; };
+    if (toggle) toggle.addEventListener('click', () => { if (a.paused) { a.volume = 0.5; a.play().catch(() => {}); } else a.pause(); });
+    a.addEventListener('play', setIcon); a.addEventListener('pause', setIcon);
+    a.addEventListener('loadedmetadata', () => { if (durEl) durEl.textContent = fmt(a.duration); });
+    a.addEventListener('timeupdate', () => { if (fill) fill.style.width = (a.duration ? (a.currentTime / a.duration * 100) : 0) + '%'; if (curEl) curEl.textContent = fmt(a.currentTime); });
+    if (bar) bar.addEventListener('click', (e) => { const r = bar.getBoundingClientRect(); const f = Math.max(0, Math.min(1, (e.clientX - r.left) / r.width)); if (a.duration) a.currentTime = f * a.duration; });
+    if (durEl && a.duration) durEl.textContent = fmt(a.duration);
+    setIcon();
   }
   function renderSfx(busy) {
     const fx = document.getElementById('sfx-slot'), c = document.getElementById('cf-sfx-ctrl');
