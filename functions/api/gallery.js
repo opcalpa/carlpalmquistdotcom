@@ -97,9 +97,11 @@ export async function onRequestPost(context) {
     await kvPut(env, RES_KEY(id), JSON.stringify({ id, theme, key, ts, state }));
 
     let idx = await readIndex(env);
-    if (!thumb) { const prev = idx.find((m) => m.id === id); if (prev && prev.thumb) thumb = prev.thumb; }   // blanka aldrig en befintlig tumnagel
-    idx = idx.filter((m) => m.id !== id);           // uppdatering: ta bort gammal post för samma id
-    idx.unshift({ id, theme, key, ts, thumb });
+    const prev = idx.find((m) => m.id === id);
+    if (!thumb && prev && prev.thumb) thumb = prev.thumb;   // blanka aldrig en befintlig tumnagel
+    const votes = (prev && prev.votes) || 0;                // bevara upvotes vid uppdatering/re-roll
+    idx = idx.filter((m) => m.id !== id);                   // uppdatering: ta bort gammal post för samma id
+    idx.unshift({ id, theme, key, ts, thumb, votes });
     while (idx.length > CAP) { const o = idx.pop(); await kvDel(env, RES_KEY(o.id)); }
     await kvPut(env, INDEX_KEY, JSON.stringify(idx));
     return Response.json({ id });

@@ -134,6 +134,10 @@ import Layout from '../layouts/Layout.astro';
   .cf-mini:hover:not(:disabled) { border-color:#c6ff00; color:#e6e8ee; }
   .cf-mini:disabled { opacity:.35; cursor:default; }
   .cf-refresh { color:#c6ff00; }
+  /* Upvote: aktivt läge när man röstat (lime i dark, emerald i light) */
+  #cf-upvote.cf-voted { border-color:#c6ff00; color:#c6ff00; }
+  #cf-upvote.cf-voted .cf-up-ico { transform:translateY(-1px); display:inline-block; }
+  .cf-light #cf-upvote.cf-voted { border-color:#0a8f54; color:#0a8f54; }
   .cf-ver { font-size:10px; color:#5b6675; min-width:26px; text-align:center; }
   .cf-spin { display:inline-block; width:11px; height:11px; border:2px solid #2a2a3a; border-top-color:#c6ff00; border-radius:50%; animation:cfspin .7s linear infinite; }
   @keyframes cfspin { to { transform:rotate(360deg); } }
@@ -270,7 +274,7 @@ import Layout from '../layouts/Layout.astro';
     recentPanel.innerHTML = hist.map((m) => `
       <div class="recent-item flex items-center gap-2 rounded-lg px-2 py-1.5 hover:bg-[#1d212c] cursor-pointer" data-id="${esc(m.id)}">
         ${cell(m)}
-        <div class="min-w-0 flex-1"><div class="truncate text-sm text-stone-200">${esc(m.theme)}</div><div class="text-[10px] text-stone-500">${timeAgo(m.ts)}</div></div>
+        <div class="min-w-0 flex-1"><div class="truncate text-sm text-stone-200">${esc(m.theme)}</div><div class="text-[10px] text-stone-500">${timeAgo(m.ts)}${m.votes ? ' · ▲ ' + m.votes : ''}</div></div>
         <button class="flex-shrink-0 px-1 text-stone-600 hover:text-[#ff2d78]" data-del="${esc(m.id)}" title="Remove">✕</button>
       </div>`).join('') +
       `<div class="mt-1 border-t border-[#2a2a3a] pt-1"><button id="recent-clear" class="w-full rounded-lg px-2 py-1.5 text-left text-xs text-stone-500 hover:text-[#ff2d78]">Clear all</button></div>`;
@@ -465,8 +469,7 @@ import Layout from '../layouts/Layout.astro';
         ${alts.map((n) => `<span class="rounded-full border border-[#2a2a3a] px-3 py-1 text-sm text-stone-400">${esc(n)}</span>`).join('')}
         ${ctrl('title', busy)}
       </div>
-      <p class="mt-2 max-w-3xl text-lg italic text-stone-300">“${esc(v.logline || '')}”</p>
-      ${state.featureName ? `<p class="mt-2 text-xs font-semibold uppercase tracking-wide text-[#ff2d78]">⚡ ${esc(state.featureName)}</p>` : ''}`;
+      <p class="mt-2 max-w-3xl text-lg italic text-stone-300">“${esc(v.logline || '')}”</p>`;
   }
   function renderFeatureIntro() {
     const el = document.getElementById('cf-intro'); if (!el) return;
@@ -854,7 +857,13 @@ import Layout from '../layouts/Layout.astro';
   function buildResult(fromCache) {
     // Samma rad oavsett om resultatet är nytt eller hämtat ur galleriet — användaren ska aldrig
     // behöva tänka på cache-state. En tydlig re-roll (samma tema, ny tolkning) finns alltid.
-    const strip = `<div class="mb-3 flex items-center gap-3 text-xs"><button id="regen-btn" type="button" class="inline-flex items-center gap-1.5 rounded-full border border-[#2a2a3a] px-3 py-1 text-stone-300 transition hover:border-[#ff2d78] hover:text-[#ff2d78]">↻ Re-roll this theme</button><span class="text-stone-600">Images, audio &amp; versions are saved automatically</span></div>`;
+    const strip = `<div class="mb-3 flex items-center justify-between gap-3 text-xs">
+      <div class="flex min-w-0 items-center gap-3"><button id="regen-btn" type="button" class="flex-none inline-flex items-center gap-1.5 rounded-full border border-[#2a2a3a] px-3 py-1 text-stone-300 transition hover:border-[#ff2d78] hover:text-[#ff2d78]">↻ Re-roll this theme</button></div>
+      <div class="flex flex-none items-center gap-2">
+        <button id="cf-upvote" type="button" title="Upvote this concept" class="inline-flex items-center gap-1.5 rounded-full border border-[#2a2a3a] px-3 py-1 text-stone-300 transition hover:border-[#c6ff00] hover:text-[#c6ff00]"><span class="cf-up-ico">▲</span><span id="cf-votecount">0</span></button>
+        <button id="cf-share" type="button" title="Copy a shareable link" class="inline-flex items-center gap-1.5 rounded-full border border-[#2a2a3a] px-3 py-1 text-stone-300 transition hover:border-[#ff2d78] hover:text-[#ff2d78]">↗ Share</button>
+      </div>
+    </div>`;
     const tabs = [['tldr', 'TL;DR'], ['art', 'Art direction'], ['mechanic', 'Mechanic'], ['music', 'Music & audio'], ['hooks', 'Hooks']];
     result.innerHTML = `
       ${strip}
@@ -885,6 +894,7 @@ import Layout from '../layouts/Layout.astro';
     requestAnimationFrame(syncPanelHeight);
     const regen = document.getElementById('regen-btn');
     if (regen) regen.addEventListener('click', () => { if (state && state.theme) generateFresh(state.theme); });
+    wireConceptActions();
     state.spun = false; viewTouched = false; startViewAuto();   // bjud in att upptäcka Game-vyn
     updateSwipeVis();
   }
@@ -977,16 +987,69 @@ import Layout from '../layouts/Layout.astro';
     const a = document.querySelector('#soundtrack-slot audio');
     if (a) { a.volume = 0.5; a.play().catch(() => {}); }
   }
-  async function loadSearch(id) {
+  async function loadSearch(id, opts = {}) {
     closeRecent();
     let data;
     try { const r = await fetch('/api/gallery?id=' + encodeURIComponent(id)); if (!r.ok) return; data = await r.json(); } catch (e) { return; }
     if (!data || !data.state) return;
     state = hydrate(Object.assign({ id: data.id }, data.state));
-    lastTheme = state.theme || ''; input.value = state.theme || input.value;
+    lastTheme = state.theme || '';
+    // featured + delad länk: håll sökfältet tomt så autocomplete + egen input funkar
+    if (!opts.featured && !opts.share) input.value = state.theme || input.value;
     buildResult(true);
-    autoplaySoundtrack();
-    window.scrollTo({ top: result.offsetTop - 20, behavior: 'smooth' });
+    if (opts.featured) {
+      // Landnings-showcase: ingen ljud-autoplay, ingen scroll (hero ska synas), liten exempel-tagg
+      const tag = document.createElement('div');
+      tag.className = 'mb-3 flex flex-wrap items-center gap-2 text-xs text-stone-500';
+      tag.innerHTML = '<span class="rounded-full border border-[#2a2a3a] px-2 py-0.5 font-semibold text-[#ff2d78]">✨ Example</span>';
+      result.prepend(tag);
+    } else if (opts.share) {
+      // Ankom via delad länk: visa konceptet, scrolla dit, men starta inte ljud automatiskt
+      window.scrollTo({ top: result.offsetTop - 20, behavior: 'smooth' });
+    } else {
+      autoplaySoundtrack();
+      window.scrollTo({ top: result.offsetTop - 20, behavior: 'smooth' });
+    }
+  }
+
+  // ---------- Upvote (en röst/IP, togglbar) + dela-länk ----------
+  const hasVotedLocal = (id) => { try { return JSON.parse(localStorage.getItem('forge-voted') || '[]').includes(id); } catch (e) { return false; } };
+  const persistVotedLocal = (id, on) => { try { const s = new Set(JSON.parse(localStorage.getItem('forge-voted') || '[]')); on ? s.add(id) : s.delete(id); localStorage.setItem('forge-voted', JSON.stringify([...s])); } catch (e) {} };
+  function wireConceptActions() {
+    const upBtn = document.getElementById('cf-upvote'), shareBtn = document.getElementById('cf-share'), countEl = document.getElementById('cf-votecount');
+    if (!upBtn || !state) return;
+    const id = state.id, theme = state.theme || '';
+    const g = galleryList.find((m) => m.id === id);
+    let votes = (g && g.votes) || 0, voted = hasVotedLocal(id);
+    const apply = () => { countEl.textContent = votes; upBtn.classList.toggle('cf-voted', voted); };
+    apply();
+    // Reconcila mot servern (rätt antal + per-IP röst-status, täcker även delade-länk-besök)
+    fetch('/api/vote?id=' + encodeURIComponent(id)).then((r) => r.json()).then((j) => {
+      if (typeof j.votes === 'number') { votes = j.votes; voted = !!j.voted; apply(); persistVotedLocal(id, voted); const gg = galleryList.find((m) => m.id === id); if (gg) gg.votes = votes; }
+    }).catch(() => {});
+    upBtn.onclick = async () => {
+      voted = !voted; votes = Math.max(0, votes + (voted ? 1 : -1)); apply(); persistVotedLocal(id, voted);   // optimistiskt
+      try {
+        const r = await fetch('/api/vote', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id }) });
+        const j = await r.json();
+        if (typeof j.votes === 'number') { votes = j.votes; voted = !!j.voted; apply(); persistVotedLocal(id, voted); const gg = galleryList.find((m) => m.id === id); if (gg) gg.votes = votes; }
+      } catch (e) {}
+    };
+    shareBtn.onclick = async () => {
+      const url = location.origin + '/forge?c=' + encodeURIComponent(id);
+      try {
+        if (navigator.share) { await navigator.share({ title: 'Concept Forge', text: theme ? ('“' + theme + '” on Concept Forge') : 'Concept Forge', url }); }
+        else { await navigator.clipboard.writeText(url); const o = shareBtn.innerHTML; shareBtn.innerHTML = '✓ Copied'; setTimeout(() => { shareBtn.innerHTML = o; }, 1600); }
+      } catch (e) {}
+    };
+  }
+  // Förvalt koncept på landningen så nya besökare ser direkt vad Forge gör (laddas ur galleriet = gratis/direkt, ingen credit).
+  const FEATURED_THEME = 'viking metal feast';   // "Mead & Mayhem" — curera bästa exemplet här; fallback = senaste i galleriet
+  function loadFeatured() {
+    if (!result.classList.contains('hidden')) return;   // något visas redan
+    if (!galleryList.length) return;                     // tomt galleri (t.ex. :4321) → behåll tom hero
+    const id = findCachedId(normalize(FEATURED_THEME)) || galleryList[0].id;
+    if (id) loadSearch(id, { featured: true });
   }
 
   form.addEventListener('submit', (e) => {
@@ -1038,5 +1101,6 @@ import Layout from '../layouts/Layout.astro';
   input.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeAc(); });
   document.addEventListener('click', (e) => { if (e.target !== input && !e.target.closest('#ac-panel')) closeAc(); });
 
-  refreshGallery();
+  const shareId = new URL(location.href).searchParams.get('c');   // delad länk: /forge?c=<id>
+  refreshGallery().then(() => { if (shareId) loadSearch(shareId, { share: true }); else loadFeatured(); });
 </script>
