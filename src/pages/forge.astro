@@ -72,7 +72,7 @@ import Layout from '../layouts/Layout.astro';
       </div>
 
       <footer class="mt-14 border-t border-[#1c1c28] pt-6 text-xs leading-relaxed text-stone-500">
-        <div id="nav-counter" class="hidden mx-auto mb-5 w-fit rounded-full border border-[#2a2a3a] bg-[#15151f]/80 px-3 py-1 text-xs tabular-nums text-stone-400"></div>
+        <button type="button" id="nav-counter" title="Browse all saved concepts" class="hidden mx-auto mb-5 block w-fit cursor-pointer rounded-full border border-[#2a2a3a] bg-[#15151f]/80 px-3 py-1 text-xs tabular-nums text-stone-400 transition hover:border-[#c6ff00]"></button>
         <p><span class="font-semibold text-stone-400">Ideation accelerator, not an art generator.</span>
         It produces direction and briefs for humans to refine — the model never ships the final asset.
         That keeps it on the right side of regulatory art audits.</p>
@@ -140,6 +140,7 @@ import Layout from '../layouts/Layout.astro';
   .cf-light #cf-upvote.cf-voted { border-color:#0a8f54; color:#0a8f54; }
   /* Karusell-räknaren (X / N): ljus pill i light mode (annars helt mörk) */
   .cf-light #nav-counter { background:rgba(255,255,255,.8); border-color:#d7d9e1; color:#33353d; }
+  .cf-light #nav-counter:hover { border-color:#0a8f54; }
   /* Tydlig textmarkering (default-selektionen syns knappt mot den mörka sökrutan) */
   ::selection { background:#ff2d78; color:#fff; }
   ::-moz-selection { background:#ff2d78; color:#fff; }
@@ -318,6 +319,8 @@ import Layout from '../layouts/Layout.astro';
   }
   navPrev.addEventListener('click', () => navConcept(-1));
   navNext.addEventListener('click', () => navConcept(1));
+  // Botten-räknaren: klick scrollar upp till galleriknappen och öppnar listan (stopPropagation så document-click inte stänger den direkt)
+  navCounter.addEventListener('click', (e) => { e.stopPropagation(); window.scrollTo({ top: 0, behavior: 'smooth' }); stopRecentPulse(); renderRecent(); recentPanel.classList.remove('hidden'); });
   // Piltangenter (när man inte skriver i ett fält)
   document.addEventListener('keydown', (e) => {
     if (!galleryList.length) return;
