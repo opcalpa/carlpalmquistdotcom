@@ -269,6 +269,18 @@ import Layout from '../layouts/Layout.astro';
   }
   function renderTab(comp, busy) {
     const el = document.getElementById('cf-panel-' + comp); if (!el) return;
+    if (comp === 'tldr') {   // pitch-först-sammanfattning (ersätter de tre lösa boxarna) — emoji per sektion
+      const cards = (state.featureIntro || []).slice(0, 3);
+      const meta = [['🎰', 'Mechanic', '#c6ff00'], ['🎁', 'Bonus', '#ff2d78'], ['🏆', 'Max win', '#c6ff00']];
+      el.innerHTML = cards.length
+        ? `<div class="grid gap-3">${cards.map((c, i) => `
+            <div class="rounded-xl border border-[#22222e] bg-[#15151f] p-3.5 ${i === 2 ? 'ring-1 ring-[#c6ff00]/40' : ''}">
+              <div class="mb-1 flex items-center gap-2 text-[10px] font-black uppercase tracking-wide" style="color:${(meta[i] || [])[2] || '#c6ff00'}"><span class="text-base leading-none">${(meta[i] || [])[0] || '•'}</span>${(meta[i] || [])[1] || ''}</div>
+              <div class="text-sm leading-relaxed text-stone-200">${esc(c)}</div>
+            </div>`).join('')}</div>`
+        : `<p class="text-sm text-stone-500">No summary yet.</p>`;
+      return;
+    }
     let inner = '';
     if (comp === 'art') { const v = cur('art') || {}; inner = rows([['Style', v.style], ['Palette', v.palette], ['Hero characters', v.hero_characters], ['Mood', v.mood]]); }
     else if (comp === 'mechanic') { const v = cur('mechanic') || { mechanic: {}, math: {} }; const m = v.mechanic || {}, ma = v.math || {}; inner = rows([['Grid', m.grid], ['Type', m.type], ['Base game', m.base_game], ['Signature feature', m.signature_feature], ['Bonus round', m.bonus_round], ['Bonus buy', m.bonus_buy], ['Volatility', ma.volatility], ['RTP', ma.rtp], ['Max win', ma.suggested_max_win]]); }
@@ -320,7 +332,7 @@ import Layout from '../layouts/Layout.astro';
     else if (comp === 'sfx') renderSfx(busy);
     else renderTab(comp, busy);
   }
-  function renderAll() { renderTitle(); renderFeatureIntro(); renderImage(); ['art', 'mechanic', 'music', 'hooks'].forEach((t) => renderTab(t)); renderSoundtrack(); renderSfx(); renderEngine(); }
+  function renderAll() { renderTitle(); renderImage(); ['tldr', 'art', 'mechanic', 'music', 'hooks'].forEach((t) => renderTab(t)); renderSoundtrack(); renderSfx(); renderEngine(); }
 
   // ---------- Audio fetchers ----------
   async function pollSuno(taskId) {
@@ -543,13 +555,12 @@ import Layout from '../layouts/Layout.astro';
     const strip = fromCache
       ? `<div class="mb-3 flex items-center gap-3 text-xs"><span class="rounded-full bg-[#c6ff00]/15 px-2.5 py-1 font-semibold text-[#c6ff00]">⚡ Loaded from gallery</span><button id="regen-btn" type="button" class="text-stone-400 hover:text-[#ff2d78]">↻ Generate a fresh concept</button></div>`
       : `<div class="mb-3 text-xs"><span class="rounded-full bg-[#1d212c] px-2.5 py-1 text-stone-400">✓ Saved · re-rolls and versions are kept</span></div>`;
-    const tabs = [['art', 'Art direction'], ['mechanic', 'Mechanic'], ['music', 'Music & audio'], ['hooks', 'Hooks']];
+    const tabs = [['tldr', 'TL;DR'], ['art', 'Art direction'], ['mechanic', 'Mechanic'], ['music', 'Music & audio'], ['hooks', 'Hooks']];
     result.innerHTML = `
       ${strip}
       <div id="cf-title" class="mb-4"></div>
-      <div id="cf-intro" class="mb-4"></div>
       <div class="grid items-start gap-5 lg:grid-cols-[minmax(0,44%)_1fr]">
-        <div class="space-y-4 lg:sticky lg:top-5 self-start">
+        <div class="space-y-4">
           <div id="cf-image"></div>
           <div class="rounded-2xl border border-[#22222e] bg-[#13131c] p-4">
             <div class="mb-2 flex items-center justify-between">
@@ -557,14 +568,18 @@ import Layout from '../layouts/Layout.astro';
               <span class="flex items-center gap-2"><span id="st-engine" class="text-[10px] text-stone-600"></span><span id="cf-st-ctrl"></span></span>
             </div>
             <div id="soundtrack-slot"></div>
-            <div class="mt-4 mb-2 flex items-center justify-between"><span class="text-[11px] font-black uppercase tracking-wide text-[#ff2d78]">SFX</span><span id="cf-sfx-ctrl"></span></div>
-            <div id="sfx-slot"></div>
           </div>
         </div>
-        <div>
-          <div class="mb-4 flex flex-wrap gap-2">${tabs.map((t, i) => `<button class="cf-tab${i === 0 ? ' active' : ''}" data-tab="${t[0]}">${esc(t[1])}</button>`).join('')}</div>
-          <div class="rounded-2xl border border-[#22222e] bg-[#13131c] p-6" style="min-height:420px">
-            ${tabs.map((t, i) => `<div data-panel="${t[0]}" class="${i === 0 ? '' : 'hidden'}"><div id="cf-panel-${t[0]}"></div></div>`).join('')}
+        <div class="space-y-4">
+          <div>
+            <div class="mb-3 flex flex-wrap gap-2">${tabs.map((t, i) => `<button class="cf-tab${i === 0 ? ' active' : ''}" data-tab="${t[0]}">${esc(t[1])}</button>`).join('')}</div>
+            <div class="rounded-2xl border border-[#22222e] bg-[#13131c] p-6" style="min-height:340px">
+              ${tabs.map((t, i) => `<div data-panel="${t[0]}" class="${i === 0 ? '' : 'hidden'}"><div id="cf-panel-${t[0]}"></div></div>`).join('')}
+            </div>
+          </div>
+          <div class="rounded-2xl border border-[#22222e] bg-[#13131c] p-4">
+            <div class="mb-2 flex items-center justify-between"><span class="text-[11px] font-black uppercase tracking-wide text-[#ff2d78]">🔊 SFX</span><span id="cf-sfx-ctrl"></span></div>
+            <div id="sfx-slot"></div>
           </div>
         </div>
       </div>
