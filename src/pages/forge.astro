@@ -178,6 +178,8 @@ import Layout from '../layouts/Layout.astro';
   .cf-swipe:hover { transform:translateY(-50%) scale(1.18); filter:brightness(1.15); }
   .cf-light .cf-swipe { color:#e0005f; }   /* light mode: djupare rosa för kontrast mot ljus bakgrund */
   .cf-swipe-l { left:-3.25rem; } .cf-swipe-r { right:-3.25rem; }
+  /* Landningsläge: inget resultat än, men galleriet finns → ge pilarna höjd så de syns och går att klicka */
+  #result-wrap.landing { min-height:200px; }
   @media (max-width:1180px) { .cf-swipe { background:rgba(12,12,18,.55); border-radius:12px; } .cf-light .cf-swipe { background:rgba(255,255,255,.6); } .cf-swipe-l { left:4px; } .cf-swipe-r { right:4px; } }
   /* Tap-again-bekräftelse på ↻ (förhindrar dyra mistryck under demo) */
   .cf-confirm { border-color:#ffb020 !important; color:#ffb020 !important; box-shadow:0 0 0 2px rgba(255,176,32,.28); }
@@ -273,27 +275,33 @@ import Layout from '../layouts/Layout.astro';
 
   // ---------- Prev/Next-karusell: bläddra galleriet direkt på resultatet (utan Recent) ----------
   const navPrev = document.getElementById('nav-prev'), navNext = document.getElementById('nav-next'), navCounter = document.getElementById('nav-counter');
-  // Visa pilar + "n / total"-räknare bara när ett resultat syns och det finns mer än ett koncept att bläddra mellan.
+  // Visa pilarna när det finns något att plocka fram — även på landningssidan (inget resultat än),
+  // så man kan börja bläddra i galleriet direkt. Räknaren visas bara när ett resultat faktiskt är laddat.
+  const resultWrap = document.getElementById('result-wrap');
   function updateSwipeVis() {
-    const show = !result.classList.contains('hidden') && galleryList.length > 1;
+    const resultShown = !result.classList.contains('hidden');
+    const show = resultShown ? galleryList.length > 1 : galleryList.length >= 1;
     navPrev.classList.toggle('hidden', !show); navNext.classList.toggle('hidden', !show);
-    navCounter.classList.toggle('hidden', !show);
-    if (show) { let idx = galleryList.findIndex((m) => m.id === (state && state.id)); if (idx === -1) idx = 0; navCounter.textContent = (idx + 1) + ' / ' + galleryList.length; }
+    if (resultWrap) resultWrap.classList.toggle('landing', show && !resultShown);  // ger pilarna höjd i tom yta
+    const showCounter = resultShown && galleryList.length > 1;
+    navCounter.classList.toggle('hidden', !showCounter);
+    if (showCounter) { let idx = galleryList.findIndex((m) => m.id === (state && state.id)); if (idx === -1) idx = 0; navCounter.textContent = (idx + 1) + ' / ' + galleryList.length; }
   }
-  // Vänster = nyare granne (idx-1), höger = äldre (idx+1), wrappar runt. Hoppar över aktuell.
+  // Vänster = nyare granne (idx-1), höger = äldre (idx+1), wrappar runt. Vid sidstart (inget koncept
+  // laddat) plockar första klicket fram det senaste konceptet ur galleriet.
   function navConcept(dir) {
-    if (galleryList.length < 2) return;
+    if (!galleryList.length) return;
     stopRecentPulse();
-    let idx = galleryList.findIndex((m) => m.id === state.id);
-    if (idx === -1) idx = 0;
-    const t = (idx + dir + galleryList.length) % galleryList.length;
-    const target = galleryList[t]; if (target && target.id !== state.id) loadSearch(target.id);
+    const curId = state && state.id;
+    const idx = galleryList.findIndex((m) => m.id === curId);
+    const t = idx === -1 ? 0 : (idx + dir + galleryList.length) % galleryList.length;
+    const target = galleryList[t]; if (target && target.id !== curId) loadSearch(target.id);
   }
   navPrev.addEventListener('click', () => navConcept(-1));
   navNext.addEventListener('click', () => navConcept(1));
   // Piltangenter (när man inte skriver i ett fält)
   document.addEventListener('keydown', (e) => {
-    if (result.classList.contains('hidden')) return;
+    if (!galleryList.length) return;
     const tag = (e.target.tagName || '').toLowerCase();
     if (tag === 'input' || tag === 'textarea') return;
     if (e.key === 'ArrowLeft') { e.preventDefault(); navConcept(-1); }
