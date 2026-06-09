@@ -726,7 +726,7 @@ import Layout from '../layouts/Layout.astro';
   }
   function spinMockup() {
     if (state.spinning) return;
-    state.spun = true;   // snurr släcker invite-glowen, men rotationen fortsätter (bara Mood/Game-knapp stoppar den)
+    state.spun = true; stopViewAuto();   // Play/SPIN = aktivt val av Game → lås vyn (slutar auto-rotera, precis som Game-knappen)
     state.spinning = true; spinCount++; computeGrid(); renderImage(false);
     // Eskalerande utfall: reel varje snurr, bonus varannan, big win vart fjärde — lätt staggrat.
     playSfxObj(sfxByHint('spin', 0));
