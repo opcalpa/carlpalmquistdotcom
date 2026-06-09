@@ -86,6 +86,18 @@ const FALLBACK = {
   image_url: null,
 };
 
+// --- Per-IP rate limit (bara på publika domänen; preview/lokalt obegränsat) ---
+const RL_CAP = 3, RL_WINDOW = 86400;   // 3 nya forges per IP per dygn
+const rlNs = (env) => env.KV_NAMESPACE_ID || env.KV_NAMSPACE_ID;
+const rlReady = (env) => env.CF_ACCOUNT_ID && rlNs(env) && env.CF_API_TOKEN;
+const rlBase = (env) => `https://api.cloudflare.com/client/v4/accounts/${env.CF_ACCOUNT_ID}/storage/kv/namespaces/${rlNs(env)}`;
+async function rlGet(env, key) {
+  try { const r = await fetch(`${rlBase(env)}/values/${encodeURIComponent(key)}`, { headers: { Authorization: `Bearer ${env.CF_API_TOKEN}` } }); if (!r.ok) return null; return await r.text(); } catch { return null; }
+}
+async function rlPut(env, key, val, ttl) {
+  try { await fetch(`${rlBase(env)}/values/${encodeURIComponent(key)}?expiration_ttl=${ttl}`, { method: "PUT", headers: { Authorization: `Bearer ${env.CF_API_TOKEN}` }, body: val }); } catch {}
+}
+
 function extractJson(text) {
   const s = text.indexOf("{");
   const e = text.lastIndexOf("}");
@@ -193,10 +205,28 @@ export async function onRequestPost(context) {
     return Response.json({ ...FALLBACK, theme, note: "no_api_key" });
   }
 
+  // Rate limit: bara på publika domänen (hostname-koll), så preview/lokalt är obegränsat för Carl.
+  const host = (() => { try { return new URL(request.url).hostname; } catch { return ""; } })();
+  const limited = (host === "carlpalmquist.com" || host === "www.carlpalmquist.com") && rlReady(env);
+  let rlKey = null, rlCount = 0;
+  if (limited) {
+    const ip = request.headers.get("CF-Connecting-IP") || request.headers.get("x-forwarded-for") || "unknown";
+    rlKey = "forge:rl:" + ip;
+    const raw = await rlGet(env, rlKey);
+    rlCount = raw ? (parseInt(raw, 10) || 0) : 0;
+    if (rlCount >= RL_CAP) return Response.json({ note: "limit", limit: true, cap: RL_CAP, remaining: 0 });
+  }
+
   try {
     const concept = anthropicKey
       ? await generateConceptClaude(theme, anthropicKey)
       : await generateConceptOpenAI(theme, openaiKey);
+
+    // Räkna upp först när en forge faktiskt lyckats (misslyckade räknas ej).
+    if (limited && rlKey) {
+      await rlPut(env, rlKey, String(rlCount + 1), RL_WINDOW);
+      concept.rate = { remaining: Math.max(0, RL_CAP - (rlCount + 1)), cap: RL_CAP };
+    }
 
     // Bilden genereras separat via /api/image så texten kan visas direkt (progressive loading).
     return Response.json(concept);

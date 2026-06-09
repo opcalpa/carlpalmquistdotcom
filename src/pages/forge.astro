@@ -225,6 +225,30 @@ import Layout from '../layouts/Layout.astro';
   recentBtn.addEventListener('click', (e) => { e.stopPropagation(); recentPanel.classList.toggle('hidden'); });
   document.addEventListener('click', (e) => { if (!e.target.closest('#recent-wrap')) closeRecent(); });
 
+  // Vänlig gräns-popup när IP:n gjort sina 3 forges → styr mot Recent.
+  function showLimitPopup() {
+    if (document.getElementById('cf-limit')) return;
+    const el = document.createElement('div');
+    el.id = 'cf-limit';
+    el.className = 'fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4';
+    el.innerHTML = `<div class="relative w-full max-w-md rounded-2xl border border-[#2a2a3a] bg-[#15151f] p-6 text-center shadow-2xl">
+      <div class="mb-3 text-4xl">🎰</div>
+      <h3 class="mb-2 text-xl font-black uppercase tracking-tight text-[#c6ff00]">Easy there, high roller</h3>
+      <p class="mb-5 text-sm leading-relaxed text-stone-300">You've spent your <strong>3 free forges</strong> — the house needs a breather. 😅 But the vault's wide open: every concept already forged is yours to play with. Hit <strong class="text-[#c6ff00]">⟲ Recent</strong> up top and dig in. Come back tomorrow for three more.</p>
+      <div class="flex flex-col gap-2">
+        <button id="cf-limit-recent" type="button" class="rounded-xl bg-[#c6ff00] px-5 py-2.5 font-black uppercase tracking-tight text-black transition hover:bg-[#d6ff3a]">⟲ Browse the gallery</button>
+        <button id="cf-limit-close" type="button" class="text-xs text-stone-500 hover:text-stone-300">Maybe later</button>
+      </div>
+    </div>`;
+    document.body.appendChild(el);
+    const close = () => { el.remove(); document.removeEventListener('keydown', onKey); };
+    const onKey = (e) => { if (e.key === 'Escape') close(); };
+    document.addEventListener('keydown', onKey);
+    el.addEventListener('click', (e) => { if (e.target === el) close(); });
+    el.querySelector('#cf-limit-close').addEventListener('click', close);
+    el.querySelector('#cf-limit-recent').addEventListener('click', (ev) => { ev.stopPropagation(); close(); recentPanel.classList.remove('hidden'); renderRecent(); try { recentBtn.scrollIntoView({ behavior: 'smooth', block: 'start' }); } catch (e) {} });
+  }
+
   // ---------- Loading ----------
   let msgTimer;
   const holdAudio = new Audio('/hold-music.mp3'); holdAudio.loop = true; holdAudio.volume = 0.45;
@@ -718,6 +742,7 @@ import Layout from '../layouts/Layout.astro';
     try { const res = await fetch('/api/concept', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ theme }) }); concept = await res.json(); }
     catch (err) { stopLoading(); result.innerHTML = `<p class="text-stone-400">Something broke: ${esc(String(err))}. Try again.</p>`; result.classList.remove('hidden'); return; }
     stopLoading();
+    if (concept && concept.limit) { showLimitPopup(); return; }
     if (!concept || concept.note === 'error') { result.innerHTML = `<div class="rounded-2xl border border-[#22222e] bg-[#13131c] p-6 text-stone-300">⚠️ Generation hiccupped${concept && concept.error ? ' (' + esc(concept.error) + ')' : ''}. Hit <strong class="text-[#c6ff00]">Forge it</strong> again.</div>`; result.classList.remove('hidden'); return; }
     if (!concept.theme) concept.theme = theme;
     initState(concept);
