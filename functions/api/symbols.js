@@ -22,7 +22,7 @@ async function fluxIcon(prompt, falKey) {
       headers: { "Content-Type": "application/json", Authorization: `Key ${falKey}` },
       body: JSON.stringify({ prompt: iconPrompt(prompt), image_size: "square", num_images: 1, num_inference_steps: 4, seed: Math.floor(Math.random() * 1e9) }),
     });
-    if (!res.ok) throw new Error(`fal ${res.status}`);
+    if (!res.ok) throw new Error(`fal ${res.status}: ${(await res.text()).slice(0, 160)}`);
     const d = await res.json();
     const url = d.images && d.images[0] && d.images[0].url;
     if (!url) throw new Error("fal: no url");
@@ -53,5 +53,10 @@ export async function onRequestPost(context) {
     .filter((x) => x.url);
 
   const errors = results.filter((r) => r.status === "rejected").map((r) => String(r.reason).slice(0, 160));
-  return Response.json(errors.length ? { symbols, errors, engine: "Flux schnell (fal.ai)" } : { symbols, engine: "Flux schnell (fal.ai)" });
+  const creditsOut = errors.some(isCreditsErr);
+  const out = { symbols, engine: "Flux schnell (fal.ai)" };
+  if (errors.length) out.errors = errors;
+  if (creditsOut) { out.creditsOut = true; out.feature = "symbols"; }
+  return Response.json(out);
 }
+const isCreditsErr = (t) => /\b(40[26])\b|exhaust\w*|insufficient|quota|credit balance|out of credits|top ?up|payment required|billing|not enough|balance/i.test(String(t || ""));

@@ -431,6 +431,43 @@ import Layout from '../layouts/Layout.astro';
     el.querySelector('#cf-limit-recent').addEventListener('click', (ev) => { ev.stopPropagation(); close(); recentPanel.classList.remove('hidden'); renderRecent(); try { recentBtn.scrollIntoView({ behavior: 'smooth', block: 'start' }); } catch (e) {} });
   }
 
+  // ---------- Credits slut (vänlig ruta + PostHog-ping till Carl) ----------
+  const CREDIT_FEAT = { concept: 'concept generation', image: 'the key art', animation: 'the animated loop', soundtrack: 'the soundtrack', sfx: 'the sound effects', symbols: 'the reel symbols' };
+  let creditsPopupShown = false;
+  const creditsNotified = {};
+  function notifyCreditsOut(feature) {
+    feature = feature || 'a feature';
+    if (!creditsNotified[feature]) {   // pinga Carl en gång per feature/session via PostHog → han sätter en alert
+      creditsNotified[feature] = true;
+      try { if (window.posthog && window.posthog.capture) window.posthog.capture('credits_exhausted', { feature, theme: (state && state.theme) || lastTheme || '' }); } catch (e) {}
+    }
+    showCreditsPopup(feature);
+  }
+  function showCreditsPopup(feature) {
+    if (creditsPopupShown || document.getElementById('cf-credits')) return;   // en ruta per generering, inte per medietyp
+    creditsPopupShown = true;
+    const label = CREDIT_FEAT[feature] || ('the ' + feature + ' feature');
+    const el = document.createElement('div');
+    el.id = 'cf-credits';
+    el.className = 'fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4';
+    el.innerHTML = `<div class="relative w-full max-w-md rounded-2xl border border-[#2a2a3a] bg-[#15151f] p-6 text-center shadow-2xl">
+      <div class="mb-3 text-4xl">🔋</div>
+      <h3 class="mb-2 text-xl font-black uppercase tracking-tight text-[#c6ff00]">Woops — out of juice</h3>
+      <p class="mb-5 text-sm leading-relaxed text-stone-300">Looks like Carl needs to top up some AI tokens for <strong class="text-[#c6ff00]">${esc(label)}</strong> to work like a charm again. <strong>I've pinged him for you 🛎️</strong> In the meantime, browse the full pre-made forge gallery and enjoy more sweet concepts!</p>
+      <div class="flex flex-col gap-2">
+        <button id="cf-credits-recent" type="button" class="rounded-xl bg-[#c6ff00] px-5 py-2.5 font-black uppercase tracking-tight text-black transition hover:bg-[#d6ff3a]">⟲ Browse the gallery</button>
+        <button id="cf-credits-close" type="button" class="text-xs text-stone-500 hover:text-stone-300">Maybe later</button>
+      </div>
+    </div>`;
+    document.body.appendChild(el);
+    const close = () => { el.remove(); document.removeEventListener('keydown', onKey); };
+    const onKey = (e) => { if (e.key === 'Escape') close(); };
+    document.addEventListener('keydown', onKey);
+    el.addEventListener('click', (e) => { if (e.target === el) close(); });
+    el.querySelector('#cf-credits-close').addEventListener('click', close);
+    el.querySelector('#cf-credits-recent').addEventListener('click', (ev) => { ev.stopPropagation(); close(); recentPanel.classList.remove('hidden'); renderRecent(); try { recentBtn.scrollIntoView({ behavior: 'smooth', block: 'start' }); } catch (e) {} });
+  }
+
   // ---------- Loading ----------
   let msgTimer;
   const holdAudio = new Audio('/hold-music.mp3'); holdAudio.loop = true; holdAudio.volume = 0.45;
@@ -703,14 +740,14 @@ import Layout from '../layouts/Layout.astro';
     let prompt = (cur('music') || {}).soundtrack_prompt || state.theme || '';
     if (steer) prompt = prompt + ', ' + steer;
     if (!prompt) return null;
-    try { const r = await fetch('/api/soundtrack', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ prompt }) }); const j = await r.json(); if (j.taskId) { const url = await pollSuno(j.taskId); if (url) return { url, engine: 'Suno V5' }; } } catch (e) {}
+    try { const r = await fetch('/api/soundtrack', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ prompt }) }); const j = await r.json(); if (j.taskId) { const url = await pollSuno(j.taskId); if (url) return { url, engine: 'Suno V5' }; } else if (j.creditsOut) notifyCreditsOut('soundtrack'); } catch (e) {}
     // Fallback: fal Lyria med REN prompt (Suno tål artistnamn, Lyria gör inte).
     let falPrompt = cleanMusicPrompt(); if (steer) falPrompt = (falPrompt + ', ' + steer).slice(0, 800);
-    try { const r = await fetch('/api/soundtrack', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ prompt: falPrompt, engine: 'fal' }) }); const j = await r.json(); if (j.url) return { url: j.url, engine: j.engine || 'Lyria 2 (fal.ai)' }; } catch (e) {}
+    try { const r = await fetch('/api/soundtrack', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ prompt: falPrompt, engine: 'fal' }) }); const j = await r.json(); if (j.url) return { url: j.url, engine: j.engine || 'Lyria 2 (fal.ai)' }; else if (j.creditsOut) notifyCreditsOut('soundtrack'); } catch (e) {}
     return null;
   }
   async function fetchSfx() {
-    try { const r = await fetch('/api/audio', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ sfx: (cur('music') || {}).sfxPrompts || [] }) }); const j = await r.json(); return j.sfx || []; } catch (e) { return []; }
+    try { const r = await fetch('/api/audio', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ sfx: (cur('music') || {}).sfxPrompts || [] }) }); const j = await r.json(); if (j.creditsOut) notifyCreditsOut('sfx'); return j.sfx || []; } catch (e) { return []; }
   }
 
   // ---------- Animation (key art -> attract-loop via Luma Ray 2) ----------
@@ -743,7 +780,7 @@ import Layout from '../layouts/Layout.astro';
     const prompt = motionPrompt();
     try {
       const r = await fetch('/api/animate', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ imageUrl: src.url, prompt }) });
-      const j = await r.json(); if (!j.requestId) return null;
+      const j = await r.json(); if (!j.requestId) { if (j.creditsOut) notifyCreditsOut('animation'); return null; }
       const url = await pollAnimate(j.requestId); if (url) return { url, engine: j.engine || 'Luma Ray 2' };
     } catch (e) {}
     return null;
@@ -873,7 +910,7 @@ import Layout from '../layouts/Layout.astro';
   async function fetchSymbols() {
     const prompts = state.symbolPrompts || [];
     if (!prompts.length) return [];
-    try { const r = await fetch('/api/symbols', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ symbols: prompts }) }); const j = await r.json(); return Array.isArray(j.symbols) ? j.symbols : []; } catch (e) { return []; }
+    try { const r = await fetch('/api/symbols', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ symbols: prompts }) }); const j = await r.json(); if (j.creditsOut) notifyCreditsOut('symbols'); return Array.isArray(j.symbols) ? j.symbols : []; } catch (e) { return []; }
   }
   // Lazy: symbolerna genereras först när man öppnar Game-vyn (spar credits vid vanlig forge).
   async function ensureSymbols() {
@@ -1239,7 +1276,7 @@ import Layout from '../layouts/Layout.astro';
     const jobs = [
       (async () => {
         const imageSize = state.aspect === '16:9' ? 'landscape_16_9' : 'square_hd';
-        try { const r = await fetch('/api/image', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ prompt: state.imagePrompt, imageSize }) }); const j = await r.json(); if (j.url) pushVersion('image', { url: j.url, engine: j.engine }); } catch (e) {}
+        try { const r = await fetch('/api/image', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ prompt: state.imagePrompt, imageSize }) }); const j = await r.json(); if (j.url) pushVersion('image', { url: j.url, engine: j.engine }); else if (j.creditsOut) notifyCreditsOut('image'); } catch (e) {}
         render('image', false);
         // Auto-loop: animera key art till en attract-loop som spelas på BÅDE Mood och Game. Kostar Luma-credits
         // men gör varje koncept levande. Kör efter bilden (Luma animerar key art). Faller graciöst till statisk bild om det failar.

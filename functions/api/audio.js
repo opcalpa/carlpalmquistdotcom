@@ -40,5 +40,10 @@ export async function onRequestPost(context) {
     .filter((x) => x.url);
 
   const errors = results.filter((r) => r.status === "rejected").map((r) => String(r.reason).slice(0, 160));
-  return Response.json(errors.length ? { sfx, errors } : { sfx });
+  const creditsOut = errors.some(isCreditsErr);
+  const out = { sfx };
+  if (errors.length) out.errors = errors;
+  if (creditsOut) { out.creditsOut = true; out.feature = "sfx"; }
+  return Response.json(out);
 }
+const isCreditsErr = (t) => /\b(40[26])\b|exhaust\w*|insufficient|quota|credit balance|out of credits|top ?up|payment required|billing|not enough|balance/i.test(String(t || ""));

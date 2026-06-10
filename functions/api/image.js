@@ -2,6 +2,9 @@
 // POST /api/image  { prompt }  ->  { url, engine }
 // Flux 1.1 Pro (fal.ai) primär, dall-e-3 reserv. Ny bild varje gång (stokastiskt).
 
+// Heuristik: är ett upstream-fel ett "credits/balans slut"-fel (vs vanligt fel)? Matchar fal/openai/m.fl.
+const isCreditsErr = (t) => /\b(40[26])\b|exhaust\w*|insufficient|quota|credit balance|out of credits|top ?up|payment required|billing|not enough|balance/i.test(String(t || ""));
+
 async function fluxImage(prompt, falKey, imageSize) {
   // Flux safety-filter returnerar ibland en HELT SVART bild (~10-20KB) när en prompt triggar.
   // En riktig bild är >100KB. Vi detekterar den lilla svarta framen via Content-Length och regenererar.
@@ -12,7 +15,7 @@ async function fluxImage(prompt, falKey, imageSize) {
       headers: { "Content-Type": "application/json", Authorization: `Key ${falKey}` },
       body: JSON.stringify({ prompt: prompt.slice(0, 1800), image_size: imageSize, num_images: 1, seed: Math.floor(Math.random() * 1e9) }),
     });
-    if (!res.ok) throw new Error(`fal ${res.status}`);
+    if (!res.ok) throw new Error(`fal ${res.status}: ${(await res.text()).slice(0, 200)}`);
     const d = await res.json();
     const url = d.images && d.images[0] && d.images[0].url;
     if (!url) throw new Error("fal: no url");
@@ -47,7 +50,9 @@ export async function onRequestPost(context) {
   const imageSize = body.imageSize === "landscape_16_9" ? "landscape_16_9" : "square_hd";
   const falKey = env.FLUX_API_KEY;
   const openaiKey = env.OPENAI_API_KEY;
-  if (falKey) { try { const u = await fluxImage(prompt, falKey, imageSize); if (u) return Response.json({ url: u, engine: "Flux 1.1 Pro (fal.ai)" }); } catch (e) {} }
-  if (openaiKey) { try { return Response.json({ url: await dalleImage(prompt, openaiKey, imageSize), engine: "dall-e-3" }); } catch (e) {} }
+  let lastErr = "";
+  if (falKey) { try { const u = await fluxImage(prompt, falKey, imageSize); if (u) return Response.json({ url: u, engine: "Flux 1.1 Pro (fal.ai)" }); } catch (e) { lastErr = String((e && e.message) || e); } }
+  if (openaiKey) { try { return Response.json({ url: await dalleImage(prompt, openaiKey, imageSize), engine: "dall-e-3" }); } catch (e) { lastErr = String((e && e.message) || e) || lastErr; } }
+  if (isCreditsErr(lastErr)) return Response.json({ creditsOut: true, feature: "image", error: lastErr.slice(0, 160) });
   return Response.json({ error: "image blocked or failed — try a less edgy theme or re-roll" });
 }

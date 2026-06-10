@@ -67,13 +67,14 @@ export async function onRequestPost(context) {
   if (body.engine === "fal") {
     if (!falKey) return Response.json({ error: "no fal key" });
     try { return Response.json({ url: await falMusic(prompt, falKey), engine: "Lyria 2 (fal.ai)" }); }
-    catch (e) { return Response.json({ error: String(e).slice(0, 250) }); }
+    catch (e) { const m = String(e).slice(0, 250); return Response.json(isCreditsErr(m) ? { error: m, creditsOut: true, feature: "soundtrack" } : { error: m }); }
   }
 
   if (!sunoKey) return Response.json({ error: "no suno key" });
   try { return Response.json({ taskId: await sunoStart(prompt, sunoKey), engine: "Suno V5" }); }
-  catch (e) { return Response.json({ error: String(e).slice(0, 300) }); }
+  catch (e) { const m = String(e).slice(0, 300); return Response.json(isCreditsErr(m) ? { error: m, creditsOut: true, feature: "soundtrack" } : { error: m }); }
 }
+const isCreditsErr = (t) => /\b(40[26])\b|exhaust\w*|insufficient|quota|credit balance|out of credits|top ?up|payment required|billing|not enough|balance/i.test(String(t || ""));
 
 export async function onRequestGet(context) {
   const { request, env } = context;

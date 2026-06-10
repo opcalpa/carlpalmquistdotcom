@@ -7,6 +7,7 @@
 
 const MODEL = "fal-ai/luma-dream-machine/ray-2/image-to-video";
 const QUEUE_REQ = "https://queue.fal.run/fal-ai/luma-dream-machine/requests";
+const isCreditsErr = (t) => /\b(40[26])\b|exhaust\w*|insufficient|quota|credit balance|out of credits|top ?up|payment required|billing|not enough|balance/i.test(String(t || ""));
 
 export async function onRequestPost(context) {
   const { request, env } = context;
@@ -23,7 +24,7 @@ export async function onRequestPost(context) {
       headers: { "Content-Type": "application/json", Authorization: `Key ${falKey}` },
       body: JSON.stringify({ prompt, image_url: imageUrl, loop: true, resolution: "720p", duration: "5s" }),
     });
-    if (!r.ok) return Response.json({ error: `fal submit ${r.status}: ${(await r.text()).slice(0, 160)}` });
+    if (!r.ok) { const m = `fal submit ${r.status}: ${(await r.text()).slice(0, 160)}`; return Response.json(isCreditsErr(m) ? { error: m, creditsOut: true, feature: "animation" } : { error: m }); }
     const d = await r.json();
     if (!d.request_id) return Response.json({ error: "no request_id " + JSON.stringify(d).slice(0, 160) });
     return Response.json({ requestId: d.request_id, engine: "Luma Ray 2 (fal.ai)" });

@@ -235,6 +235,8 @@ export async function onRequestPost(context) {
     return Response.json(concept);
   } catch (e) {
     // Nyckel finns men genereringen föll även efter retries → ärligt fel, inte ett orelaterat exempel.
-    return Response.json({ note: "error", error: String(e).slice(0, 200) });
+    const m = String(e).slice(0, 200);
+    return Response.json(isCreditsErr(m) ? { note: "error", error: m, creditsOut: true, feature: "concept" } : { note: "error", error: m });
   }
 }
+const isCreditsErr = (t) => /\b(40[26])\b|exhaust\w*|insufficient|quota|credit balance|out of credits|top ?up|payment required|billing|not enough|balance/i.test(String(t || ""));
