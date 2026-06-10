@@ -516,21 +516,22 @@ import Layout from '../layouts/Layout.astro';
     const animBusy = state.animBusy, symBusy = state.symbolsBusy;
     const on = 'style="color:#c6ff00"';
     let mode = state.visualMode || 'mood';
-    if (mode === 'loop' && !hasLoop) mode = 'mood';   // 'game' är alltid tillgängligt (gridet ritas i kod)
+    if (mode === 'loop') mode = 'mood';   // Loop är inte längre en egen vy — den spelas som bakgrund på Mood (och Game). 'game' ritas alltid i kod.
     let media;
-    if (mode === 'loop') media = `<video src="${esc(an.url)}" autoplay muted loop playsinline class="aspect-square w-full rounded-2xl border border-[#22222e] object-cover"></video>`;
-    else if (mode === 'game') media = buildMockupHTML();   // kodat reel-grid + AI-symboler
+    if (mode === 'game') media = buildMockupHTML();   // kodat reel-grid + AI-symboler
+    // Mood: finns en genererad Loop spelas den som levande bakgrund (identisk med Game, utan spellager); annars statisk key art. Statisk visas först, uppgraderas när loopen landar → ingen extra väntan.
+    else if (hasLoop) media = `<video src="${esc(an.url)}" autoplay muted loop playsinline class="aspect-square w-full rounded-2xl border border-[#22222e] object-cover"></video>`;
     else media = mood.url ? `<img src="${esc(mood.url)}" alt="Key art" class="aspect-square w-full rounded-2xl border border-[#22222e] object-cover" />` : `<div class="flex aspect-square w-full items-center justify-center rounded-2xl border border-dashed border-[#2a2a3a] bg-[#13131c] p-6 text-center text-xs text-stone-500">${busy ? '🎨 Painting key art…' : 'No image yet.'}</div>`;
     const pill = (m, label) => `<button class="cf-mini" data-vis="${m}" ${mode === m ? on : ''}>${label}</button>`;
-    // Loop nedtonad till sekundär (dimmad, mindre) — Mood/Game är huvudtoggeln.
-    const loopStyle = mode === 'loop' ? 'style="color:#c6ff00;font-size:10px"' : 'style="opacity:.5;font-size:10px"';
-    const loopBtn = hasLoop ? `<button class="cf-mini" data-vis="loop" ${loopStyle}>Loop</button>`
-      : (animBusy ? `<span class="cf-mini" style="opacity:.45;font-size:10px">Loop…</span>` : `<button class="cf-mini" data-refresh="animation" data-noconfirm="1" ${mood.url ? '' : 'disabled'} ${loopStyle}>▶ Loop</button>`);
+    // En genererad Loop spelas automatiskt på både Mood och Game → ingen egen Loop-vy. Knappen finns kvar enbart för att TRIGGA genereringen (kostar credits) tills en loop finns; sen försvinner den.
+    const loopBtn = hasLoop ? ''
+      : (animBusy ? `<span class="cf-mini" style="opacity:.45;font-size:10px">Loop…</span>`
+                  : `<button class="cf-mini" data-refresh="animation" data-noconfirm="1" ${mood.url ? '' : 'disabled'} style="opacity:.55;font-size:10px">▶ Loop</button>`);
     let pills = pill('mood', 'Mood') + pill('game', 'Game') + loopBtn;
     let reroll = '';
-    if (mode === 'mood') reroll = ctrl('image', busy && !animBusy && !symBusy);
-    else if (mode === 'game') reroll = `<button class="cf-mini cf-refresh" data-refresh="symbols" title="Re-skin the symbols">${symBusy ? '<span class="cf-spin"></span>' : '↻'}</button>`;
-    else reroll = `<button class="cf-mini cf-refresh" data-refresh="animation" title="Re-roll loop">${animBusy ? '<span class="cf-spin"></span>' : '↻'}</button>`;
+    if (mode === 'game') reroll = `<button class="cf-mini cf-refresh" data-refresh="symbols" title="Re-skin the symbols">${symBusy ? '<span class="cf-spin"></span>' : '↻'}</button>`;
+    else if (hasLoop) reroll = `<button class="cf-mini cf-refresh" data-refresh="animation" title="Re-roll loop">${animBusy ? '<span class="cf-spin"></span>' : '↻'}</button>`;   // Mood visar loopen → ↻ re-rollar loopen
+    else reroll = ctrl('image', busy && !animBusy && !symBusy);   // Mood visar statisk key art → ↻ re-rollar bilden
     const note = animBusy ? `<div class="absolute inset-x-2 bottom-2 rounded bg-black/70 px-2 py-1 text-center text-[11px] text-[#c6ff00]">Animating with Luma Ray 2… ~1-2 min</div>`
       : (symBusy && mode === 'game' ? `<div class="absolute inset-x-2 bottom-2 rounded bg-black/70 px-2 py-1 text-center text-[11px] text-[#c6ff00]">Generating themed symbols with Flux…</div>` : '');
     el.innerHTML = `<div class="relative">${media}<div class="absolute right-2 top-2 flex flex-wrap items-center justify-end gap-1">${reroll}<span class="cf-ctrl">${pills}</span></div>${note}</div>`;
@@ -866,7 +867,7 @@ import Layout from '../layouts/Layout.astro';
       } else if (comp === 'sfx') {
         const sfx = await fetchSfx(); if (sfx.length) pushVersion('sfx', sfx);
       } else if (comp === 'animation') {
-        const an = await fetchAnimation(); if (an) { pushVersion('animation', an); state.visualMode = 'loop'; }
+        const an = await fetchAnimation(); if (an) { pushVersion('animation', an); state.visualMode = 'mood'; }   // visa nya loopen på Mood (Loop-vyn finns inte längre)
       } else if (comp === 'gameview') {
         const g = await fetchGameview();
         if (g) { pushVersion('gameview', g); state.visualMode = 'game'; }
