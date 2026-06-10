@@ -150,6 +150,13 @@ import Layout from '../layouts/Layout.astro';
 
   /* ---- Nivå 2: komposit game-vy (key art mood-bg + kodad reel-ram/HUD + AI-symboler) ---- */
   .cf-slot { position:relative; width:100%; aspect-ratio:1/1; overflow:hidden; border-radius:16px; border:1px solid hsl(var(--hue,80) 45% 22%); background:#08080d; }
+  /* Landscape 16:9 (nya koncept): bred canvas, spelplanen oförändrad men höjd-driven så miljö ryms vänster + karaktär höger */
+  .cf-slot.cf-wide { aspect-ratio:16/9; }
+  @media (min-width:641px) {
+    .cf-slot.cf-wide .cf-reels { padding-left:5%; }
+    .cf-slot.cf-wide .cf-frame { width:auto; height:100%; max-width:58%; aspect-ratio:var(--reel-ar); }
+  }
+  @media (max-width:640px) { .cf-slot.cf-wide { aspect-ratio:1/1; } }   /* mobil: behåll kvadratiskt game-view (16:9 blir för kramat) */
   .cf-slot-bg { position:absolute; inset:0; background-size:cover; background-position:center; transform:scale(1.06); transform-origin:62% 48%; animation:cfbreath 16s ease-in-out infinite alternate; }
   @keyframes cfbreath { from { transform:scale(1.06) translate(0,0); } to { transform:scale(1.12) translate(-1%,-0.6%); } }
   /* Ambient-partiklar (Hacksaw-känsla: stjärnor/löv/konfetti driver) — tema-tonade, bakom UI:t */
@@ -455,7 +462,8 @@ import Layout from '../layouts/Layout.astro';
         soundtrack: [], sfx: [], animation: [], gameview: [], symbols: [],
       },
       idx: { title: 0, art: 0, mechanic: 0, music: 0, hooks: 0, image: 0, soundtrack: 0, sfx: 0, animation: 0, gameview: 0, symbols: 0 },
-      visualMode: 'mood', animBusy: false, gameBusy: false, symbolsBusy: false, grid: null, spinning: false,
+      aspect: '16:9',   // nya koncept genereras i landscape (karaktär till höger om spelplanen); gamla saknar fältet → kvadrat
+      visualMode: 'game', animBusy: false, gameBusy: false, symbolsBusy: false, grid: null, spinning: false,
     };
   }
   // Bakåtkompat: äldre sparade states saknar symbols/grid-fält → fyll i så de inte kraschar.
@@ -466,7 +474,8 @@ import Layout from '../layouts/Layout.astro';
     if (s.idx.symbols == null) s.idx.symbols = 0;
     if (!Array.isArray(s.symbolPrompts)) s.symbolPrompts = [];
     if (s.motionPrompt == null) s.motionPrompt = '';
-    if (s.visualMode == null) s.visualMode = 'mood';
+    if (s.aspect == null) s.aspect = '1:1';   // back-compat: tidigare koncept genererades kvadratiskt → lämna dem så
+    s.visualMode = 'game';   // öppna alltid i Game (rikast); Mood ett tap bort
     s.symbolsBusy = false; s.grid = null; s.spinning = false;
     return s;
   }
@@ -515,19 +524,17 @@ import Layout from '../layouts/Layout.astro';
     const hasLoop = !!(an && an.url);
     const animBusy = state.animBusy, symBusy = state.symbolsBusy;
     const on = 'style="color:#c6ff00"';
-    let mode = state.visualMode || 'mood';
+    let mode = state.visualMode || 'game';
     if (mode === 'loop') mode = 'mood';   // Loop är inte längre en egen vy — den spelas som bakgrund på Mood (och Game). 'game' ritas alltid i kod.
+    const aspectCls = state.aspect === '16:9' ? 'aspect-video' : 'aspect-square';   // nya koncept landscape, gamla kvadrat
     let media;
     if (mode === 'game') media = buildMockupHTML();   // kodat reel-grid + AI-symboler
     // Mood: finns en genererad Loop spelas den som levande bakgrund (identisk med Game, utan spellager); annars statisk key art. Statisk visas först, uppgraderas när loopen landar → ingen extra väntan.
-    else if (hasLoop) media = `<video src="${esc(an.url)}" autoplay muted loop playsinline class="aspect-square w-full rounded-2xl border border-[#22222e] object-cover"></video>`;
-    else media = mood.url ? `<img src="${esc(mood.url)}" alt="Key art" class="aspect-square w-full rounded-2xl border border-[#22222e] object-cover" />` : `<div class="flex aspect-square w-full items-center justify-center rounded-2xl border border-dashed border-[#2a2a3a] bg-[#13131c] p-6 text-center text-xs text-stone-500">${busy ? '🎨 Painting key art…' : 'No image yet.'}</div>`;
+    else if (hasLoop) media = `<video src="${esc(an.url)}" autoplay muted loop playsinline class="${aspectCls} w-full rounded-2xl border border-[#22222e] object-cover"></video>`;
+    else media = mood.url ? `<img src="${esc(mood.url)}" alt="Key art" class="${aspectCls} w-full rounded-2xl border border-[#22222e] object-cover" />` : `<div class="flex ${aspectCls} w-full items-center justify-center rounded-2xl border border-dashed border-[#2a2a3a] bg-[#13131c] p-6 text-center text-xs text-stone-500">${busy ? '🎨 Painting key art…' : 'No image yet.'}</div>`;
     const pill = (m, label) => `<button class="cf-mini" data-vis="${m}" ${mode === m ? on : ''}>${label}</button>`;
-    // En genererad Loop spelas automatiskt på både Mood och Game → ingen egen Loop-vy. Knappen finns kvar enbart för att TRIGGA genereringen (kostar credits) tills en loop finns; sen försvinner den.
-    const loopBtn = hasLoop ? ''
-      : (animBusy ? `<span class="cf-mini" style="opacity:.45;font-size:10px">Loop…</span>`
-                  : `<button class="cf-mini" data-refresh="animation" data-noconfirm="1" ${mood.url ? '' : 'disabled'} style="opacity:.55;font-size:10px">▶ Loop</button>`);
-    let pills = pill('mood', 'Mood') + pill('game', 'Game') + loopBtn;
+    // Loopen genereras automatiskt på varje nytt koncept och spelas på både Mood och Game → ingen Loop-knapp alls.
+    let pills = pill('mood', 'Mood') + pill('game', 'Game');
     let reroll = '';
     if (mode === 'game') reroll = `<button class="cf-mini cf-refresh" data-refresh="symbols" title="Re-skin the symbols">${symBusy ? '<span class="cf-spin"></span>' : '↻'}</button>`;
     else if (hasLoop) reroll = `<button class="cf-mini cf-refresh" data-refresh="animation" title="Re-roll loop">${animBusy ? '<span class="cf-spin"></span>' : '↻'}</button>`;   // Mood visar loopen → ↻ re-rollar loopen
@@ -768,7 +775,8 @@ import Layout from '../layouts/Layout.astro';
     const cells = g.cells.map((c) => c.t === 's'
       ? `<div class="cf-cell"><img src="${esc(c.url)}" alt="${esc(c.label)}" loading="lazy" onerror="this.parentNode.classList.add('cf-letter');this.parentNode.textContent='★'" /></div>`
       : `<div class="cf-cell cf-letter">${esc(c.ch)}</div>`).join('');
-    return `<div class="cf-slot" style="--hue:${hue}">
+    const wide = state.aspect === '16:9';
+    return `<div class="cf-slot${wide ? ' cf-wide' : ''}" style="--hue:${hue}">
       ${anim
         ? `<video class="cf-slot-bg cf-slot-vid" src="${esc(anim)}" autoplay muted loop playsinline></video><div class="cf-slot-scrim"></div>`
         : (bg ? `<div class="cf-slot-bg" style="background-image:url('${esc(bg)}')"></div><div class="cf-slot-scrim"></div>` : `<div class="cf-slot-fallbg"></div>`)}
@@ -779,7 +787,7 @@ import Layout from '../layouts/Layout.astro';
           ${state.featureName ? `<span class="cf-slot-feat">⚡ ${esc(state.featureName)}</span>` : ''}
         </div>
         <div class="cf-reels">
-          <div class="cf-frame"><div class="cf-grid${state.spinning ? ' cf-spinning' : ''}" style="grid-template-columns:repeat(${g.cols},1fr);grid-template-rows:repeat(${g.rows},1fr)">${cells}</div></div>
+          <div class="cf-frame"${wide ? ` style="--reel-ar:${g.cols} / ${g.rows}"` : ''}><div class="cf-grid${state.spinning ? ' cf-spinning' : ''}" style="grid-template-columns:repeat(${g.cols},1fr);grid-template-rows:repeat(${g.rows},1fr)">${cells}</div></div>
         </div>
         <div class="cf-hud">
           <span class="cf-ic">☰</span>
@@ -860,7 +868,8 @@ import Layout from '../layouts/Layout.astro';
           else if (comp === 'hooks') pushVersion('hooks', j.hooks || []);
         }
       } else if (comp === 'image') {
-        const r = await fetch('/api/image', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ prompt: state.imagePrompt }) });
+        const imageSize = state.aspect === '16:9' ? 'landscape_16_9' : 'square_hd';
+        const r = await fetch('/api/image', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ prompt: state.imagePrompt, imageSize }) });
         const j = await r.json(); if (j.url) pushVersion('image', { url: j.url, engine: j.engine });
       } else if (comp === 'soundtrack') {
         const st = await fetchSoundtrack(); if (st) pushVersion('soundtrack', st);
@@ -903,7 +912,7 @@ import Layout from '../layouts/Layout.astro';
   async function persist() {
     let thumb = null; try { thumb = await makeThumb(); } catch (e) {}
     try {
-      const r = await fetch('/api/gallery', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: state.id, theme: state.theme, thumb, state: { theme: state.theme, imagePrompt: state.imagePrompt, conceptEngine: state.conceptEngine, featureName: state.featureName, featureIntro: state.featureIntro, motionPrompt: state.motionPrompt, symbolPrompts: state.symbolPrompts, versions: state.versions, idx: state.idx } }) });
+      const r = await fetch('/api/gallery', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: state.id, theme: state.theme, thumb, state: { theme: state.theme, imagePrompt: state.imagePrompt, conceptEngine: state.conceptEngine, featureName: state.featureName, featureIntro: state.featureIntro, motionPrompt: state.motionPrompt, symbolPrompts: state.symbolPrompts, aspect: state.aspect, versions: state.versions, idx: state.idx } }) });
       const j = await r.json(); if (j.id) state.id = j.id;
     } catch (e) {}
     refreshGallery();
@@ -951,7 +960,7 @@ import Layout from '../layouts/Layout.astro';
     const regen = document.getElementById('regen-btn');
     if (regen) regen.addEventListener('click', () => { if (state && state.theme) generateFresh(state.theme); });
     wireConceptActions();
-    state.spun = false; viewTouched = false; startViewAuto();   // bjud in att upptäcka Game-vyn
+    state.spun = false;   // Game är default-vyn; symbol-jobbet (eller persistade symboler) fyller rullen progressivt
     updateSwipeVis();
   }
 
@@ -1026,13 +1035,23 @@ import Layout from '../layouts/Layout.astro';
     render('image', true);
     const jobs = [
       (async () => {
-        try { const r = await fetch('/api/image', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ prompt: state.imagePrompt }) }); const j = await r.json(); if (j.url) pushVersion('image', { url: j.url, engine: j.engine }); } catch (e) {}
+        const imageSize = state.aspect === '16:9' ? 'landscape_16_9' : 'square_hd';
+        try { const r = await fetch('/api/image', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ prompt: state.imagePrompt, imageSize }) }); const j = await r.json(); if (j.url) pushVersion('image', { url: j.url, engine: j.engine }); } catch (e) {}
         render('image', false);
+        // Auto-loop: animera key art till en attract-loop som spelas på BÅDE Mood och Game. Kostar Luma-credits
+        // men gör varje koncept levande. Kör efter bilden (Luma animerar key art). Faller graciöst till statisk bild om det failar.
+        if ((cur('image') || {}).url) {
+          state.animBusy = true; render('image', false);
+          const an = await fetchAnimation();
+          state.animBusy = false;
+          if (an) pushVersion('animation', an);
+          render('image', false);
+        }
       })(),
       (async () => { const sfx = await fetchSfx(); if (sfx.length) { state.versions.sfx = [sfx]; state.idx.sfx = 0; } renderSfx(); })(),
       (async () => { const st = await fetchSoundtrack(); if (st) { state.versions.soundtrack = [st]; state.idx.soundtrack = 0; renderSoundtrack(); autoplaySoundtrack(); } else renderSoundtrack(); })(),
-      // Temade reel-symboler genereras nu eagert (billiga Flux schnell-ikoner) så varje sparat koncept
-      // har en riktig produktionslik rulle i Game-vyn — inte bara A/K/Q/J/10. Kör i bakgrunden, blockar inte resultatet.
+      // Temade reel-symboler (billiga Flux schnell-ikoner) hämtas eagert så varje sparat koncept har en riktig
+      // produktionslik rulle i Game-vyn (default) — inte bara A/K/Q/J/10. Re-renderar Game när de landar.
       (async () => { const syms = await fetchSymbols(); if (syms.length) { state.versions.symbols = [syms]; state.idx.symbols = 0; computeGrid(); if (state.visualMode === 'game') renderImage(false); } })(),
     ];
     await Promise.allSettled(jobs);
