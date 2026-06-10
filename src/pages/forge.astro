@@ -129,6 +129,41 @@ import Layout from '../layouts/Layout.astro';
   .cf-tab { display:inline-block; padding:7px 13px; border-radius:9px; font-size:12px; font-weight:800; letter-spacing:-0.01em; text-transform:uppercase; border:1px solid #2a2a3a; color:#d6d3d1; background:transparent; cursor:pointer; }
   .cf-tab:hover { border-color:#c6ff00; }
   .cf-tab.active { background:#c6ff00; color:#000; border-color:#c6ff00; }
+  /* ---- Kommentarer / chatt ---- */
+  .cf-ctab { padding:6px 12px; border-radius:999px; font-size:12px; font-weight:800; border:1px solid #2a2a3a; color:#d6d3d1; background:transparent; cursor:pointer; transition:border-color .15s, color .15s; }
+  .cf-ctab:hover { border-color:#c6ff00; }
+  .cf-ctab-on { background:#181826; border-color:#c6ff00; color:#c6ff00; }
+  .cf-cinput { border-radius:9px; border:1px solid #2a2a3a; background:#0c0c12; padding:8px 12px; font-size:14px; color:#e7e5e4; outline:none; transition:border-color .15s; }
+  .cf-cinput::placeholder { color:#57534e; }
+  .cf-cinput:focus { border-color:#c6ff00; }
+  .cf-cmt { display:flex; gap:10px; align-items:flex-start; border-radius:13px; border:1px solid #1d1d28; background:#13131c; padding:11px 13px; }
+  .cf-cmt-vote { flex:none; display:flex; flex-direction:column; align-items:center; gap:1px; min-width:30px; cursor:pointer; color:#8a8a99; user-select:none; }
+  .cf-cmt-vote:hover { color:#c6ff00; }
+  .cf-cmt-vote.on { color:#c6ff00; }
+  .cf-cmt-vote b { font-size:13px; font-weight:800; line-height:1; }
+  .cf-cmt-arrow { font-size:13px; line-height:1; }
+  .cf-cmt-av { flex:none; width:30px; height:30px; border-radius:50%; overflow:hidden; background:#0c0c12; border:1px solid #2a2a3a; display:flex; align-items:center; justify-content:center; margin-top:1px; }
+  .cf-cmt-av img { width:100%; height:100%; object-fit:cover; }
+  .cf-cmt-av-fb { font-size:13px; font-weight:800; color:#e7e5e4; }
+  .cf-cmt-body { min-width:0; flex:1; }
+  .cf-cmt-meta { font-size:11px; color:#78716c; margin-bottom:2px; }
+  .cf-cmt-handle { font-weight:800; color:#c6ff00; }
+  .cf-cmt-tag { font-weight:700; font-size:10.5px; }
+  .cf-tag-forge { color:#8a8a99; }   /* per-forge-kommentar (@forgenamn) — dämpad */
+  .cf-tag-app { color:#3da5ff; }     /* app-kommentar (@forgeapp) — blå, syns på alla forges */
+  .cf-cmt-text { font-size:14px; line-height:1.5; color:#e7e5e4; white-space:pre-wrap; overflow-wrap:anywhere; }
+  .cf-cmt-top { box-shadow:0 0 0 1px rgba(198,255,0,.18); }
+  .cf-cmt-del { flex:none; color:#57534e; font-size:12px; cursor:pointer; background:none; border:none; }
+  .cf-cmt-del:hover { color:#ff2d78; }
+  .cf-emoji { font-size:17px; line-height:1; padding:3px 5px; border-radius:7px; background:transparent; border:1px solid transparent; cursor:pointer; transition:background .12s; }
+  .cf-emoji:hover { background:#1d1d28; }
+  .cf-light .cf-emoji:hover { background:#eef0f4; }
+  .cf-light .cf-ctab { border-color:#d7d9e1; color:#33353d; }
+  .cf-light .cf-ctab-on { background:#eef6ef; border-color:#0a8f54; color:#0a8f54; }
+  .cf-light .cf-cinput { background:#fff; border-color:#d7d9e1; color:#1c1c22; }
+  .cf-light .cf-cmt { background:#fff; border-color:#e6e8ee; }
+  .cf-light .cf-cmt-text { color:#26262c; }
+  .cf-light .cf-cmt-handle { color:#0a8f54; }
   .cf-ctrl { display:inline-flex; align-items:center; gap:4px; vertical-align:middle; }
   .cf-mini { display:inline-flex; align-items:center; justify-content:center; height:22px; min-width:22px; padding:0 5px; border:1px solid #2a2a3a; border-radius:6px; background:#15151f; color:#9aa3b2; font-size:12px; line-height:1; cursor:pointer; font-family:inherit; }
   .cf-mini:hover:not(:disabled) { border-color:#c6ff00; color:#e6e8ee; }
@@ -329,7 +364,18 @@ import Layout from '../layouts/Layout.astro';
     const showCounter = resultShown && galleryList.length > 1;
     navCounter.classList.toggle('hidden', !showCounter);
     if (showCounter) { let idx = galleryList.findIndex((m) => m.id === (state && state.id)); if (idx === -1) idx = 0; navCounter.textContent = (idx + 1) + ' / ' + galleryList.length; }
+    positionSwipeArrows();
   }
+  // Centrera karusell-pilarna vertikalt på BILDENS höjd (heron), inte hela result-ytan (som blivit hög med text + kommentarer).
+  function positionSwipeArrows() {
+    const img = document.getElementById('cf-image');
+    if (!resultWrap || !img || result.classList.contains('hidden')) return;
+    const wr = resultWrap.getBoundingClientRect(), ir = img.getBoundingClientRect();
+    if (!ir.height) return;
+    const center = Math.round(ir.top - wr.top + ir.height / 2);
+    navPrev.style.top = center + 'px'; navNext.style.top = center + 'px';
+  }
+  window.addEventListener('resize', positionSwipeArrows);
   // Vänster = nyare granne (idx-1), höger = äldre (idx+1), wrappar runt. Vid sidstart (inget koncept
   // laddat) plockar första klicket fram det senaste konceptet ur galleriet.
   function navConcept(dir) {
@@ -914,7 +960,12 @@ import Layout from '../layouts/Layout.astro';
     let thumb = null; try { thumb = await makeThumb(); } catch (e) {}
     try {
       const r = await fetch('/api/gallery', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: state.id, theme: state.theme, thumb, state: { theme: state.theme, imagePrompt: state.imagePrompt, conceptEngine: state.conceptEngine, featureName: state.featureName, featureIntro: state.featureIntro, motionPrompt: state.motionPrompt, symbolPrompts: state.symbolPrompts, aspect: state.aspect, versions: state.versions, idx: state.idx } }) });
-      const j = await r.json(); if (j.id) state.id = j.id;
+      const j = await r.json();
+      if (j.id) {
+        const wasNull = !state.id;
+        state.id = j.id;
+        if (wasNull && cmtScope === 'theme' && document.getElementById('cf-cmt-list')) loadComments();   // färsk forge fick just sitt id → ladda per-koncept-kommentarer
+      }
     } catch (e) {}
     refreshGallery();
   }
@@ -958,13 +1009,33 @@ import Layout from '../layouts/Layout.astro';
           </div>
         </div>
       </div>
-      <p id="cf-engine" class="mt-6 text-xs text-stone-500"></p>`;
+      <p id="cf-engine" class="mt-6 text-xs text-stone-500"></p>
+      <section id="cf-comments" class="mt-10 border-t border-[#22222e] pt-7">
+        <div class="mb-4 flex flex-wrap items-center justify-between gap-3">
+          <div class="flex items-center gap-1.5">
+            <button class="cf-ctab cf-ctab-on" data-cscope="theme">💬 This forge</button>
+            <button class="cf-ctab" data-cscope="global">🌐 Concept Forge</button>
+          </div>
+          <span class="text-xs text-stone-500"><span id="cf-cmt-count">0</span> comments</span>
+        </div>
+        <div class="mb-5 rounded-2xl border border-[#22222e] bg-[#13131c] p-4">
+          <div class="flex flex-col gap-2 sm:flex-row sm:items-stretch">
+            <input id="cf-cmt-handle" maxlength="24" placeholder="name (optional)" class="cf-cinput sm:w-40" />
+            <textarea id="cf-cmt-body" maxlength="280" rows="1" placeholder="Drop a thought on this forge…" class="cf-cinput flex-1 resize-none"></textarea>
+            <button id="cf-cmt-post" class="flex-none rounded-lg bg-[#c6ff00] px-4 py-2 text-sm font-black text-[#0a0a0f] transition hover:brightness-110 disabled:opacity-50">Post</button>
+          </div>
+          <div class="mt-2 flex flex-wrap gap-0.5">${['😂','❤️','🔥','👍','😍','🙏','😭','🎉','💯','👀'].map((e) => `<button type="button" class="cf-emoji" data-emoji="${e}" tabindex="-1">${e}</button>`).join('')}</div>
+          <div class="mt-1.5 flex items-center justify-between"><span id="cf-cmt-msg" class="text-xs text-stone-500"></span><span id="cf-cmt-chars" class="text-[10px] text-stone-600">0/280</span></div>
+        </div>
+        <div id="cf-cmt-list" class="flex flex-col gap-2.5"></div>
+      </section>`;
     renderAll();
     result.classList.remove('hidden');
-    requestAnimationFrame(syncPanelHeight);
+    requestAnimationFrame(positionSwipeArrows);
     const regen = document.getElementById('regen-btn');
     if (regen) regen.addEventListener('click', () => { if (state && state.theme) generateFresh(state.theme); });
     wireConceptActions();
+    initComments();   // kommentarssektion: per-koncept-fliken laddas (global ett klick bort)
     state.spun = false;   // Game är default-vyn; symbol-jobbet (eller persistade symboler) fyller rullen progressivt
     updateSwipeVis();
   }
@@ -1011,16 +1082,153 @@ import Layout from '../layouts/Layout.astro';
       refresh(rf.dataset.refresh); return;
     }
     const nv = e.target.closest('[data-nav]'); if (nv) { nav(nv.dataset.nav, +nv.dataset.d); return; }
+    const cs = e.target.closest('[data-cscope]'); if (cs) { setCmtScope(cs.dataset.cscope); return; }
+    const cvt = e.target.closest('[data-cvote]'); if (cvt) { voteComment(cvt.dataset.cvote, cvt.dataset.vscope); return; }
+    const cdl = e.target.closest('[data-cdel]'); if (cdl) { deleteComment(cdl.dataset.cdel, cdl.dataset.dscope); return; }
+    const emo = e.target.closest('[data-emoji]'); if (emo) { insertEmoji(emo.dataset.emoji); return; }
+    if (e.target.closest('#cf-cmt-post')) { postComment(); return; }
   });
+
+  // ---------- Kommentarer / chatt (Reddit-likt, två scopes: per koncept + global app-feedback) ----------
+  let cmtScope = 'theme';   // 'theme' (aktuellt koncept) | 'global'
+  const MOD_TOKEN = (() => { try { return localStorage.getItem('forge-mod') || ''; } catch (e) { return ''; } })();   // Carl sätter denna en gång → radera-knappar
+  function scopeId() { return cmtScope === 'global' ? 'global' : (state && state.id ? state.id : null); }
+  function relTime(ts) {
+    const s = Math.max(1, Math.round((Date.now() - ts) / 1000));
+    if (s < 60) return s + 's ago';
+    const m = Math.round(s / 60); if (m < 60) return m + 'm ago';
+    const h = Math.round(m / 60); if (h < 24) return h + 'h ago';
+    return Math.round(h / 24) + 'd ago';
+  }
+  function hashStr(s) { let h = 0; s = s || ''; for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0; return h; }
+  // Profil-avatar = en av aktuella forgens reel-symboler (slumpad men stabil per kommentar-id). Fallback: färgad initial.
+  function commentAvatar(c) {
+    const syms = (cur('symbols') || []).filter((s) => s && s.url);
+    if (syms.length) {
+      const url = syms[hashStr(c.id) % syms.length].url;
+      return `<div class="cf-cmt-av"><img src="${esc(url)}" alt="" loading="lazy" /></div>`;
+    }
+    const initial = esc((((c.handle || 'a').trim()[0]) || 'a').toUpperCase());
+    return `<div class="cf-cmt-av cf-cmt-av-fb" style="background:hsl(${hashStr(c.handle || c.id) % 360} 45% 30%)">${initial}</div>`;
+  }
+  function renderComments(list) {
+    const el = document.getElementById('cf-cmt-list'); if (!el) return;
+    const cnt = document.getElementById('cf-cmt-count'); if (cnt) cnt.textContent = list.length;
+    if (!list.length) { el.innerHTML = `<p class="py-6 text-center text-sm text-stone-600">No comments yet — be the first.</p>`; return; }
+    const sorted = [...list].sort((a, b) => (b.votes || 0) - (a.votes || 0) || b.ts - a.ts);   // flest röster, sen nyast
+    const topId = sorted[0] && (sorted[0].votes || 0) > 0 ? sorted[0].id : null;
+    el.innerHTML = sorted.map((c) => `
+      <div class="cf-cmt${c.id === topId ? ' cf-cmt-top' : ''}">
+        <div class="cf-cmt-vote${c.voted ? ' on' : ''}" data-cvote="${esc(c.id)}" data-vscope="${esc(c._scope || '')}" role="button" title="Upvote"><span class="cf-cmt-arrow">▲</span><b>${c.votes || 0}</b></div>
+        ${commentAvatar(c)}
+        <div class="cf-cmt-body">
+          <div class="cf-cmt-meta"><span class="cf-cmt-handle">${esc(c.handle || 'anon')}</span> <span class="cf-cmt-tag ${c._app ? 'cf-tag-app' : 'cf-tag-forge'}" title="${c._app ? 'About Concept Forge' : 'About this forge'}">${esc(c._tag || '')}</span> · ${relTime(c.ts)}${c.id === topId ? ' · <span style="color:#c6ff00">top</span>' : ''}</div>
+          <div class="cf-cmt-text">${esc(c.body || '')}</div>
+        </div>
+        ${MOD_TOKEN ? `<button class="cf-cmt-del" data-cdel="${esc(c.id)}" data-dscope="${esc(c._scope || '')}" title="Delete (mod)">✕</button>` : ''}
+      </div>`).join('');
+  }
+  // @-tagg för aktuell forge: "@" + titel utan mellanslag (t.ex. @slurpheist). App-kommentarer = @forgeapp.
+  function forgeName() { const t = cur('title') || {}; return (t.names && t.names[0]) || (state && state.theme) || 'forge'; }
+  function forgeTag() { return '@' + forgeName().toLowerCase().replace(/[^a-z0-9&]+/g, ''); }
+  async function fetchScope(scope) {
+    try { const r = await fetch('/api/comments?scope=' + encodeURIComponent(scope) + '&cb=' + Date.now()); const j = await r.json(); return Array.isArray(j.list) ? j.list : []; } catch (e) { return []; }
+  }
+  let cmtReqSeq = 0;
+  async function loadComments() {
+    const el = document.getElementById('cf-cmt-list'); if (!el) return;
+    const cnt = document.getElementById('cf-cmt-count');
+    const seq = ++cmtReqSeq;
+    try {
+      let items;
+      if (cmtScope === 'global') {
+        // Rena app-flödet: bara @forgeapp-kommentarer.
+        items = (await fetchScope('global')).map((c) => ({ ...c, _scope: 'global', _tag: '@forgeapp', _app: true }));
+      } else {
+        const id = scopeId();
+        if (!id) { el.innerHTML = `<p class="py-6 text-center text-sm text-stone-600">Comments unlock once this concept is saved.</p>`; if (cnt) cnt.textContent = '0'; return; }
+        // This forge = denna forges egna kommentarer + ALLA app-kommentarer, mergade.
+        const ftag = forgeTag();
+        const [local, glob] = await Promise.all([fetchScope(id), fetchScope('global')]);
+        items = local.map((c) => ({ ...c, _scope: id, _tag: ftag, _app: false }))
+          .concat(glob.map((c) => ({ ...c, _scope: 'global', _tag: '@forgeapp', _app: true })));
+      }
+      if (seq !== cmtReqSeq) return;   // en nyare laddning vann → ignorera detta svar
+      renderComments(items);
+    } catch (e) { renderComments([]); }
+  }
+  function setCmtScope(s) {
+    cmtScope = (s === 'global') ? 'global' : 'theme';
+    document.querySelectorAll('#cf-comments [data-cscope]').forEach((b) => b.classList.toggle('cf-ctab-on', b.dataset.cscope === cmtScope));
+    const body = document.getElementById('cf-cmt-body');
+    if (body) body.placeholder = cmtScope === 'global' ? 'Feedback on Concept Forge itself…' : 'Drop a thought on this forge…';
+    loadComments();
+  }
+  function updateCharCount() {
+    const b = document.getElementById('cf-cmt-body'), c = document.getElementById('cf-cmt-chars');
+    if (b && c) c.textContent = (b.value || '').length + '/280';
+  }
+  function insertEmoji(ch) {
+    const b = document.getElementById('cf-cmt-body'); if (!b || !ch) return;
+    if ((b.value || '').length + ch.length > 280) return;   // respektera 280-taket (programmatisk insert kringgår maxlength)
+    const s = (b.selectionStart != null) ? b.selectionStart : b.value.length;
+    const e = (b.selectionEnd != null) ? b.selectionEnd : b.value.length;
+    b.value = b.value.slice(0, s) + ch + b.value.slice(e);
+    const pos = s + ch.length; b.focus(); try { b.setSelectionRange(pos, pos); } catch (_) {}
+    updateCharCount();
+  }
+  async function postComment() {
+    const bodyEl = document.getElementById('cf-cmt-body'), handleEl = document.getElementById('cf-cmt-handle');
+    const msg = document.getElementById('cf-cmt-msg'), btn = document.getElementById('cf-cmt-post');
+    if (!bodyEl) return;
+    const text = (bodyEl.value || '').trim();
+    if (!text) { bodyEl.focus(); return; }
+    const id = scopeId();
+    if (!id) { if (msg) { msg.textContent = 'Hang on — the concept is still saving. Try again in a moment.'; msg.style.color = '#ff6b9d'; } return; }
+    if (btn) btn.disabled = true; if (msg) { msg.textContent = 'Posting…'; msg.style.color = ''; }
+    try {
+      const r = await fetch('/api/comments?scope=' + encodeURIComponent(id), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ handle: (handleEl && handleEl.value) || '', body: text }) });
+      const j = await r.json();
+      if (j.error) {
+        const m = j.error === 'rate_limited' ? 'Whoa, slow down — too many posts. Try again shortly.' : j.error === 'blocked' ? 'That one tripped the filter.' : j.error === 'empty' ? 'Say something first.' : 'Could not post — try again.';
+        if (msg) { msg.textContent = m; msg.style.color = '#ff6b9d'; }
+      } else {
+        bodyEl.value = ''; updateCharCount(); if (msg) msg.textContent = '';
+        await loadComments();
+      }
+    } catch (e) { if (msg) { msg.textContent = 'Network hiccup — try again.'; msg.style.color = '#ff6b9d'; } }
+    if (btn) btn.disabled = false;
+  }
+  async function voteComment(cid, scope) {
+    const sc = scope || scopeId(); if (!sc) return;
+    try { await fetch('/api/comments?scope=' + encodeURIComponent(sc) + '&vote=' + encodeURIComponent(cid), { method: 'POST' }); await loadComments(); } catch (e) {}
+  }
+  async function deleteComment(cid, scope) {
+    const sc = scope || scopeId(); if (!sc || !MOD_TOKEN) return;
+    try { await fetch('/api/comments?scope=' + encodeURIComponent(sc) + '&id=' + encodeURIComponent(cid) + '&token=' + encodeURIComponent(MOD_TOKEN), { method: 'DELETE' }); await loadComments(); } catch (e) {}
+  }
+  function initComments() {
+    cmtScope = 'theme';
+    const body = document.getElementById('cf-cmt-body');
+    if (body) {
+      body.addEventListener('input', updateCharCount);
+      body.addEventListener('keydown', (e) => { if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) { e.preventDefault(); postComment(); } });
+    }
+    document.querySelectorAll('#cf-comments [data-cscope]').forEach((b) => b.classList.toggle('cf-ctab-on', b.dataset.cscope === 'theme'));
+    updateCharCount();
+    loadComments();
+  }
 
   // ---------- Flows ----------
   async function generateFresh(theme) {
     lastTheme = theme; closeRecent(); startLoading();
+    creditsPopupShown = false;   // en credits-ruta per generering
     let concept;
     try { const res = await fetch('/api/concept', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ theme }) }); concept = await res.json(); }
     catch (err) { stopLoading(); result.innerHTML = `<p class="text-stone-400">Something broke: ${esc(String(err))}. Try again.</p>`; result.classList.remove('hidden'); return; }
     stopLoading();
     if (concept && concept.limit) { showLimitPopup(); return; }
+    if (concept && concept.creditsOut) { notifyCreditsOut('concept'); return; }   // hård fail: konceptet kunde inte genereras → vänlig ruta + galleri
     if (!concept || concept.note === 'error') { result.innerHTML = `<div class="rounded-2xl border border-[#22222e] bg-[#13131c] p-6 text-stone-300">⚠️ Generation hiccupped${concept && concept.error ? ' (' + esc(concept.error) + ')' : ''}. Hit <strong class="text-[#c6ff00]">Forge it</strong> again.</div>`; result.classList.remove('hidden'); return; }
     if (!concept.theme) concept.theme = theme;
     initState(concept);
