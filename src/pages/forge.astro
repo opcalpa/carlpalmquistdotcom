@@ -1376,7 +1376,18 @@ import Layout from '../layouts/Layout.astro';
   // Autospela soundtracket på 50 % volym (nya sökningar + val ur Recent).
   function autoplaySoundtrack() {
     const a = document.querySelector('#soundtrack-slot audio');
-    if (a) { a.volume = 0.5; a.play().catch(() => {}); }
+    if (!a) return;
+    a.volume = 0.5;
+    // Webbläsare blockerar ofta ljud före första interaktionen → försök igen vid första gesten.
+    // Men ALDRIG ovanpå hissmusiken: pågår en generering (loader synlig / hold music spelar) släpps gesten utan resume.
+    a.play().catch(() => {
+      const kick = () => {
+        if (!holdAudio.paused || !loading.classList.contains('hidden')) return;
+        const cur = document.querySelector('#soundtrack-slot audio');
+        if (cur && cur.paused) { cur.volume = 0.5; cur.play().catch(() => {}); }
+      };
+      ['pointerdown', 'keydown'].forEach((ev) => window.addEventListener(ev, kick, { once: true }));
+    });
   }
   async function loadSearch(id, opts = {}) {
     closeRecent();
@@ -1389,9 +1400,11 @@ import Layout from '../layouts/Layout.astro';
     if (!opts.featured && !opts.share) input.value = state.theme || input.value;
     buildResult(true);
     if (opts.featured) {
-      // Landnings-showcase: ingen ljud-autoplay, ingen scroll (hero ska synas)
+      // Landnings-showcase: ingen scroll (hero ska synas) men ljudet startar (faller till första gesten om blockerat)
+      autoplaySoundtrack();
     } else if (opts.share) {
-      // Ankom via delad länk: visa konceptet, scrolla dit, men starta inte ljud automatiskt
+      // Ankom via delad länk: visa konceptet + scrolla dit
+      autoplaySoundtrack();
       window.scrollTo({ top: result.offsetTop - 20, behavior: 'smooth' });
     } else {
       autoplaySoundtrack();
@@ -1431,11 +1444,14 @@ import Layout from '../layouts/Layout.astro';
     };
   }
   // Förvalt koncept på landningen så nya besökare ser direkt vad Forge gör (laddas ur galleriet = gratis/direkt, ingen credit).
-  const FEATURED_THEME = 'viking metal feast';   // "Mead & Mayhem" — curera bästa exemplet här; fallback = senaste i galleriet
+  // ID pinnar exakt koncept (temat finns i flera versioner i galleriet); tema + senaste är fallback.
+  const FEATURED_ID = 'e1781102655271568';       // "Boogie Beyond" (haunted disco inferno)
+  const FEATURED_THEME = 'haunted disco inferno';
   function loadFeatured() {
     if (!result.classList.contains('hidden')) return;   // något visas redan
     if (!galleryList.length) return;                     // tomt galleri (t.ex. :4321) → behåll tom hero
-    const id = findCachedId(normalize(FEATURED_THEME)) || galleryList[0].id;
+    const pinned = galleryList.some((g) => g.id === FEATURED_ID) ? FEATURED_ID : null;
+    const id = pinned || findCachedId(normalize(FEATURED_THEME)) || galleryList[0].id;
     if (id) loadSearch(id, { featured: true });
   }
 
