@@ -26,7 +26,7 @@ Du får ett TEMA. Svara med ENBART giltig JSON enligt schemat. Ingen text före 
   "music": { "genre": "", "instrumentation": "", "base_vs_bonus": "", "bpm": "", "reference_vibe": "" },
   "feature_intro": ["3 korta one-liners i Hacksaws onboarding-kort-stil: index 0 = kärnmekanik, index 1 = bonus, index 2 = 'MAX WIN [tal]x ...'"],
   "hooks": [3 korta TikTok/social-vinklar för lansering],
-  "image_prompt": "engelsk prompt för key-art moodboard: graphic-novel slot key visual, ingen text, inga riktiga varumärken/IP, dramatisk komposition",
+  "image_prompt": "engelsk prompt för key-art i graphic-novel-stil, slot key visual, ingen text, inga riktiga varumärken/IP. KOMPOSITION (viktig, Hacksaw-stil): placera huvudkaraktären i HÖGRA tredjedelen, helkropp, dynamisk pose, vänd inåt mot mitten; rik atmosfärisk miljö med djup; håll MITTEN-VÄNSTER lugnare, mörkare och mindre detaljrik (där läggs ett spel-rutnät som overlay) och lämna luft upptill för en titel",
   "soundtrack_prompt": "engelsk prompt för ett ~25 sek instrumentalt base-game-soundtrack som matchar musik-briefen, ange genre/instrument/tempo/känsla",
   "sfx": [
     { "label": "Reel spin", "prompt": "engelsk prompt för ett kort spin/reel-ljud i temats stil" },
@@ -70,7 +70,7 @@ const FALLBACK = {
     "15,000x or nothing — the syndicate doesn't do small wins",
   ],
   image_prompt:
-    "Graphic-novel key art, neon yakuza synthwave heist, rain-slick Tokyo backstreet at night, tattooed crime boss in a chrome kimono, glowing magenta and cyan signage, bold ink linework, cinematic dramatic composition, slot game key visual, no text, no real brands",
+    "Graphic-novel slot key art, neon yakuza synthwave heist: a tattooed crime boss in a chrome kimono stands full-body on the RIGHT side in a dynamic pose, facing left toward the center; rain-slick Tokyo backstreet with glowing magenta and cyan signage and deep atmospheric perspective; the center-left is calmer and darker to leave room for a reel-grid overlay, headroom at the top; bold ink linework, cinematic, no text, no real brands",
   soundtrack_prompt:
     "25-second instrumental dark synthwave with taiko percussion, brooding analog bass and shamisen plucks, cinematic and tense, slot base-game loop, 92 BPM",
   sfx: [

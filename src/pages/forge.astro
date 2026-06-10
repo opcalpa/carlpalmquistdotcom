@@ -150,15 +150,23 @@ import Layout from '../layouts/Layout.astro';
 
   /* ---- Nivå 2: komposit game-vy (key art mood-bg + kodad reel-ram/HUD + AI-symboler) ---- */
   .cf-slot { position:relative; width:100%; aspect-ratio:1/1; overflow:hidden; border-radius:16px; border:1px solid hsl(var(--hue,80) 45% 22%); background:#08080d; }
-  .cf-slot-bg { position:absolute; inset:0; background-size:cover; background-position:center; transform:scale(1.05); }
+  .cf-slot-bg { position:absolute; inset:0; background-size:cover; background-position:center; transform:scale(1.06); transform-origin:62% 48%; animation:cfbreath 16s ease-in-out infinite alternate; }
+  @keyframes cfbreath { from { transform:scale(1.06) translate(0,0); } to { transform:scale(1.12) translate(-1%,-0.6%); } }
+  /* Ambient-partiklar (Hacksaw-känsla: stjärnor/löv/konfetti driver) — tema-tonade, bakom UI:t */
+  .cf-particles { position:absolute; inset:0; overflow:hidden; pointer-events:none; }
+  .cf-particles i { position:absolute; top:-5%; display:block; border-radius:50%; background:hsl(var(--hue,80) 92% 72%); box-shadow:0 0 6px hsl(var(--hue,80) 90% 65%); opacity:0; animation:cfdrift linear infinite; }
+  @keyframes cfdrift { 0% { top:-5%; transform:translateX(0) scale(.5); opacity:0; } 12% { opacity:.85; } 88% { opacity:.5; } 100% { top:106%; transform:translateX(var(--dx,8px)) scale(1); opacity:0; } }
+  @media (prefers-reduced-motion: reduce) { .cf-slot-bg { animation:none; transform:scale(1.05); } .cf-particles i { animation:none; opacity:0; } }
   .cf-slot-scrim { position:absolute; inset:0; background:radial-gradient(125% 95% at 50% 42%, transparent 28%, rgba(5,5,9,.5) 80%), linear-gradient(180deg, rgba(5,5,9,.5) 0%, transparent 20%, transparent 64%, rgba(5,5,9,.82) 100%); }
   .cf-slot-fallbg { position:absolute; inset:0; background:radial-gradient(120% 75% at 50% 0%, hsl(var(--hue,80) 55% 13%) 0%, #0b0b11 72%); }
   .cf-slot-inner { position:absolute; inset:0; display:flex; flex-direction:column; gap:6px; padding:11px; }
   .cf-slot-top { display:flex; align-items:center; gap:7px; flex-wrap:wrap; padding-right:120px; min-height:22px; }
   .cf-slot-title { font-weight:900; text-transform:uppercase; letter-spacing:-.02em; font-size:clamp(13px,3vw,20px); line-height:1; color:#fff; text-shadow:0 2px 6px rgba(0,0,0,.9), 0 1px 0 #000; }
   .cf-slot-feat { font-size:9px; font-weight:800; text-transform:uppercase; letter-spacing:.02em; color:#0a0a0f; background:hsl(var(--hue,80) 90% 62%); border-radius:999px; padding:3px 8px; white-space:nowrap; box-shadow:0 1px 4px rgba(0,0,0,.5); }
-  .cf-reels { flex:1; min-height:0; display:flex; align-items:center; justify-content:center; }
-  .cf-frame { position:relative; width:76%; height:100%; padding:7px; border-radius:13px; border:2px solid hsl(var(--hue,80) 62% 48%); background:linear-gradient(180deg, hsl(var(--hue,80) 40% 12% / .8), hsl(var(--hue,80) 35% 6% / .88)); box-shadow:0 0 0 3px rgba(0,0,0,.45), 0 0 26px hsl(var(--hue,80) 70% 42% / .4), inset 0 0 34px rgba(0,0,0,.55); }
+  .cf-reels { flex:1; min-height:0; display:flex; align-items:center; justify-content:flex-start; padding-left:2%; }
+  @media (max-width:640px) { .cf-reels { justify-content:center; padding-left:0; } }
+  .cf-frame { position:relative; width:60%; height:100%; padding:7px; border-radius:13px; border:2px solid hsl(var(--hue,80) 62% 48%); background:linear-gradient(180deg, hsl(var(--hue,80) 40% 12% / .5), hsl(var(--hue,80) 35% 6% / .64)); box-shadow:0 0 0 3px rgba(0,0,0,.4), 0 0 26px hsl(var(--hue,80) 70% 42% / .4), inset 0 0 34px rgba(0,0,0,.5); }
+  @media (max-width:640px) { .cf-frame { width:72%; } }
   .cf-grid { width:100%; height:100%; display:grid; gap:4px; }
   .cf-cell { position:relative; display:flex; align-items:center; justify-content:center; overflow:hidden; border-radius:8px; border:1px solid hsl(var(--hue,80) 50% 32% / .55); background:linear-gradient(160deg, hsl(var(--hue,80) 30% 15% / .82), hsl(var(--hue,80) 28% 7% / .9)); box-shadow:inset 0 1px 0 hsl(var(--hue,80) 55% 34% / .4); }
   .cf-cell img { width:88%; height:88%; object-fit:contain; filter:drop-shadow(0 2px 5px rgba(0,0,0,.6)); }
@@ -719,12 +727,19 @@ import Layout from '../layouts/Layout.astro';
     const m = cur('mechanic') || { mechanic: {}, math: {} };
     const buy = (m.mechanic || {}).bonus_buy || '', vol = (m.math || {}).volatility;
     const hue = hashHue(state.theme);
-    const bg = (cur('image') || {}).url;   // key art = mood-miljö + karaktär bakom hjulen
+    const bg = (cur('image') || {}).url;   // key art = mood-miljö + karaktär till höger om rutnätet
+    // Ambient-partiklar: varierad position/storlek/fart så de driver naturligt (Hacksaw-liv)
+    const particles = Array.from({ length: 14 }, () => {
+      const left = Math.round(Math.random() * 100), size = (3 + Math.random() * 4).toFixed(1);
+      const dur = (6 + Math.random() * 7).toFixed(1), delay = (Math.random() * 9).toFixed(1), dx = Math.round(Math.random() * 26 - 13);
+      return `<i style="left:${left}%;width:${size}px;height:${size}px;animation-duration:${dur}s;animation-delay:-${delay}s;--dx:${dx}px"></i>`;
+    }).join('');
     const cells = g.cells.map((c) => c.t === 's'
       ? `<div class="cf-cell"><img src="${esc(c.url)}" alt="${esc(c.label)}" loading="lazy" onerror="this.parentNode.classList.add('cf-letter');this.parentNode.textContent='★'" /></div>`
       : `<div class="cf-cell cf-letter">${esc(c.ch)}</div>`).join('');
     return `<div class="cf-slot" style="--hue:${hue}">
       ${bg ? `<div class="cf-slot-bg" style="background-image:url('${esc(bg)}')"></div><div class="cf-slot-scrim"></div>` : `<div class="cf-slot-fallbg"></div>`}
+      <div class="cf-particles" aria-hidden="true">${particles}</div>
       <div class="cf-slot-inner">
         <div class="cf-slot-top">
           <span class="cf-slot-title">${esc(name)}</span>
