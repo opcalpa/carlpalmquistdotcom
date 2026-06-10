@@ -158,6 +158,32 @@ import Layout from '../layouts/Layout.astro';
   .cf-emoji { font-size:17px; line-height:1; padding:3px 5px; border-radius:7px; background:transparent; border:1px solid transparent; cursor:pointer; transition:background .12s; }
   .cf-emoji:hover { background:#1d1d28; }
   .cf-light .cf-emoji:hover { background:#eef0f4; }
+  /* Diskret parent-emoji-knapp inuti textrutan (vänster) + popover med de 10 */
+  .cf-emoji-btn { position:absolute; left:8px; top:50%; transform:translateY(-50%); z-index:2; display:flex; align-items:center; justify-content:center; width:24px; height:24px; padding:0; border:none; background:transparent; color:#57534e; cursor:pointer; transition:color .15s; }
+  .cf-emoji-btn:hover, .cf-emoji-btn.on { color:#c6ff00; }
+  #cf-cmt-body { padding-left:36px; }   /* lämna plats för emoji-knappen (id slår .cf-cinput) */
+  .cf-emoji-pop { position:absolute; bottom:calc(100% + 6px); left:0; z-index:30; display:flex; flex-wrap:wrap; gap:1px; width:226px; padding:6px; border-radius:12px; border:1px solid #2a2a3a; background:#15151f; box-shadow:0 10px 28px rgba(0,0,0,.55); }
+  .cf-emoji-pop.hidden { display:none; }
+  .cf-light .cf-emoji-btn { color:#9b9ba3; }
+  .cf-light .cf-emoji-btn:hover, .cf-light .cf-emoji-btn.on { color:#0a8f54; }
+  .cf-light .cf-emoji-pop { background:#fff; border-color:#d7d9e1; }
+  /* Egen kommentar: ⋯-meny (Edit/Delete), avslöjas på hover på desktop, alltid synlig på touch */
+  .cf-cmt-own { position:relative; flex:none; }
+  .cf-cmt-menu-btn { border:none; background:transparent; color:#8a8a99; font-size:19px; line-height:1; cursor:pointer; padding:0 3px; border-radius:6px; transition:opacity .12s, color .12s; }
+  .cf-cmt-menu-btn:hover, .cf-cmt-menu-btn.on { color:#e7e5e4; }
+  @media (hover:hover) { .cf-cmt-menu-btn { opacity:0; } .cf-cmt:hover .cf-cmt-menu-btn, .cf-cmt-menu-btn.on { opacity:1; } }
+  .cf-cmt-menu { position:absolute; top:24px; right:0; z-index:20; display:flex; flex-direction:column; min-width:118px; padding:4px; border-radius:10px; border:1px solid #2a2a3a; background:#15151f; box-shadow:0 8px 22px rgba(0,0,0,.5); }
+  .cf-cmt-menu.hidden { display:none; }
+  .cf-cmt-menu button { text-align:left; background:transparent; border:none; color:#d6d3d1; font-size:13px; padding:6px 8px; border-radius:6px; cursor:pointer; }
+  .cf-cmt-menu button:hover { background:#1d1d28; }
+  .cf-cmt-menu-del:hover { color:#ff6b9d; }
+  .cf-cmt-edited { color:#78716c; font-style:italic; }
+  .cf-cmt-edit textarea { min-height:56px; padding-left:12px; }
+  .cf-cmt-save { background:#c6ff00; color:#0a0a0f; font-weight:800; font-size:12px; padding:5px 14px; border:none; border-radius:7px; cursor:pointer; }
+  .cf-cmt-cancel { background:transparent; color:#8a8a99; font-size:12px; padding:5px 8px; border:none; cursor:pointer; }
+  .cf-light .cf-cmt-menu { background:#fff; border-color:#d7d9e1; }
+  .cf-light .cf-cmt-menu button { color:#33353d; }
+  .cf-light .cf-cmt-menu button:hover { background:#eef0f4; }
   .cf-light .cf-ctab { border-color:#d7d9e1; color:#33353d; }
   .cf-light .cf-ctab-on { background:#eef6ef; border-color:#0a8f54; color:#0a8f54; }
   .cf-light .cf-cinput { background:#fff; border-color:#d7d9e1; color:#1c1c22; }
@@ -1058,10 +1084,13 @@ import Layout from '../layouts/Layout.astro';
         <div class="mb-5 rounded-2xl border border-[#22222e] bg-[#13131c] p-4">
           <div class="flex flex-col gap-2 sm:flex-row sm:items-stretch">
             <input id="cf-cmt-handle" maxlength="24" placeholder="name (optional)" class="cf-cinput sm:w-40" />
-            <textarea id="cf-cmt-body" maxlength="280" rows="1" placeholder="Drop a thought on this forge…" class="cf-cinput flex-1 resize-none"></textarea>
+            <div class="relative flex-1">
+              <button type="button" id="cf-emoji-btn" class="cf-emoji-btn" title="Emoji" aria-label="Emoji" tabindex="-1"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M8.5 14.3c.9 1.1 2.1 1.7 3.5 1.7s2.6-.6 3.5-1.7"/><path d="M9 9.6v.5M15 9.6v.5"/></svg></button>
+              <div id="cf-emoji-pop" class="cf-emoji-pop hidden">${['😂','❤️','🔥','👍','😍','🙏','😭','🎉','💯','👀'].map((e) => `<button type="button" class="cf-emoji" data-emoji="${e}" tabindex="-1">${e}</button>`).join('')}</div>
+              <textarea id="cf-cmt-body" maxlength="280" rows="1" placeholder="Drop a thought on this forge…" class="cf-cinput w-full resize-none pl-9"></textarea>
+            </div>
             <button id="cf-cmt-post" class="flex-none rounded-lg bg-[#c6ff00] px-4 py-2 text-sm font-black text-[#0a0a0f] transition hover:brightness-110 disabled:opacity-50">Post</button>
           </div>
-          <div class="mt-2 flex flex-wrap gap-0.5">${['😂','❤️','🔥','👍','😍','🙏','😭','🎉','💯','👀'].map((e) => `<button type="button" class="cf-emoji" data-emoji="${e}" tabindex="-1">${e}</button>`).join('')}</div>
           <div class="mt-1.5 flex items-center justify-between"><span id="cf-cmt-msg" class="text-xs text-stone-500"></span><span id="cf-cmt-chars" class="text-[10px] text-stone-600">0/280</span></div>
         </div>
         <div id="cf-cmt-list" class="flex flex-col gap-2.5"></div>
@@ -1122,6 +1151,12 @@ import Layout from '../layouts/Layout.astro';
     const cs = e.target.closest('[data-cscope]'); if (cs) { setCmtScope(cs.dataset.cscope); return; }
     const cvt = e.target.closest('[data-cvote]'); if (cvt) { voteComment(cvt.dataset.cvote, cvt.dataset.vscope); return; }
     const cdl = e.target.closest('[data-cdel]'); if (cdl) { deleteComment(cdl.dataset.cdel, cdl.dataset.dscope); return; }
+    const cmn = e.target.closest('[data-cmenu]'); if (cmn) { e.stopPropagation(); toggleCmtMenu(cmn.dataset.cmenu); return; }
+    const ced = e.target.closest('[data-cedit]'); if (ced) { startEditComment(ced.dataset.cedit); return; }
+    const csv = e.target.closest('[data-cedit-save]'); if (csv) { saveEditComment(csv.dataset.ceditSave, csv.dataset.escope); return; }
+    if (e.target.closest('[data-cedit-cancel]')) { cancelEditComment(); return; }
+    const cdo = e.target.closest('[data-cdelown]'); if (cdo) { deleteOwnComment(cdo.dataset.cdelown, cdo.dataset.escope); return; }
+    if (e.target.closest('#cf-emoji-btn')) { toggleEmojiPop(); return; }
     const emo = e.target.closest('[data-emoji]'); if (emo) { insertEmoji(emo.dataset.emoji); return; }
     if (e.target.closest('#cf-cmt-post')) { postComment(); return; }
   });
@@ -1129,6 +1164,9 @@ import Layout from '../layouts/Layout.astro';
   // ---------- Kommentarer / chatt (Reddit-likt, två scopes: per koncept + global app-feedback) ----------
   let cmtScope = 'theme';   // 'theme' (aktuellt koncept) | 'global'
   const MOD_TOKEN = (() => { try { return localStorage.getItem('forge-mod') || ''; } catch (e) { return ''; } })();   // Carl sätter denna en gång → radera-knappar
+  // Per-browser författar-id → avgör "min kommentar" (edit/delete). Servern verifierar ägarskap; id:t läcker aldrig ut i GET.
+  const AUTHOR_ID = (() => { try { let a = localStorage.getItem('forge-author'); if (!a) { a = 'u' + Math.random().toString(36).slice(2, 12) + Date.now().toString(36); localStorage.setItem('forge-author', a); } return a; } catch (e) { return 'anon'; } })();
+  let editingId = null, lastCmtList = [];   // kommentar som redigeras inline + senaste renderade listan (lokal re-render)
   function scopeId() { return cmtScope === 'global' ? 'global' : (state && state.id ? state.id : null); }
   function relTime(ts) {
     const s = Math.max(1, Math.round((Date.now() - ts) / 1000));
@@ -1152,24 +1190,34 @@ import Layout from '../layouts/Layout.astro';
     const el = document.getElementById('cf-cmt-list'); if (!el) return;
     const cnt = document.getElementById('cf-cmt-count'); if (cnt) cnt.textContent = list.length;
     if (!list.length) { el.innerHTML = `<p class="py-6 text-center text-sm text-stone-600">No comments yet — be the first.</p>`; return; }
+    lastCmtList = list;
     const sorted = [...list].sort((a, b) => (b.votes || 0) - (a.votes || 0) || b.ts - a.ts);   // flest röster, sen nyast
     const topId = sorted[0] && (sorted[0].votes || 0) > 0 ? sorted[0].id : null;
-    el.innerHTML = sorted.map((c) => `
-      <div class="cf-cmt${c.id === topId ? ' cf-cmt-top' : ''}">
-        <div class="cf-cmt-vote${c.voted ? ' on' : ''}" data-cvote="${esc(c.id)}" data-vscope="${esc(c._scope || '')}" role="button" title="Upvote"><span class="cf-cmt-arrow">▲</span><b>${c.votes || 0}</b></div>
+    el.innerHTML = sorted.map((c) => {
+      const own = !!c.mine, editing = c.id === editingId;
+      const sc = esc(c._scope || '');
+      const meta = `<div class="cf-cmt-meta"><span class="cf-cmt-handle">${esc(c.handle || 'anon')}</span> <span class="cf-cmt-tag ${c._app ? 'cf-tag-app' : 'cf-tag-forge'}" title="${c._app ? 'About Concept Forge' : 'About this forge'}">${esc(c._tag || '')}</span> · ${relTime(c.ts)}${c.edited ? ' · <span class="cf-cmt-edited">edited</span>' : ''}${c.id === topId ? ' · <span style="color:#c6ff00">top</span>' : ''}</div>`;
+      const content = editing
+        ? `<div class="cf-cmt-edit"><textarea class="cf-cinput w-full resize-none" maxlength="280" data-cedit-body="${esc(c.id)}">${esc(c.body || '')}</textarea><div class="mt-1.5 flex items-center gap-2"><button class="cf-cmt-save" data-cedit-save="${esc(c.id)}" data-escope="${sc}">Save</button><button class="cf-cmt-cancel" data-cedit-cancel="1">Cancel</button></div></div>`
+        : `<div class="cf-cmt-text">${esc(c.body || '')}</div>`;
+      const ownMenu = own && !editing
+        ? `<div class="cf-cmt-own"><button class="cf-cmt-menu-btn" data-cmenu="${esc(c.id)}" title="Options" aria-label="Options">⋯</button><div class="cf-cmt-menu hidden" data-menu-for="${esc(c.id)}"><button data-cedit="${esc(c.id)}">✎ Edit</button><button class="cf-cmt-menu-del" data-cdelown="${esc(c.id)}" data-escope="${sc}">🗑 Delete</button></div></div>`
+        : '';
+      const modDel = (MOD_TOKEN && !own) ? `<button class="cf-cmt-del" data-cdel="${esc(c.id)}" data-dscope="${sc}" title="Delete (mod)">✕</button>` : '';
+      return `
+      <div class="cf-cmt${c.id === topId ? ' cf-cmt-top' : ''}${own ? ' cf-cmt-mine' : ''}">
+        <div class="cf-cmt-vote${c.voted ? ' on' : ''}" data-cvote="${esc(c.id)}" data-vscope="${sc}" role="button" title="Upvote"><span class="cf-cmt-arrow">▲</span><b>${c.votes || 0}</b></div>
         ${commentAvatar(c)}
-        <div class="cf-cmt-body">
-          <div class="cf-cmt-meta"><span class="cf-cmt-handle">${esc(c.handle || 'anon')}</span> <span class="cf-cmt-tag ${c._app ? 'cf-tag-app' : 'cf-tag-forge'}" title="${c._app ? 'About Concept Forge' : 'About this forge'}">${esc(c._tag || '')}</span> · ${relTime(c.ts)}${c.id === topId ? ' · <span style="color:#c6ff00">top</span>' : ''}</div>
-          <div class="cf-cmt-text">${esc(c.body || '')}</div>
-        </div>
-        ${MOD_TOKEN ? `<button class="cf-cmt-del" data-cdel="${esc(c.id)}" data-dscope="${esc(c._scope || '')}" title="Delete (mod)">✕</button>` : ''}
-      </div>`).join('');
+        <div class="cf-cmt-body">${meta}${content}</div>
+        ${ownMenu}${modDel}
+      </div>`;
+    }).join('');
   }
   // @-tagg för aktuell forge: "@" + titel utan mellanslag (t.ex. @slurpheist). App-kommentarer = @forgeapp.
   function forgeName() { const t = cur('title') || {}; return (t.names && t.names[0]) || (state && state.theme) || 'forge'; }
   function forgeTag() { return '@' + forgeName().toLowerCase().replace(/[^a-z0-9&]+/g, ''); }
   async function fetchScope(scope) {
-    try { const r = await fetch('/api/comments?scope=' + encodeURIComponent(scope) + '&cb=' + Date.now()); const j = await r.json(); return Array.isArray(j.list) ? j.list : []; } catch (e) { return []; }
+    try { const r = await fetch('/api/comments?scope=' + encodeURIComponent(scope) + '&author=' + encodeURIComponent(AUTHOR_ID) + '&cb=' + Date.now()); const j = await r.json(); return Array.isArray(j.list) ? j.list : []; } catch (e) { return []; }
   }
   let cmtReqSeq = 0;
   async function loadComments() {
@@ -1214,6 +1262,14 @@ import Layout from '../layouts/Layout.astro';
     const pos = s + ch.length; b.focus(); try { b.setSelectionRange(pos, pos); } catch (_) {}
     updateCharCount();
   }
+  function closeEmojiPop() { const p = document.getElementById('cf-emoji-pop'), b = document.getElementById('cf-emoji-btn'); if (p) p.classList.add('hidden'); if (b) b.classList.remove('on'); }
+  function toggleEmojiPop() { const p = document.getElementById('cf-emoji-pop'), b = document.getElementById('cf-emoji-btn'); if (!p) return; const nowHidden = p.classList.toggle('hidden'); if (b) b.classList.toggle('on', !nowHidden); }
+  // Stäng emoji-popovern vid klick utanför / Escape.
+  document.addEventListener('click', (e) => {
+    if (!e.target.closest('#cf-emoji-pop') && !e.target.closest('#cf-emoji-btn')) closeEmojiPop();
+    if (!e.target.closest('.cf-cmt-menu') && !e.target.closest('[data-cmenu]')) closeCmtMenus();
+  });
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeEmojiPop(); });
   async function postComment() {
     const bodyEl = document.getElementById('cf-cmt-body'), handleEl = document.getElementById('cf-cmt-handle');
     const msg = document.getElementById('cf-cmt-msg'), btn = document.getElementById('cf-cmt-post');
@@ -1224,7 +1280,7 @@ import Layout from '../layouts/Layout.astro';
     if (!id) { if (msg) { msg.textContent = 'Hang on — the concept is still saving. Try again in a moment.'; msg.style.color = '#ff6b9d'; } return; }
     if (btn) btn.disabled = true; if (msg) { msg.textContent = 'Posting…'; msg.style.color = ''; }
     try {
-      const r = await fetch('/api/comments?scope=' + encodeURIComponent(id), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ handle: (handleEl && handleEl.value) || '', body: text }) });
+      const r = await fetch('/api/comments?scope=' + encodeURIComponent(id), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ handle: (handleEl && handleEl.value) || '', body: text, authorId: AUTHOR_ID }) });
       const j = await r.json();
       if (j.error) {
         const m = j.error === 'rate_limited' ? 'Whoa, slow down — too many posts. Try again shortly.' : j.error === 'blocked' ? 'That one tripped the filter.' : j.error === 'empty' ? 'Say something first.' : 'Could not post — try again.';
@@ -1243,6 +1299,33 @@ import Layout from '../layouts/Layout.astro';
   async function deleteComment(cid, scope) {
     const sc = scope || scopeId(); if (!sc || !MOD_TOKEN) return;
     try { await fetch('/api/comments?scope=' + encodeURIComponent(sc) + '&id=' + encodeURIComponent(cid) + '&token=' + encodeURIComponent(MOD_TOKEN), { method: 'DELETE' }); await loadComments(); } catch (e) {}
+  }
+  // ---- Egen kommentar: ⋯-meny (Edit / Delete) ----
+  function closeCmtMenus() { document.querySelectorAll('#cf-cmt-list .cf-cmt-menu').forEach((m) => m.classList.add('hidden')); document.querySelectorAll('#cf-cmt-list .cf-cmt-menu-btn').forEach((b) => b.classList.remove('on')); }
+  function toggleCmtMenu(id) {
+    const menu = document.querySelector(`#cf-cmt-list .cf-cmt-menu[data-menu-for="${id}"]`);
+    const btn = document.querySelector(`#cf-cmt-list .cf-cmt-menu-btn[data-cmenu="${id}"]`);
+    const willOpen = menu && menu.classList.contains('hidden');
+    closeCmtMenus();
+    if (willOpen) { menu.classList.remove('hidden'); if (btn) btn.classList.add('on'); }
+  }
+  function startEditComment(id) { closeCmtMenus(); editingId = id; renderComments(lastCmtList); const ta = document.querySelector(`[data-cedit-body="${id}"]`); if (ta) { ta.focus(); try { ta.setSelectionRange(ta.value.length, ta.value.length); } catch (e) {} } }
+  function cancelEditComment() { editingId = null; renderComments(lastCmtList); }
+  async function saveEditComment(id, scope) {
+    const ta = document.querySelector(`[data-cedit-body="${id}"]`); if (!ta) return;
+    const text = (ta.value || '').trim(); if (!text) { ta.focus(); return; }
+    const sc = scope || scopeId(); if (!sc) return;
+    try {
+      const r = await fetch('/api/comments?scope=' + encodeURIComponent(sc) + '&edit=' + encodeURIComponent(id), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ authorId: AUTHOR_ID, body: text }) });
+      const j = await r.json();
+      editingId = null;
+      if (j && j.error) { renderComments(lastCmtList); } else { await loadComments(); }
+    } catch (e) { editingId = null; renderComments(lastCmtList); }
+  }
+  async function deleteOwnComment(cid, scope) {
+    const sc = scope || scopeId(); if (!sc) return;
+    closeCmtMenus();
+    try { await fetch('/api/comments?scope=' + encodeURIComponent(sc) + '&id=' + encodeURIComponent(cid) + '&author=' + encodeURIComponent(AUTHOR_ID), { method: 'DELETE' }); await loadComments(); } catch (e) {}
   }
   function initComments() {
     cmtScope = 'theme';

@@ -53,12 +53,14 @@ const sanitize = (s, max) => (s || "").toString().replace(/[\x00-\x1F\x7F]/g, " 
 export async function onRequestGet(context) {
   const { request, env } = context;
   if (!kvOk(env)) return Response.json({ list: [] });
-  const scope = cleanScope(new URL(request.url).searchParams.get("scope"));
+  const u = new URL(request.url);
+  const scope = cleanScope(u.searchParams.get("scope"));
+  const author = (u.searchParams.get("author") || "").slice(0, 64);
   const ip = clientIp(request);
   try {
     const [list, voted] = await Promise.all([readList(env, scope), readVotedSet(env, scope, ip)]);
     const vset = new Set(voted);
-    return Response.json({ list: list.map((c) => ({ ...c, voted: vset.has(c.id) })) });
+    return Response.json({ list: list.map((c) => { const { auth, ...rest } = c; return { ...rest, voted: vset.has(c.id), mine: !!author && auth === author }; }) });   // auth läcker aldrig ut
   } catch (e) {
     return Response.json({ list: [], error: String(e).slice(0, 200) });
   }
@@ -94,11 +96,31 @@ export async function onRequestPost(context) {
     }
   }
 
+  // ---- Redigera egen kommentar: POST ?edit=<commentId> {authorId, body} ----
+  const editId = url.searchParams.get("edit");
+  if (editId) {
+    let bd = {}; try { bd = await request.json(); } catch {}
+    const newText = sanitize(bd.body, BODY_MAX);
+    const author = String(bd.authorId || "").slice(0, 64);
+    if (!newText) return Response.json({ error: "empty" }, { status: 400 });
+    if (BLOCK.test(newText)) return Response.json({ error: "blocked" }, { status: 400 });
+    try {
+      const list = await readList(env, scope);
+      const c = list.find((x) => x.id === editId);
+      if (!c) return Response.json({ error: "unknown comment" }, { status: 404 });
+      if (!author || c.auth !== author) return Response.json({ error: "forbidden" }, { status: 403 });   // bara ägaren
+      c.body = newText; c.edited = true;
+      await kvPut(env, cmtKey(scope), JSON.stringify(list));
+      return Response.json({ ok: true, id: editId });
+    } catch (e) { return Response.json({ error: String(e).slice(0, 200) }); }
+  }
+
   // ---- Ny kommentar ----
   let body = {};
   try { body = await request.json(); } catch {}
   const text = sanitize(body.body, BODY_MAX);
   const handle = sanitize(body.handle, HANDLE_MAX) || "anon";
+  const authorId = String(body.authorId || "").slice(0, 64);
   if (!text) return Response.json({ error: "empty" }, { status: 400 });
   if (BLOCK.test(text) || BLOCK.test(handle)) return Response.json({ error: "blocked" }, { status: 400 });
   try {
@@ -108,7 +130,7 @@ export async function onRequestPost(context) {
     if (rlCount >= RL_MAX) return Response.json({ error: "rate_limited", retryAfter: RL_WINDOW }, { status: 429 });
 
     const list = await readList(env, scope);
-    const comment = { id: "c" + Date.now().toString(36) + Math.random().toString(36).slice(2, 6), handle, body: text, ts: Date.now(), votes: 0 };
+    const comment = { id: "c" + Date.now().toString(36) + Math.random().toString(36).slice(2, 6), handle, body: text, ts: Date.now(), votes: 0, auth: authorId };
     list.unshift(comment);
     if (list.length > CAP) list.length = CAP;
     await kvPut(env, cmtKey(scope), JSON.stringify(list));
@@ -123,13 +145,17 @@ export async function onRequestDelete(context) {
   const { request, env } = context;
   if (!kvOk(env)) return Response.json({ error: "kv_not_configured" });
   const url = new URL(request.url);
-  if (url.searchParams.get("token") !== ADMIN_TOKEN) return Response.json({ error: "forbidden" }, { status: 403 });
   const scope = cleanScope(url.searchParams.get("scope"));
   const id = url.searchParams.get("id");
   if (!id) return Response.json({ error: "missing id" }, { status: 400 });
+  const isMod = url.searchParams.get("token") === ADMIN_TOKEN;
+  const author = (url.searchParams.get("author") || "").slice(0, 64);
   try {
-    const list = (await readList(env, scope)).filter((c) => c.id !== id);
-    await kvPut(env, cmtKey(scope), JSON.stringify(list));
+    const list = await readList(env, scope);
+    const c = list.find((x) => x.id === id);
+    if (!c) return Response.json({ ok: true, id });   // redan borta
+    if (!isMod && !(author && c.auth === author)) return Response.json({ error: "forbidden" }, { status: 403 });   // mod ELLER ägaren
+    await kvPut(env, cmtKey(scope), JSON.stringify(list.filter((x) => x.id !== id)));
     return Response.json({ ok: true, id });
   } catch (e) {
     return Response.json({ error: String(e).slice(0, 200) });
