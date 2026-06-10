@@ -669,15 +669,16 @@ import Layout from '../layouts/Layout.astro';
 
   // ---------- Animation (key art -> attract-loop via Luma Ray 2) ----------
   function motionPrompt() {
-    const scene = (state.imagePrompt || state.theme || '').slice(0, 300);
+    const scene = (state.imagePrompt || state.theme || '').slice(0, 260);
     const tailored = (state.motionPrompt || '').trim();
-    // Skyddsregler så Luma håller sig lugn och trogen bilden (annars vandrar karaktären / morphar)
-    const rules = 'Bring this slot key art to life as a seamless looping attract-mode animation. The main character stays in the exact same spot (no walking, never leaves frame) and keeps its precise design and identity (no morphing, no warping, no extra limbs). Keep the composition, framing and colors identical, no camera movement, no cuts. Subtle and tasteful only.';
-    // Skräddarsydd brief från Claude när den finns, annars en rik generisk meny (Luma läser bilden och anpassar)
-    const motion = tailored
-      ? `Animate it like this: ${tailored}`
-      : 'Character idle motion in place: a gentle weight-shift sway with slow breathing, a faint shift of expression, and an occasional small gesture such as a subtle wave, a head tilt or a tiny dance step. Background comes alive: cloth, hair, fur, capes, banners and foliage stir in a light breeze, weather and atmosphere drift (slow clouds, distant birds, falling leaves/snow/embers as fits the scene), with soft light shimmer, glints and slowly drifting particles.';
-    return `${rules} ${motion} Scene: ${scene}`;
+    // Kamera-låset måste vara HÅRT (annars push-in:ar Luma), men karaktären ska leva via INTERNA mikrorörelser.
+    const rules = 'Animate this slot key art into a seamless looping attract-mode video. LOCKED STATIC CAMERA: the camera is fixed on a tripod and never moves — no zoom, no push-in, no pull-out, no pan, no rotation, no parallax. The framing, crop and the scale of everything stay EXACTLY as the source image for the entire loop. No cuts. The character keeps its identity (no morphing, no warping, no extra limbs).';
+    // Karaktär-liv är OBLIGATORISKT (annars fryser Luma figuren), men som interna mikrorörelser — inte förflyttning/skalning.
+    const alive = 'The main character stays in the exact same position and scale (it never steps toward or away from camera and never changes size) but must be CLEARLY ALIVE, not a frozen statue: clearly visible slow breathing with the chest and shoulders rising and falling, a faint weight-shift, an occasional blink, a small head tilt and a tiny hand or prop gesture, with clothing, hair, fur or capes swaying softly. Small and tasteful, but perceptible.';
+    // Perifera detaljer (det Carl uttryckligen vill ha rörligt): luftpartiklar, fjärilar, fåglar, smådjur + väder.
+    const ambient = 'The only freely-moving things are small PERIPHERAL details: drifting air particles and dust, an occasional butterfly, birds and small animals crossing through, soft rain, embers, leaves or snow as fits the scene, slow neon and light shimmer, a faint distant crowd. All gentle and subtle.';
+    const extra = tailored ? ` Art-directed motion for this image: ${tailored}` : '';
+    return `${rules} ${alive} ${ambient}${extra} Scene: ${scene}`;
   }
   async function pollAnimate(id) {
     let waited = 0; const interval = 5000, maxMs = 200000;

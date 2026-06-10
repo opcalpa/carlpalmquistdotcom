@@ -15,7 +15,7 @@ export async function onRequestPost(context) {
   let body = {};
   try { body = await request.json(); } catch {}
   const imageUrl = (body.imageUrl || "").toString();
-  const prompt = (body.prompt || "subtle ambient cinematic loop, gentle motion, no camera cut, seamless").toString().slice(0, 600);
+  const prompt = (body.prompt || "subtle ambient cinematic loop, gentle motion, no camera cut, seamless").toString().slice(0, 1000);
   if (!imageUrl) return Response.json({ error: "missing imageUrl" }, { status: 400 });
   try {
     const r = await fetch(`https://queue.fal.run/${MODEL}`, {
