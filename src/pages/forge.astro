@@ -15,7 +15,7 @@ import Layout from '../layouts/Layout.astro';
             <span class="h-1.5 w-1.5 rounded-full bg-[#c6ff00]"></span>
             A Carl Palmquist demo · slot ideation accelerator
           </p>
-          <button type="button" id="theme-toggle" class="flex-none rounded-full border border-[#2a2a3a] bg-[#15151f] px-3 py-1 text-xs font-medium text-stone-300 hover:border-[#c6ff00]" title="Växla ljust/mörkt">☀️ Light</button>
+          <button type="button" id="theme-toggle" class="flex-none p-1 text-[#ff2d78] transition-transform hover:scale-110" title="Växla ljust/mörkt"></button>
         </div>
         <h1 class="text-5xl font-black uppercase leading-[0.95] tracking-tight sm:text-6xl">
           Concept <span class="text-[#c6ff00]">Forge</span>
@@ -72,11 +72,7 @@ import Layout from '../layouts/Layout.astro';
       </div>
 
       <footer class="mt-14 border-t border-[#1c1c28] pt-6 text-xs leading-relaxed text-stone-500">
-        <button type="button" id="nav-counter" title="Browse all saved concepts" class="hidden mx-auto mb-5 block w-fit cursor-pointer rounded-full border border-[#2a2a3a] bg-[#15151f]/80 px-3 py-1 text-xs tabular-nums text-stone-400 transition hover:border-[#c6ff00]"></button>
-        <p><span class="font-semibold text-stone-400">Ideation accelerator, not an art generator.</span>
-        It produces direction and briefs for humans to refine — the model never ships the final asset.
-        That keeps it on the right side of regulatory art audits.</p>
-        <p class="mt-2">Built with Claude Code in an evening and deployed on this site. — Carl Palmquist</p>
+        <button type="button" id="nav-counter" title="Browse all saved concepts" class="hidden mx-auto block w-fit cursor-pointer rounded-full border border-[#2a2a3a] bg-[#15151f]/80 px-3 py-1 text-xs tabular-nums text-stone-400 transition hover:border-[#c6ff00]"></button>
       </footer>
     </div>
   </main>
@@ -305,10 +301,13 @@ import Layout from '../layouts/Layout.astro';
   const recentCount = document.getElementById('recent-count');
 
   // ---------- Ljust/mörkt tema ----------
+  // Ikonen visar läget man byter TILL (sol i dark, måne i light) och ärver temats accentfärg via currentColor.
+  const SUN_ICO = '<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>';
+  const MOON_ICO = '<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>';
   function applyTheme(light) {
     document.documentElement.classList.toggle('cf-light', light);
     const tb = document.getElementById('theme-toggle');
-    if (tb) tb.textContent = light ? '🌙 Dark' : '☀️ Light';
+    if (tb) { tb.innerHTML = light ? MOON_ICO : SUN_ICO; tb.title = light ? 'Byt till mörkt tema' : 'Byt till ljust tema'; }
   }
   (function initTheme() {
     let light = false;
@@ -729,19 +728,14 @@ import Layout from '../layouts/Layout.astro';
       chip.addEventListener('click', () => { const playing = !au.paused; reset(); if (playing) return; au.play(); ic.textContent = '⏸'; au.onended = () => { ic.textContent = '▶'; }; });
     });
   }
-  function renderEngine() {
-    const el = document.getElementById('cf-engine'); if (!el) return;
-    const im = cur('image') || {}, so = cur('soundtrack') || {}, an = cur('animation') || {};
-    el.innerHTML = [`Concept by ${esc(state.conceptEngine || 'Claude')}`, im.engine ? 'art by ' + esc(im.engine) : '', an.engine ? 'motion by ' + esc(an.engine) : '', so.engine ? 'soundtrack by ' + esc(so.engine) : '', 'SFX by ElevenLabs'].filter(Boolean).join(' &nbsp;·&nbsp; ') + ' &nbsp;—&nbsp; right model for each step.';
-  }
   function render(comp, busy) {
     if (comp === 'title') renderTitle(busy);
-    else if (comp === 'image' || comp === 'animation' || comp === 'gameview' || comp === 'symbols') { renderImage(busy); renderEngine(); }
-    else if (comp === 'soundtrack') { renderSoundtrack(busy); renderEngine(); }
+    else if (comp === 'image' || comp === 'animation' || comp === 'gameview' || comp === 'symbols') renderImage(busy);
+    else if (comp === 'soundtrack') renderSoundtrack(busy);
     else if (comp === 'sfx') renderSfx(busy);
     else renderTab(comp, busy);
   }
-  function renderAll() { renderTitle(); renderImage(); ['tldr', 'art', 'mechanic', 'music', 'hooks'].forEach((t) => renderTab(t)); renderSoundtrack(); renderSfx(); renderEngine(); }
+  function renderAll() { renderTitle(); renderImage(); ['tldr', 'art', 'mechanic', 'music', 'hooks'].forEach((t) => renderTab(t)); renderSoundtrack(); renderSfx(); }
 
   // ---------- Audio fetchers ----------
   async function pollSuno(taskId) {
@@ -1037,12 +1031,10 @@ import Layout from '../layouts/Layout.astro';
   function buildResult(fromCache) {
     // Samma rad oavsett om resultatet är nytt eller hämtat ur galleriet — användaren ska aldrig
     // behöva tänka på cache-state. En tydlig re-roll (samma tema, ny tolkning) finns alltid.
-    const strip = `<div class="mb-3 flex items-center justify-between gap-3 text-xs">
-      <div class="flex min-w-0 items-center gap-3"><button id="regen-btn" type="button" class="flex-none inline-flex items-center gap-1.5 rounded-full border border-[#2a2a3a] px-3 py-1 text-stone-300 transition hover:border-[#ff2d78] hover:text-[#ff2d78]">↻ Re-roll this theme</button></div>
-      <div class="flex flex-none items-center gap-2">
-        <button id="cf-upvote" type="button" title="Upvote this concept" class="inline-flex items-center gap-1.5 rounded-full border border-[#2a2a3a] px-3 py-1 text-stone-300 transition hover:border-[#c6ff00] hover:text-[#c6ff00]"><span class="cf-up-ico">▲</span><span id="cf-votecount">0</span></button>
-        <button id="cf-share" type="button" title="Copy a shareable link" class="inline-flex items-center gap-1.5 rounded-full border border-[#2a2a3a] px-3 py-1 text-stone-300 transition hover:border-[#ff2d78] hover:text-[#ff2d78]">↗ Share</button>
-      </div>
+    const strip = `<div class="mb-3 flex flex-wrap items-center justify-end gap-2 text-xs">
+      <button id="regen-btn" type="button" class="inline-flex items-center gap-1.5 rounded-full border border-[#2a2a3a] px-3 py-1 text-stone-300 transition hover:border-[#ff2d78] hover:text-[#ff2d78]">↻ Re-roll this theme</button>
+      <button id="cf-upvote" type="button" title="Upvote this concept" class="inline-flex items-center gap-1.5 rounded-full border border-[#2a2a3a] px-3 py-1 text-stone-300 transition hover:border-[#c6ff00] hover:text-[#c6ff00]"><span class="cf-up-ico">▲</span><span id="cf-votecount">0</span></button>
+      <button id="cf-share" type="button" title="Copy a shareable link" class="inline-flex items-center gap-1.5 rounded-full border border-[#2a2a3a] px-3 py-1 text-stone-300 transition hover:border-[#ff2d78] hover:text-[#ff2d78]">↗ Share</button>
     </div>`;
     const tabs = [['tldr', 'TL;DR'], ['art', 'Art direction'], ['mechanic', 'Mechanic'], ['music', 'Music & audio'], ['hooks', 'Hooks']];
     result.innerHTML = `
@@ -1072,10 +1064,10 @@ import Layout from '../layouts/Layout.astro';
           </div>
         </div>
       </div>
-      <p id="cf-engine" class="mt-6 text-xs text-stone-500"></p>
       <section id="cf-comments" class="mt-10 border-t border-[#22222e] pt-7">
         <div class="mb-4 flex flex-wrap items-center justify-between gap-3">
           <div class="flex items-center gap-1.5">
+            <span class="mr-1 text-xs font-semibold uppercase tracking-wide text-stone-500">Topic:</span>
             <button class="cf-ctab cf-ctab-on" data-cscope="theme">💬 This forge</button>
             <button class="cf-ctab" data-cscope="global">🌐 Concept Forge</button>
           </div>
@@ -1397,11 +1389,7 @@ import Layout from '../layouts/Layout.astro';
     if (!opts.featured && !opts.share) input.value = state.theme || input.value;
     buildResult(true);
     if (opts.featured) {
-      // Landnings-showcase: ingen ljud-autoplay, ingen scroll (hero ska synas), liten exempel-tagg
-      const tag = document.createElement('div');
-      tag.className = 'mb-3 flex flex-wrap items-center gap-2 text-xs text-stone-500';
-      tag.innerHTML = '<span class="rounded-full border border-[#2a2a3a] px-2 py-0.5 font-semibold text-[#ff2d78]">✨ Example</span>';
-      result.prepend(tag);
+      // Landnings-showcase: ingen ljud-autoplay, ingen scroll (hero ska synas)
     } else if (opts.share) {
       // Ankom via delad länk: visa konceptet, scrolla dit, men starta inte ljud automatiskt
       window.scrollTo({ top: result.offsetTop - 20, behavior: 'smooth' });
