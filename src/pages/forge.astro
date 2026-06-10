@@ -933,24 +933,28 @@ import Layout from '../layouts/Layout.astro';
     result.innerHTML = `
       ${strip}
       <div id="cf-title" class="mb-4"></div>
-      <div class="grid items-stretch gap-5 lg:grid-cols-[minmax(0,44%)_1fr]">
-        <div id="cf-image" class="lg:col-start-1 lg:row-start-1"></div>
-        <div class="flex min-h-0 flex-col lg:col-start-2 lg:row-start-1">
+      <!-- Full-bredd hero: bild / auto-loop / Game-mockup. 16:9 fyller bredden; gamla kvadrater cappas så de inte blir gigantiska. -->
+      <div id="cf-image" class="mb-5${state.aspect === '16:9' ? '' : ' mx-auto w-full max-w-[560px]'}"></div>
+      <!-- Under hero: bred textmodul (max exponering) + kompakt ljud-sidebar (Soundtrack + SFX) -->
+      <div class="grid items-start gap-5 lg:grid-cols-[1fr_minmax(0,310px)]">
+        <div class="flex min-h-0 flex-col">
           <div class="mb-3 flex flex-wrap gap-2">${tabs.map((t, i) => `<button class="cf-tab${i === 0 ? ' active' : ''}" data-tab="${t[0]}">${esc(t[1])}</button>`).join('')}</div>
-          <div data-panelbox class="cf-scrollfade no-scrollbar min-h-0 flex-1 overflow-auto rounded-2xl border border-[#22222e] bg-[#13131c] p-6">
+          <div data-panelbox class="cf-scrollfade no-scrollbar overflow-auto rounded-2xl border border-[#22222e] bg-[#13131c] p-6 lg:max-h-[68vh]">
             ${tabs.map((t, i) => `<div data-panel="${t[0]}" class="${i === 0 ? '' : 'hidden'}"><div id="cf-panel-${t[0]}"></div></div>`).join('')}
           </div>
         </div>
-        <div class="rounded-2xl border border-[#22222e] bg-[#13131c] p-4 lg:col-start-1 lg:row-start-2">
-          <div class="mb-2 flex items-center justify-between">
-            <span class="text-[11px] font-black uppercase tracking-wide text-[#ff2d78]">🎵 Soundtrack</span>
-            <span class="flex items-center gap-2"><span id="st-engine" class="text-[10px] text-stone-600"></span><span id="cf-st-ctrl"></span></span>
+        <div class="flex flex-col gap-4">
+          <div class="rounded-2xl border border-[#22222e] bg-[#13131c] p-4">
+            <div class="mb-2 flex items-center justify-between">
+              <span class="text-[11px] font-black uppercase tracking-wide text-[#ff2d78]">🎵 Soundtrack</span>
+              <span class="flex items-center gap-2"><span id="st-engine" class="text-[10px] text-stone-600"></span><span id="cf-st-ctrl"></span></span>
+            </div>
+            <div id="soundtrack-slot"></div>
           </div>
-          <div id="soundtrack-slot"></div>
-        </div>
-        <div class="rounded-2xl border border-[#22222e] bg-[#13131c] p-4 lg:col-start-2 lg:row-start-2">
-          <div class="mb-2 flex items-center justify-between"><span class="text-[11px] font-black uppercase tracking-wide text-[#ff2d78]">🔊 SFX</span><span id="cf-sfx-ctrl"></span></div>
-          <div id="sfx-slot"></div>
+          <div class="rounded-2xl border border-[#22222e] bg-[#13131c] p-4">
+            <div class="mb-2 flex items-center justify-between"><span class="text-[11px] font-black uppercase tracking-wide text-[#ff2d78]">🔊 SFX</span><span id="cf-sfx-ctrl"></span></div>
+            <div id="sfx-slot"></div>
+          </div>
         </div>
       </div>
       <p id="cf-engine" class="mt-6 text-xs text-stone-500"></p>`;
@@ -983,18 +987,8 @@ import Layout from '../layouts/Layout.astro';
   function stopViewAuto() { viewTouched = true; clearInterval(viewAutoTimer); }
 
   // Lås textsektionens höjd till bilddelens höjd (alltid enhetlig ruta, scroll inuti när innehållet är längre).
-  function syncPanelHeight() {
-    const img = document.getElementById('cf-image');
-    const panel = document.querySelector('#result [data-panelbox]');
-    if (!img || !panel) return;
-    if (!window.matchMedia('(min-width:1024px)').matches) { panel.style.height = ''; panel.style.maxHeight = ''; return; }
-    const tabs = panel.previousElementSibling;
-    const tabsH = tabs ? tabs.offsetHeight : 0;
-    const h = Math.max(240, Math.round(img.offsetHeight - tabsH - 12));   // 12 = tabs-radens mb-3
-    panel.style.height = h + 'px';
-    panel.style.maxHeight = h + 'px';
-  }
-  window.addEventListener('resize', syncPanelHeight);
+  // Hero är nu full-bredd ovanför texten → ingen höjd-matchning behövs. Texten har egen maxhöjd + scroll (lg:max-h).
+  function syncPanelHeight() { /* no-op (bevarad så befintliga anrop inte kraschar) */ }
 
   // delegation (result-elementet är stabilt; lyssnaren sätts en gång)
   result.addEventListener('click', (e) => {
