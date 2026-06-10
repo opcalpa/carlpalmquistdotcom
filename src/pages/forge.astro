@@ -156,6 +156,14 @@ import Layout from '../layouts/Layout.astro';
   .cf-particles { position:absolute; inset:0; overflow:hidden; pointer-events:none; }
   .cf-particles i { position:absolute; top:-5%; display:block; border-radius:50%; background:hsl(var(--hue,80) 92% 72%); box-shadow:0 0 6px hsl(var(--hue,80) 90% 65%); opacity:0; animation:cfdrift linear infinite; }
   @keyframes cfdrift { 0% { top:-5%; transform:translateX(0) scale(.5); opacity:0; } 12% { opacity:.85; } 88% { opacity:.5; } 100% { top:106%; transform:translateX(var(--dx,8px)) scale(1); opacity:0; } }
+  @keyframes cfrise { 0% { top:106%; transform:translateX(0) scale(.5); opacity:0; } 12% { opacity:.9; } 88% { opacity:.5; } 100% { top:-6%; transform:translateX(var(--dx,8px)) scale(1); opacity:0; } }
+  /* Tema-medvetna partiklar: glöd stiger (eld), snö/löv faller, konfetti faller färgglatt, spark = default tonad */
+  .cf-particles-ember i { background:hsl(26 95% 60%); box-shadow:0 0 7px hsl(22 95% 55%); animation-name:cfrise; }
+  .cf-particles-snow i { background:#eaf2ff; box-shadow:0 0 5px #cfe0ff; }
+  .cf-particles-leaf i { background:hsl(95 45% 48%); box-shadow:0 0 5px hsl(95 45% 40% / .6); border-radius:45% 55% 50% 50%; }
+  .cf-particles-confetti i { border-radius:1px; box-shadow:none; }
+  /* Game-bakgrund som genererad Luma-loop: fyll ytan, ingen CSS-andning (videon rör sig redan) */
+  .cf-slot-bg.cf-slot-vid { width:100%; height:100%; object-fit:cover; animation:none; transform:none; }
   @media (prefers-reduced-motion: reduce) { .cf-slot-bg { animation:none; transform:scale(1.05); } .cf-particles i { animation:none; opacity:0; } }
   .cf-slot-scrim { position:absolute; inset:0; background:radial-gradient(125% 95% at 50% 42%, transparent 28%, rgba(5,5,9,.5) 80%), linear-gradient(180deg, rgba(5,5,9,.5) 0%, transparent 20%, transparent 64%, rgba(5,5,9,.82) 100%); }
   .cf-slot-fallbg { position:absolute; inset:0; background:radial-gradient(120% 75% at 50% 0%, hsl(var(--hue,80) 55% 13%) 0%, #0b0b11 72%); }
@@ -435,6 +443,7 @@ import Layout from '../layouts/Layout.astro';
     state = {
       id: null, theme: c.theme || lastTheme || '', imagePrompt: c.image_prompt || c.theme || lastTheme || '', conceptEngine: c.engine || '',
       featureName: c.feature_name || '', featureIntro: (Array.isArray(c.feature_intro) && c.feature_intro.length) ? c.feature_intro : tldrFromConcept(c),
+      motionPrompt: c.motion_prompt || '',
       symbolPrompts: Array.isArray(c.symbols) ? c.symbols : [],
       versions: {
         title: [{ names: c.names || [], logline: c.logline || '' }],
@@ -456,6 +465,7 @@ import Layout from '../layouts/Layout.astro';
     s.idx = s.idx || {};
     if (s.idx.symbols == null) s.idx.symbols = 0;
     if (!Array.isArray(s.symbolPrompts)) s.symbolPrompts = [];
+    if (s.motionPrompt == null) s.motionPrompt = '';
     if (s.visualMode == null) s.visualMode = 'mood';
     s.symbolsBusy = false; s.grid = null; s.spinning = false;
     return s;
@@ -515,7 +525,7 @@ import Layout from '../layouts/Layout.astro';
     // Loop nedtonad till sekundär (dimmad, mindre) — Mood/Game är huvudtoggeln.
     const loopStyle = mode === 'loop' ? 'style="color:#c6ff00;font-size:10px"' : 'style="opacity:.5;font-size:10px"';
     const loopBtn = hasLoop ? `<button class="cf-mini" data-vis="loop" ${loopStyle}>Loop</button>`
-      : (animBusy ? `<span class="cf-mini" style="opacity:.45;font-size:10px">Loop…</span>` : `<button class="cf-mini" data-refresh="animation" ${mood.url ? '' : 'disabled'} ${loopStyle}>▶ Loop</button>`);
+      : (animBusy ? `<span class="cf-mini" style="opacity:.45;font-size:10px">Loop…</span>` : `<button class="cf-mini" data-refresh="animation" data-noconfirm="1" ${mood.url ? '' : 'disabled'} ${loopStyle}>▶ Loop</button>`);
     let pills = pill('mood', 'Mood') + pill('game', 'Game') + loopBtn;
     let reroll = '';
     if (mode === 'mood') reroll = ctrl('image', busy && !animBusy && !symBusy);
@@ -651,8 +661,15 @@ import Layout from '../layouts/Layout.astro';
 
   // ---------- Animation (key art -> attract-loop via Luma Ray 2) ----------
   function motionPrompt() {
-    const base = (state.imagePrompt || state.theme || '').slice(0, 400);
-    return `Subtle cinematic attract-mode loop of this slot key art. Ambient motion only: slowly drifting particles, soft neon and light shimmer, faint haze, the main character breathes and shifts almost imperceptibly with occasional small idle movement. Keep the composition identical, no camera cut, seamless loop. Scene: ${base}`;
+    const scene = (state.imagePrompt || state.theme || '').slice(0, 300);
+    const tailored = (state.motionPrompt || '').trim();
+    // Skyddsregler så Luma håller sig lugn och trogen bilden (annars vandrar karaktären / morphar)
+    const rules = 'Bring this slot key art to life as a seamless looping attract-mode animation. The main character stays in the exact same spot (no walking, never leaves frame) and keeps its precise design and identity (no morphing, no warping, no extra limbs). Keep the composition, framing and colors identical, no camera movement, no cuts. Subtle and tasteful only.';
+    // Skräddarsydd brief från Claude när den finns, annars en rik generisk meny (Luma läser bilden och anpassar)
+    const motion = tailored
+      ? `Animate it like this: ${tailored}`
+      : 'Character idle motion in place: a gentle weight-shift sway with slow breathing, a faint shift of expression, and an occasional small gesture such as a subtle wave, a head tilt or a tiny dance step. Background comes alive: cloth, hair, fur, capes, banners and foliage stir in a light breeze, weather and atmosphere drift (slow clouds, distant birds, falling leaves/snow/embers as fits the scene), with soft light shimmer, glints and slowly drifting particles.';
+    return `${rules} ${motion} Scene: ${scene}`;
   }
   async function pollAnimate(id) {
     let waited = 0; const interval = 5000, maxMs = 200000;
@@ -715,6 +732,15 @@ import Layout from '../layouts/Layout.astro';
     for (let i = pool.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); const tmp = pool[i]; pool[i] = pool[j]; pool[j] = tmp; }
     state.grid = { cols, rows, cells: pool.slice(0, total) };
   }
+  // Tema-medveten partikeltyp (för Game-vyn när ingen Luma-loop finns ännu)
+  function particleKind(t) {
+    t = (t || '').toLowerCase();
+    if (/fire|flame|lava|inferno|ember|volcano|hell|dragon|demon|forge|magma|phoenix|blaze|ash|gore|metal/.test(t)) return 'ember';
+    if (/ice|frost|snow|arctic|winter|crystal|glacier|polar|blizzard|frozen/.test(t)) return 'snow';
+    if (/forest|jungle|leaf|leaves|autumn|garden|nature|wood|safari|tropical|fae|elf|druid/.test(t)) return 'leaf';
+    if (/party|disco|circus|candy|carnival|festival|fiesta|rave|birthday|club|pop|gymnastics/.test(t)) return 'confetti';
+    return 'spark';
+  }
   function volBars(v) {
     const map = { 'low': 2, 'medium': 3, 'med': 3, 'high': 4, 'very high': 5, 'extreme': 5 };
     const n = map[String(v || '').trim().toLowerCase()] || 4;
@@ -727,19 +753,25 @@ import Layout from '../layouts/Layout.astro';
     const m = cur('mechanic') || { mechanic: {}, math: {} };
     const buy = (m.mechanic || {}).bonus_buy || '', vol = (m.math || {}).volatility;
     const hue = hashHue(state.theme);
-    const bg = (cur('image') || {}).url;   // key art = mood-miljö + karaktär till höger om rutnätet
-    // Ambient-partiklar: varierad position/storlek/fart så de driver naturligt (Hacksaw-liv)
-    const particles = Array.from({ length: 14 }, () => {
+    const anim = (cur('animation') || {}).url;   // genererad Luma-loop → används som animerad Game-bakgrund
+    const bg = (cur('image') || {}).url;   // statisk key art = mood-miljö + karaktär till höger om rutnätet
+    // Ambient-partiklar (bara när ingen Luma-loop finns): tema-medveten typ + varierad rörelse
+    const pkind = particleKind(state.theme);
+    const CONFETTI = ['#ff2d78', '#c6ff00', '#3da5ff', '#ffd23f', '#a85cff'];
+    const particles = Array.from({ length: 14 }, (_, i) => {
       const left = Math.round(Math.random() * 100), size = (3 + Math.random() * 4).toFixed(1);
       const dur = (6 + Math.random() * 7).toFixed(1), delay = (Math.random() * 9).toFixed(1), dx = Math.round(Math.random() * 26 - 13);
-      return `<i style="left:${left}%;width:${size}px;height:${size}px;animation-duration:${dur}s;animation-delay:-${delay}s;--dx:${dx}px"></i>`;
+      const col = pkind === 'confetti' ? `;background:${CONFETTI[i % CONFETTI.length]}` : '';
+      return `<i style="left:${left}%;width:${size}px;height:${size}px;animation-duration:${dur}s;animation-delay:-${delay}s;--dx:${dx}px${col}"></i>`;
     }).join('');
     const cells = g.cells.map((c) => c.t === 's'
       ? `<div class="cf-cell"><img src="${esc(c.url)}" alt="${esc(c.label)}" loading="lazy" onerror="this.parentNode.classList.add('cf-letter');this.parentNode.textContent='★'" /></div>`
       : `<div class="cf-cell cf-letter">${esc(c.ch)}</div>`).join('');
     return `<div class="cf-slot" style="--hue:${hue}">
-      ${bg ? `<div class="cf-slot-bg" style="background-image:url('${esc(bg)}')"></div><div class="cf-slot-scrim"></div>` : `<div class="cf-slot-fallbg"></div>`}
-      <div class="cf-particles" aria-hidden="true">${particles}</div>
+      ${anim
+        ? `<video class="cf-slot-bg cf-slot-vid" src="${esc(anim)}" autoplay muted loop playsinline></video><div class="cf-slot-scrim"></div>`
+        : (bg ? `<div class="cf-slot-bg" style="background-image:url('${esc(bg)}')"></div><div class="cf-slot-scrim"></div>` : `<div class="cf-slot-fallbg"></div>`)}
+      ${anim ? '' : `<div class="cf-particles cf-particles-${pkind}" aria-hidden="true">${particles}</div>`}
       <div class="cf-slot-inner">
         <div class="cf-slot-top">
           <span class="cf-slot-title">${esc(name)}</span>
@@ -870,7 +902,7 @@ import Layout from '../layouts/Layout.astro';
   async function persist() {
     let thumb = null; try { thumb = await makeThumb(); } catch (e) {}
     try {
-      const r = await fetch('/api/gallery', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: state.id, theme: state.theme, thumb, state: { theme: state.theme, imagePrompt: state.imagePrompt, conceptEngine: state.conceptEngine, featureName: state.featureName, featureIntro: state.featureIntro, symbolPrompts: state.symbolPrompts, versions: state.versions, idx: state.idx } }) });
+      const r = await fetch('/api/gallery', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: state.id, theme: state.theme, thumb, state: { theme: state.theme, imagePrompt: state.imagePrompt, conceptEngine: state.conceptEngine, featureName: state.featureName, featureIntro: state.featureIntro, motionPrompt: state.motionPrompt, symbolPrompts: state.symbolPrompts, versions: state.versions, idx: state.idx } }) });
       const j = await r.json(); if (j.id) state.id = j.id;
     } catch (e) {}
     refreshGallery();
@@ -964,7 +996,8 @@ import Layout from '../layouts/Layout.astro';
     const rf = e.target.closest('[data-refresh]');
     if (rf) {
       // Tap-again-bekräftelse: första trycket beväpnar (gulorange), andra inom 2,5 s kör. Hindrar dyra mistryck.
-      if (rf.getAttribute('data-armed') !== '1') {
+      // data-noconfirm = förstagångs-åtgärder (t.ex. ▶ Loop) som ska starta direkt på ett klick.
+      if (rf.getAttribute('data-noconfirm') !== '1' && rf.getAttribute('data-armed') !== '1') {
         rf.setAttribute('data-armed', '1'); rf.classList.add('cf-confirm'); rf.title = 'Tap again to confirm';
         clearTimeout(rf._armT); rf._armT = setTimeout(() => { rf.removeAttribute('data-armed'); rf.classList.remove('cf-confirm'); }, 2500);
         return;

@@ -27,6 +27,7 @@ Du får ett TEMA. Svara med ENBART giltig JSON enligt schemat. Ingen text före 
   "feature_intro": ["3 korta one-liners i Hacksaws onboarding-kort-stil: index 0 = kärnmekanik, index 1 = bonus, index 2 = 'MAX WIN [tal]x ...'"],
   "hooks": [3 korta TikTok/social-vinklar för lansering],
   "image_prompt": "engelsk prompt för key-art i graphic-novel-stil, slot key visual, ingen text, inga riktiga varumärken/IP. KOMPOSITION (viktig, Hacksaw-stil): placera huvudkaraktären i HÖGRA tredjedelen, helkropp, dynamisk pose, vänd inåt mot mitten; rik atmosfärisk miljö med djup; håll MITTEN-VÄNSTER lugnare, mörkare och mindre detaljrik (där läggs ett spel-rutnät som overlay) och lämna luft upptill för en titel",
+  "motion_prompt": "engelsk prompt för en subtil, loopande idle-animation SKRÄDDARSYDD för key-art:ens karaktär och miljö (image-to-video): vad huvudkaraktären gör PÅ STÄLLET (t.ex. gungar lätt, andas, ändrar min en aning, vinkar, litet dansryck, vingar/cape fladdrar) plus vad i bakgrunden som rör sig (tyg/hår/löv i vinden, moln, fåglar, regn, glimr, gnistor). Karaktären stannar på samma plats och behåller sin identitet, ingen kamerarörelse, seamless loop. Var konkret om DENNA bilds motiv",
   "soundtrack_prompt": "engelsk prompt för ett ~25 sek instrumentalt base-game-soundtrack som matchar musik-briefen, ange genre/instrument/tempo/känsla",
   "sfx": [
     { "label": "Reel spin", "prompt": "engelsk prompt för ett kort spin/reel-ljud i temats stil" },
@@ -71,6 +72,8 @@ const FALLBACK = {
   ],
   image_prompt:
     "Graphic-novel slot key art, neon yakuza synthwave heist: a tattooed crime boss in a chrome kimono stands full-body on the RIGHT side in a dynamic pose, facing left toward the center; rain-slick Tokyo backstreet with glowing magenta and cyan signage and deep atmospheric perspective; the center-left is calmer and darker to leave room for a reel-grid overlay, headroom at the top; bold ink linework, cinematic, no text, no real brands",
+  motion_prompt:
+    "The oyabun shifts his weight and breathes slowly, his chrome kimono and the hanging neon banners ripple in a faint breeze, light rain streaks fall, puddle reflections shimmer, distant signage flickers and a few embers drift upward; he stays in the same spot in his exact pose and identity, no camera move, seamless loop",
   soundtrack_prompt:
     "25-second instrumental dark synthwave with taiko percussion, brooding analog bass and shamisen plucks, cinematic and tense, slot base-game loop, 92 BPM",
   sfx: [
