@@ -497,7 +497,7 @@ import Layout from '../layouts/Layout.astro';
   // ---------- Loading ----------
   let msgTimer;
   const holdAudio = new Audio('/hold-music.mp3'); holdAudio.loop = true; holdAudio.volume = 0.45;
-  function startLoading() { result.classList.add('hidden'); loading.classList.remove('hidden'); btn.disabled = true; try { holdAudio.currentTime = 0; holdAudio.play().catch(() => {}); } catch (e) {} let i = 0; loadingMsg.textContent = LOADING_MSGS[0]; msgTimer = setInterval(() => { i = (i + 1) % LOADING_MSGS.length; loadingMsg.textContent = LOADING_MSGS[i]; }, 1500); startPong(); updateSwipeVis(); }
+  function startLoading() { result.classList.add('hidden'); loading.classList.remove('hidden'); btn.disabled = true; try { const prev = document.querySelector('#soundtrack-slot audio'); if (prev) prev.pause(); } catch (e) {} try { holdAudio.currentTime = 0; holdAudio.play().catch(() => {}); } catch (e) {} let i = 0; loadingMsg.textContent = LOADING_MSGS[0]; msgTimer = setInterval(() => { i = (i + 1) % LOADING_MSGS.length; loadingMsg.textContent = LOADING_MSGS[i]; }, 1500); startPong(); updateSwipeVis(); }
   function stopLoading() { clearInterval(msgTimer); loading.classList.add('hidden'); btn.disabled = false; try { holdAudio.pause(); } catch (e) {} stopPong(); }
 
   // ---------- Pong-loader: du mot datorn medan konceptet genereras ----------
