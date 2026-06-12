@@ -30,9 +30,20 @@ const { class: className = '' } = Astro.props;
   type Packet = {
     edgeIdx: number;
     t: number;
-    speed: number;
+    speed: number; // signed: negative travels b→a
     size: number;
     alpha: number;
+    boost?: boolean;
+  };
+
+  type Spark = {
+    x: number;
+    y: number;
+    vx: number;
+    vy: number;
+    age: number;
+    max: number;
+    size: number;
   };
 
   type LabelHitbox = {
@@ -47,8 +58,8 @@ const { class: className = '' } = Astro.props;
     'Product',
     'Engineering',
     'Design',
-    'Data Structure',
-    'Commercial Strategy',
+    'Data',
+    'Commercial',
   ];
   const HOME_FRAC: { x: number; y: number }[] = [
     { x: 0.5, y: 0.2 },
@@ -57,6 +68,18 @@ const { class: className = '' } = Astro.props;
     { x: 0.3, y: 0.78 },
     { x: 0.15, y: 0.42 },
   ];
+  // satellite chips revealed on hover, indexed like LABELS
+  const LABEL_CHIPS: string[][] = [
+    ['MVP → ship', 'Prototyping', 'Product sense'],
+    ['LLM pipelines', 'TypeScript', 'Edge / serverless'],
+    ['UI systems', 'Motion & canvas', 'Design → code'],
+    ['Schemas & APIs', 'Analytics', 'Eval loops'],
+    ['Go-to-market', 'Partner APIs', 'Pricing & pitch'],
+  ];
+  // the one color accent in an otherwise grayscale graph — "AI energy"
+  const ACCENT = '255, 45, 120';
+  // story order for the constellation pipeline: build → design → engineer → measure → sell
+  const PIPELINE_ORDER = [0, 2, 1, 3, 4];
 
   function initGraph(root: HTMLElement) {
     const canvas = root.querySelector('canvas') as HTMLCanvasElement;
@@ -76,17 +99,64 @@ const { class: className = '' } = Astro.props;
     const nodes: Node[] = [];
     const edges: Edge[] = [];
     const packets: Packet[] = [];
+    const sparks: Spark[] = [];
     const labelHitboxes: LabelHitbox[] = [];
+    (canvas as any).__ngHitboxes = labelHitboxes;
+    let adjacency: number[][] = [];
     let hoveredLabel: number | null = null;
     let connectedToHovered = new Set<number>();
 
     const MAX_PACKETS = 22;
+
+    let tNow = performance.now();
 
     // drag state
     let isDragging = false;
     let draggedIdx: number | null = null;
     let dragOffset = { x: 0, y: 0 };
     let pointerHistory: { x: number; y: number; t: number }[] = [];
+
+    // signal wave (tap a label → BFS pulse through the network)
+    const HOP_MS = 150;
+    const FLASH_MS = 450;
+    const EDGE_TAIL_MS = 280;
+    let wave: {
+      start: number;
+      hopAt: number[];
+      doneAt: number;
+      shipAt: number;
+      shipIdx: number;
+      shipped: boolean;
+    } | null = null;
+    let shippedFx: { idx: number; start: number } | null = null;
+
+    // AI node — autonomous agent layered on top of the physics
+    const ai = {
+      x: 0,
+      y: 0,
+      vx: 0,
+      vy: 0,
+      target: 0,
+      mode: 'travel' as 'travel' | 'dwell',
+      dwellUntil: 0,
+      orbitA: 0,
+    };
+    const aiBoostSet = new Set<number>();
+
+    // hover chips
+    const chipAnim = [0, 0, 0, 0, 0];
+
+    // idle constellation
+    const CONVERGE_MS = 1600;
+    const HOLD_MS = 2400;
+    let constel: {
+      phase: 'converge' | 'hold';
+      start: number;
+      targets: { x: number; y: number }[];
+      tip: { x: number; y: number };
+    } | null = null;
+    let lastInteraction = tNow;
+    let constelCooldownUntil = 0;
 
     function resize() {
       const rect = canvas.getBoundingClientRect();
@@ -102,6 +172,11 @@ const { class: className = '' } = Astro.props;
       nodes.length = 0;
       edges.length = 0;
       packets.length = 0;
+      sparks.length = 0;
+      wave = null;
+      shippedFx = null;
+      constel = null;
+      chipAnim.fill(0);
 
       LABELS.forEach((label, i) => {
         const home = {
@@ -127,7 +202,7 @@ const { class: className = '' } = Astro.props;
         });
       });
 
-      // K4: every label connected to every other
+      // K5: every label connected to every other
       for (let i = 0; i < LABELS.length; i++) {
         for (let j = i + 1; j < LABELS.length; j++) {
           edges.push({ a: i, b: j });
@@ -182,9 +257,40 @@ const { class: className = '' } = Astro.props;
           edges.push({ a: i, b: dists[k].j });
         }
       }
+
+      adjacency = nodes.map(() => []);
+      for (const e of edges) {
+        adjacency[e.a].push(e.b);
+        adjacency[e.b].push(e.a);
+      }
+
+      ai.x = width * 0.5;
+      ai.y = height * 0.55;
+      ai.vx = 0;
+      ai.vy = 0;
+      ai.mode = 'travel';
+      ai.target = Math.floor(Math.random() * LABELS.length);
+      aiBoostSet.clear();
+    }
+
+    // 0 when labels sit at their natural layout distance, →1 when dragged far apart
+    function k5Strain(e: Edge): number {
+      if (e.a >= LABELS.length || e.b >= LABELS.length) return 0;
+      const ha = nodes[e.a].home!;
+      const hb = nodes[e.b].home!;
+      const rest = Math.hypot(ha.x - hb.x, ha.y - hb.y) || 1;
+      const d = Math.hypot(
+        nodes[e.a].x - nodes[e.b].x,
+        nodes[e.a].y - nodes[e.b].y
+      );
+      return Math.max(0, Math.min(1, (d - rest * 1.12) / (rest * 0.85)));
     }
 
     function step() {
+      if (constel) {
+        constellationStep();
+        return;
+      }
       const cx = width / 2;
       const cy = height / 2;
       const REPULSION = 320;
@@ -233,6 +339,22 @@ const { class: className = '' } = Astro.props;
         a.vy += fy / aMass;
         b.vx -= fx / bMass;
         b.vy -= fy / bMass;
+
+        // rubber-band: strained label↔label edges pull back hard (silo physics)
+        const s = k5Strain(e);
+        if (s > 0) {
+          const extra = s * s * 0.3;
+          const ex = (dx / dist) * extra;
+          const ey = (dy / dist) * extra;
+          if (!(isDragging && e.a === draggedIdx)) {
+            a.vx += ex;
+            a.vy += ey;
+          }
+          if (!(isDragging && e.b === draggedIdx)) {
+            b.vx -= ex;
+            b.vy -= ey;
+          }
+        }
       }
 
       for (let i = 0; i < nodes.length; i++) {
@@ -347,16 +469,305 @@ const { class: className = '' } = Astro.props;
       });
     }
 
+    // spawn a packet that travels outward from a label along one of its edges
+    function spawnDirectional(labelIdx: number, boost: boolean, speed: number) {
+      if (packets.length >= MAX_PACKETS + 20) return;
+      const idxs: number[] = [];
+      for (let i = 0; i < edges.length; i++) {
+        if (edges[i].a === labelIdx || edges[i].b === labelIdx) idxs.push(i);
+      }
+      if (!idxs.length) return;
+      const ei = idxs[Math.floor(Math.random() * idxs.length)];
+      const fromA = edges[ei].a === labelIdx;
+      packets.push({
+        edgeIdx: ei,
+        t: fromA ? 0 : 1,
+        speed: fromA ? speed : -speed,
+        size: boost ? 2.2 : 1.6 + Math.random() * 1.4,
+        alpha: 0,
+        boost,
+      });
+    }
+
     function updatePackets() {
       if (Math.random() < 0.18) spawnPacket();
       for (let i = packets.length - 1; i >= 0; i--) {
         const p = packets[i];
-        p.t += p.speed;
-        if (p.t < 0.15) p.alpha = p.t / 0.15;
-        else if (p.t > 0.85) p.alpha = Math.max(0, (1 - p.t) / 0.15);
+        const e = edges[p.edgeIdx];
+        if (!e) {
+          packets.splice(i, 1);
+          continue;
+        }
+        // strained edges choke traffic — packets slow down and queue up
+        const s = constel ? 0 : k5Strain(e);
+        p.t += p.speed * (1 - 0.85 * s);
+        const prog = p.speed >= 0 ? p.t : 1 - p.t;
+        if (prog < 0.15) p.alpha = Math.max(0, prog / 0.15);
+        else if (prog > 0.85) p.alpha = Math.max(0, (1 - prog) / 0.15);
         else p.alpha = 1;
-        if (p.t >= 1) packets.splice(i, 1);
+        if (prog >= 1 || prog < 0) packets.splice(i, 1);
       }
+    }
+
+    function spawnSparks(x: number, y: number, count: number) {
+      for (let i = 0; i < count; i++) {
+        const a = Math.random() * Math.PI * 2;
+        const sp = 1.2 + Math.random() * 3.2;
+        sparks.push({
+          x,
+          y,
+          vx: Math.cos(a) * sp,
+          vy: Math.sin(a) * sp,
+          age: 0,
+          max: 500 + Math.random() * 500,
+          size: 1.2 + Math.random() * 1.6,
+        });
+      }
+    }
+
+    function updateSparks() {
+      for (let i = sparks.length - 1; i >= 0; i--) {
+        const s = sparks[i];
+        s.age += 16.7;
+        s.x += s.vx;
+        s.y += s.vy;
+        s.vx *= 0.95;
+        s.vy *= 0.95;
+        if (s.age >= s.max) sparks.splice(i, 1);
+      }
+    }
+
+    // ── signal wave: BFS pulse from a tapped label ──
+    function triggerWave(src: number) {
+      // Dijkstra: direct label↔label shortcuts cost 4× so the pulse prefers
+      // traveling through the mesh — otherwise every label is 1 hop away and
+      // the story is over instantly. The mesh can be fragmented, so the
+      // shortcuts also guarantee every label is eventually reached.
+      const hopAt: number[] = new Array(nodes.length).fill(Infinity);
+      hopAt[src] = 0;
+      const visited: boolean[] = new Array(nodes.length).fill(false);
+      for (;;) {
+        let u = -1;
+        let best = Infinity;
+        for (let i = 0; i < nodes.length; i++) {
+          if (!visited[i] && hopAt[i] < best) {
+            best = hopAt[i];
+            u = i;
+          }
+        }
+        if (u < 0) break;
+        visited[u] = true;
+        for (const v of adjacency[u]) {
+          const w =
+            u < LABELS.length && v < LABELS.length ? HOP_MS * 4 : HOP_MS;
+          if (hopAt[u] + w < hopAt[v]) hopAt[v] = hopAt[u] + w;
+        }
+      }
+      let shipAt = 0;
+      let shipIdx = src;
+      for (let i = 0; i < LABELS.length; i++) {
+        if (isFinite(hopAt[i]) && hopAt[i] > shipAt) {
+          shipAt = hopAt[i];
+          shipIdx = i;
+        }
+      }
+      let doneAt = 0;
+      for (const h of hopAt) {
+        if (isFinite(h) && h > doneAt) doneAt = h;
+      }
+      wave = {
+        start: tNow,
+        hopAt,
+        doneAt: doneAt + FLASH_MS,
+        shipAt,
+        shipIdx,
+        shipped: false,
+      };
+    }
+
+    function updateWave() {
+      if (!wave) return;
+      const el = tNow - wave.start;
+      if (!wave.shipped && el >= wave.shipAt) {
+        wave.shipped = true;
+        const n = nodes[wave.shipIdx];
+        spawnSparks(n.x, n.y, 22);
+        shippedFx = { idx: wave.shipIdx, start: tNow };
+      }
+      if (el > wave.doneAt) wave = null;
+    }
+
+    // silo snap-back: queued work rushes through when the network reconnects
+    function releaseBurst(labelIdx: number) {
+      for (const e of edges) {
+        if (e.a >= LABELS.length || e.b >= LABELS.length) continue;
+        if (e.a !== labelIdx && e.b !== labelIdx) continue;
+        const ei = edges.indexOf(e);
+        const fromA = e.a === labelIdx;
+        for (let k = 0; k < 2; k++) {
+          const sp = 0.02 + Math.random() * 0.015;
+          packets.push({
+            edgeIdx: ei,
+            t: fromA ? 0 : 1,
+            speed: fromA ? sp : -sp,
+            size: 2.2,
+            alpha: 0,
+            boost: true,
+          });
+        }
+      }
+      const n = nodes[labelIdx];
+      spawnSparks(n.x, n.y, 8);
+    }
+
+    // ── AI node: wanders between clusters and amplifies whichever it visits ──
+    function computeAiBoost() {
+      aiBoostSet.clear();
+      for (const e of edges) {
+        if (e.a === ai.target) aiBoostSet.add(e.b);
+        else if (e.b === ai.target) aiBoostSet.add(e.a);
+      }
+    }
+
+    function updateAI() {
+      const t = nodes[ai.target];
+      if (!t) return;
+      ai.orbitA += 0.018;
+      const orbitR = (t.pillHalfW || 40) + 34;
+      const dx = t.x + Math.cos(ai.orbitA) * orbitR - ai.x;
+      const dy = t.y + Math.sin(ai.orbitA) * orbitR * 0.8 - ai.y;
+
+      if (ai.mode === 'travel') {
+        ai.vx += dx * 0.0022;
+        ai.vy += dy * 0.0022;
+        if (Math.hypot(dx, dy) < 46) {
+          ai.mode = 'dwell';
+          ai.dwellUntil = tNow + 3800 + Math.random() * 2600;
+          computeAiBoost();
+        }
+      } else {
+        ai.vx += dx * 0.006;
+        ai.vy += dy * 0.006;
+        if (Math.random() < 0.16) {
+          spawnDirectional(ai.target, true, 0.012 + Math.random() * 0.014);
+        }
+        if (tNow > ai.dwellUntil) {
+          ai.mode = 'travel';
+          aiBoostSet.clear();
+          let next = Math.floor(Math.random() * LABELS.length);
+          if (next === ai.target) next = (next + 1) % LABELS.length;
+          ai.target = next;
+        }
+      }
+
+      // gently drawn toward the visitor's cursor
+      if (mouse) {
+        ai.vx += (mouse.x - ai.x) * 0.0005;
+        ai.vy += (mouse.y - ai.y) * 0.0005;
+      }
+
+      ai.vx *= 0.94;
+      ai.vy *= 0.94;
+      const sp = Math.hypot(ai.vx, ai.vy);
+      const max = ai.mode === 'travel' ? 2.6 : 1.8;
+      if (sp > max) {
+        ai.vx = (ai.vx / sp) * max;
+        ai.vy = (ai.vy / sp) * max;
+      }
+      ai.x += ai.vx;
+      ai.y += ai.vy;
+      ai.x = Math.max(20, Math.min(width - 20, ai.x));
+      ai.y = Math.max(20, Math.min(height - 20, ai.y));
+
+      // part the sea of ambient dots as it passes
+      for (let i = LABELS.length; i < nodes.length; i++) {
+        const n = nodes[i];
+        const ddx = n.x - ai.x;
+        const ddy = n.y - ai.y;
+        const d2 = ddx * ddx + ddy * ddy;
+        if (d2 < 2500 && d2 > 1) {
+          const f = 18 / d2;
+          const d = Math.sqrt(d2);
+          n.vx += (ddx / d) * f;
+          n.vy += (ddy / d) * f;
+        }
+      }
+    }
+
+    // ── idle constellation: chaos organizes into a pipeline + arrow ──
+    function startConstellation() {
+      const targets: { x: number; y: number }[] = new Array(nodes.length);
+      const yLine = height * 0.46;
+      PIPELINE_ORDER.forEach((labelIdx, k) => {
+        targets[labelIdx] = { x: width * (0.12 + k * 0.165), y: yLine };
+      });
+      const ambStart = LABELS.length;
+      const ambCount = nodes.length - ambStart;
+      const arrowCount = Math.min(12, Math.floor(ambCount * 0.25));
+      const lineCount = ambCount - arrowCount;
+      const tip = { x: width * 0.9, y: yLine };
+      for (let i = 0; i < lineCount; i++) {
+        const fx = 0.08 + (i / Math.max(1, lineCount - 1)) * 0.76;
+        targets[ambStart + i] = {
+          x: width * fx,
+          y: yLine + (Math.random() - 0.5) * 14,
+        };
+      }
+      for (let i = 0; i < arrowCount; i++) {
+        const side = i % 2 === 0 ? -1 : 1;
+        const kk = Math.floor(i / 2) + 1;
+        targets[ambStart + lineCount + i] = {
+          x: tip.x - kk * 14,
+          y: yLine + side * kk * 11,
+        };
+      }
+      constel = { phase: 'converge', start: tNow, targets, tip };
+    }
+
+    function constellationStep() {
+      if (!constel) return;
+      const el = tNow - constel.start;
+      if (constel.phase === 'converge' && el > CONVERGE_MS)
+        constel.phase = 'hold';
+      if (el > CONVERGE_MS + HOLD_MS) {
+        endConstellation(true);
+        return;
+      }
+      const pull = constel.phase === 'converge' ? 0.05 : 0.09;
+      for (let i = 0; i < nodes.length; i++) {
+        const n = nodes[i];
+        const t = constel.targets[i];
+        if (!t) continue;
+        n.vx += (t.x - n.x) * pull;
+        n.vy += (t.y - n.y) * pull;
+        n.vx *= 0.78;
+        n.vy *= 0.78;
+        n.x += n.vx;
+        n.y += n.vy;
+      }
+    }
+
+    function endConstellation(kick: boolean) {
+      constel = null;
+      constelCooldownUntil = tNow + 40000;
+      if (kick) {
+        for (let i = 0; i < nodes.length; i++) {
+          const n = nodes[i];
+          const sp = n.label ? 0.9 : 0.4;
+          n.vx += (Math.random() - 0.5) * sp * 2;
+          n.vy += (Math.random() - 0.5) * sp * 2;
+        }
+      }
+    }
+
+    function maybeStartConstellation() {
+      if (constel || isDragging || wave) return;
+      if (document.visibilityState !== 'visible') return;
+      if (tNow - lastInteraction < 9000) return;
+      if (tNow < constelCooldownUntil) return;
+      const r = canvas.getBoundingClientRect();
+      if (r.bottom < 0 || r.top > window.innerHeight) return;
+      startConstellation();
     }
 
     function computeConnected() {
@@ -418,9 +829,56 @@ const { class: className = '' } = Astro.props;
       ctx!.fillText(text, n.x, n.y + 1);
     }
 
+    function drawChips() {
+      const ANGLES = [-2.4, -Math.PI / 2, -0.7];
+      for (let i = 0; i < LABELS.length; i++) {
+        const target = hoveredLabel === i && !isDragging && !constel ? 1 : 0;
+        chipAnim[i] += (target - chipAnim[i]) * 0.16;
+        const a = chipAnim[i];
+        if (a < 0.02) continue;
+        const n = nodes[i];
+        const chips = LABEL_CHIPS[i];
+        for (let k = 0; k < chips.length; k++) {
+          const stag = Math.max(
+            0,
+            Math.min(1, (a - k * 0.1) / (1 - k * 0.1))
+          );
+          if (stag <= 0.01) continue;
+          const ease = 1 - Math.pow(1 - stag, 3);
+          const dist = (n.pillHalfH || 14) + 16 + 30 * ease;
+          const px = n.x + Math.cos(ANGLES[k]) * dist * 1.7;
+          const py = n.y + Math.sin(ANGLES[k]) * dist;
+
+          ctx!.font =
+            '500 10px Inter, ui-sans-serif, system-ui, -apple-system, sans-serif';
+          const tw = ctx!.measureText(chips[k]).width;
+          const w = tw + 18;
+          const h = 20;
+          const path = new Path2D();
+          path.roundRect(px - w / 2, py - h / 2, w, h, h / 2);
+          ctx!.save();
+          ctx!.shadowColor = `rgba(28, 25, 23, ${0.12 * ease})`;
+          ctx!.shadowBlur = 10;
+          ctx!.shadowOffsetY = 3;
+          ctx!.fillStyle = `rgba(255, 255, 255, ${0.95 * ease})`;
+          ctx!.fill(path);
+          ctx!.restore();
+          ctx!.lineWidth = 1;
+          ctx!.strokeStyle = `rgba(28, 25, 23, ${0.16 * ease})`;
+          ctx!.stroke(path);
+          ctx!.fillStyle = `rgba(68, 64, 60, ${0.92 * ease})`;
+          ctx!.textAlign = 'center';
+          ctx!.textBaseline = 'middle';
+          ctx!.fillText(chips[k], px, py + 0.5);
+        }
+      }
+    }
+
     function render() {
       ctx!.clearRect(0, 0, width, height);
       labelHitboxes.length = 0;
+
+      const waveEl = wave ? tNow - wave.start : 0;
 
       ctx!.lineWidth = 1;
       for (const e of edges) {
@@ -434,23 +892,82 @@ const { class: className = '' } = Astro.props;
         const alpha = isHighlighted
           ? Math.min(0.7, baseAlpha + 0.45)
           : baseAlpha;
-        ctx!.strokeStyle = isHighlighted
-          ? `rgba(28, 25, 23, ${alpha})`
-          : `rgba(68, 64, 60, ${alpha})`;
+
+        // labels sit far from home on purpose during the constellation — no strain tint then
+        const strain = constel ? 0 : k5Strain(e);
+
+        // wave lighting: edge glows pink while the pulse passes through it
+        let waveGlow = 0;
+        if (wave) {
+          const aT = wave.hopAt[e.a];
+          const bT = wave.hopAt[e.b];
+          if (isFinite(aT) && isFinite(bT)) {
+            const lo = Math.min(aT, bT);
+            const hi = Math.max(aT, bT);
+            if (waveEl >= lo && waveEl <= hi + EDGE_TAIL_MS) {
+              waveGlow =
+                waveEl <= hi ? 1 : 1 - (waveEl - hi) / EDGE_TAIL_MS;
+            }
+          }
+        }
+
+        if (waveGlow > 0) {
+          ctx!.lineWidth = 1.3;
+          ctx!.strokeStyle = `rgba(${ACCENT}, ${0.1 + 0.45 * waveGlow})`;
+        } else if (strain > 0) {
+          ctx!.lineWidth = 1 + 1.6 * strain;
+          ctx!.strokeStyle = `rgba(${ACCENT}, ${0.25 + 0.45 * strain})`;
+        } else {
+          ctx!.lineWidth = 1;
+          ctx!.strokeStyle = isHighlighted
+            ? `rgba(28, 25, 23, ${alpha})`
+            : `rgba(68, 64, 60, ${alpha})`;
+        }
         ctx!.beginPath();
         ctx!.moveTo(a.x, a.y);
         ctx!.lineTo(b.x, b.y);
         ctx!.stroke();
       }
+      ctx!.lineWidth = 1;
+
+      // wave front dots traveling along edges
+      if (wave) {
+        for (const e of edges) {
+          const aT = wave.hopAt[e.a];
+          const bT = wave.hopAt[e.b];
+          if (!isFinite(aT) || !isFinite(bT) || aT === bT) continue;
+          const lo = Math.min(aT, bT);
+          const hi = Math.max(aT, bT);
+          if (waveEl < lo || waveEl > hi) continue;
+          const tt = (waveEl - lo) / (hi - lo);
+          const from = aT <= bT ? nodes[e.a] : nodes[e.b];
+          const to = aT <= bT ? nodes[e.b] : nodes[e.a];
+          const x = from.x + (to.x - from.x) * tt;
+          const y = from.y + (to.y - from.y) * tt;
+          ctx!.save();
+          ctx!.shadowColor = `rgba(${ACCENT}, 0.8)`;
+          ctx!.shadowBlur = 10;
+          ctx!.beginPath();
+          ctx!.arc(x, y, 2.4, 0, Math.PI * 2);
+          ctx!.fillStyle = `rgba(${ACCENT}, 0.95)`;
+          ctx!.fill();
+          ctx!.restore();
+        }
+      }
+
+      const aiBoosting = ai.mode === 'dwell';
 
       for (let i = LABELS.length; i < nodes.length; i++) {
         const n = nodes[i];
         const isConnected = connectedToHovered.has(i);
-        const r = isConnected ? n.r * 1.6 : n.r;
+        const isBoosted = aiBoosting && aiBoostSet.has(i);
+        const r = isConnected || isBoosted ? n.r * 1.6 : n.r;
 
-        if (isConnected) {
+        if (isConnected || isBoosted) {
           ctx!.save();
-          ctx!.shadowColor = 'rgba(28, 25, 23, 0.5)';
+          ctx!.shadowColor = isBoosted
+            ? `rgba(${ACCENT}, 0.45)`
+            : 'rgba(28, 25, 23, 0.5)';
           ctx!.shadowBlur = 10;
           ctx!.beginPath();
           ctx!.arc(n.x, n.y, r, 0, Math.PI * 2);
@@ -464,6 +981,21 @@ const { class: className = '' } = Astro.props;
             n.r >= 3.4 ? 'rgba(28, 25, 23, 0.92)' : 'rgba(87, 83, 78, 0.78)';
           ctx!.fill();
         }
+
+        // wave flash ring
+        if (wave) {
+          const hT = wave.hopAt[i];
+          if (isFinite(hT)) {
+            const dt = waveEl - hT;
+            if (dt >= 0 && dt <= FLASH_MS) {
+              const f = 1 - dt / FLASH_MS;
+              ctx!.beginPath();
+              ctx!.arc(n.x, n.y, n.r + 2 + 9 * (1 - f), 0, Math.PI * 2);
+              ctx!.strokeStyle = `rgba(${ACCENT}, ${0.6 * f})`;
+              ctx!.stroke();
+            }
+          }
+        }
       }
 
       for (const p of packets) {
@@ -476,17 +1008,97 @@ const { class: className = '' } = Astro.props;
         const y = a.y + (b.y - a.y) * p.t;
 
         ctx!.save();
-        ctx!.shadowColor = `rgba(28, 25, 23, ${0.45 * p.alpha})`;
-        ctx!.shadowBlur = 10;
+        if (p.boost) {
+          ctx!.shadowColor = `rgba(${ACCENT}, ${0.6 * p.alpha})`;
+          ctx!.shadowBlur = 10;
+          ctx!.fillStyle = `rgba(${ACCENT}, ${p.alpha})`;
+        } else {
+          ctx!.shadowColor = `rgba(28, 25, 23, ${0.45 * p.alpha})`;
+          ctx!.shadowBlur = 10;
+          ctx!.fillStyle = `rgba(28, 25, 23, ${p.alpha})`;
+        }
         ctx!.beginPath();
         ctx!.arc(x, y, p.size, 0, Math.PI * 2);
-        ctx!.fillStyle = `rgba(28, 25, 23, ${p.alpha})`;
         ctx!.fill();
         ctx!.restore();
       }
 
+      // sparks (shipped burst / silo release)
+      for (const s of sparks) {
+        const f = 1 - s.age / s.max;
+        ctx!.beginPath();
+        ctx!.arc(s.x, s.y, s.size * f, 0, Math.PI * 2);
+        ctx!.fillStyle = `rgba(${ACCENT}, ${0.9 * f})`;
+        ctx!.fill();
+      }
+
+      // AI node connection flickers while boosting
+      if (aiBoosting) {
+        for (const n of nodes) {
+          const d = Math.hypot(n.x - ai.x, n.y - ai.y);
+          if (d < 90 && d > 1) {
+            ctx!.beginPath();
+            ctx!.moveTo(ai.x, ai.y);
+            ctx!.lineTo(n.x, n.y);
+            ctx!.strokeStyle = `rgba(${ACCENT}, ${(1 - d / 90) * 0.3})`;
+            ctx!.stroke();
+          }
+        }
+      }
+
+      // AI node itself
+      {
+        const pulse = 1 + 0.12 * Math.sin(tNow * 0.004);
+        ctx!.save();
+        ctx!.shadowColor = `rgba(${ACCENT}, 0.7)`;
+        ctx!.shadowBlur = 18 * pulse;
+        ctx!.beginPath();
+        ctx!.arc(ai.x, ai.y, 8.5 * pulse, 0, Math.PI * 2);
+        ctx!.fillStyle = '#ff2d78';
+        ctx!.fill();
+        ctx!.restore();
+        ctx!.fillStyle = '#ffffff';
+        ctx!.font =
+          '700 8px Inter, ui-sans-serif, system-ui, -apple-system, sans-serif';
+        ctx!.textAlign = 'center';
+        ctx!.textBaseline = 'middle';
+        ctx!.fillText('AI', ai.x, ai.y + 0.5);
+      }
+
       for (let i = 0; i < LABELS.length; i++) {
         drawLabel(nodes[i], i);
+      }
+
+      drawChips();
+
+      // "shipped" floating text after a completed wave
+      if (shippedFx) {
+        const el = tNow - shippedFx.start;
+        if (el > 1500) {
+          shippedFx = null;
+        } else {
+          const n = nodes[shippedFx.idx];
+          const alpha = el < 200 ? el / 200 : 1 - (el - 200) / 1300;
+          const y = n.y - (n.pillHalfH || 14) - 14 - el * 0.012;
+          ctx!.font =
+            '600 12px Inter, ui-sans-serif, system-ui, -apple-system, sans-serif';
+          ctx!.fillStyle = `rgba(${ACCENT}, ${Math.max(0, alpha)})`;
+          ctx!.textAlign = 'center';
+          ctx!.textBaseline = 'middle';
+          ctx!.fillText('shipped', n.x, y);
+        }
+      }
+
+      // "ship" hint while the constellation holds — echoes the hero headline
+      if (constel && constel.phase === 'hold') {
+        const el = tNow - constel.start - CONVERGE_MS;
+        const alpha = Math.min(1, el / 400);
+        ctx!.font =
+          '600 13px Inter, ui-sans-serif, system-ui, -apple-system, sans-serif';
+        ctx!.fillStyle = `rgba(28, 25, 23, ${0.55 * alpha})`;
+        ctx!.textAlign = 'center';
+        ctx!.textBaseline = 'middle';
+        ctx!.fillText('ship', constel.tip.x - 8, constel.tip.y - 26);
       }
     }
 
@@ -496,6 +1108,8 @@ const { class: className = '' } = Astro.props;
       const rect = canvas.getBoundingClientRect();
       const m = { x: e.clientX - rect.left, y: e.clientY - rect.top };
       mouse = m;
+      lastInteraction = performance.now();
+      if (constel) endConstellation(false);
       if (isDragging && draggedIdx !== null) {
         const n = nodes[draggedIdx];
         n.x = m.x - dragOffset.x;
@@ -511,6 +1125,8 @@ const { class: className = '' } = Astro.props;
       const rect = canvas.getBoundingClientRect();
       const m = { x: e.clientX - rect.left, y: e.clientY - rect.top };
       mouse = m;
+      lastInteraction = performance.now();
+      if (constel) endConstellation(false);
       for (const hb of labelHitboxes) {
         if (
           m.x >= hb.x &&
@@ -538,6 +1154,12 @@ const { class: className = '' } = Astro.props;
     function endDrag(e?: PointerEvent) {
       if (isDragging && draggedIdx !== null) {
         const n = nodes[draggedIdx];
+        // measure tension before release — a stretched network snaps back with a burst
+        let maxStrain = 0;
+        for (const ed of edges) {
+          if (ed.a !== draggedIdx && ed.b !== draggedIdx) continue;
+          maxStrain = Math.max(maxStrain, k5Strain(ed));
+        }
         let usedVelocity = false;
         if (pointerHistory.length >= 2) {
           const first = pointerHistory[0];
@@ -555,17 +1177,18 @@ const { class: className = '' } = Astro.props;
           }
         }
         if (!usedVelocity) {
-          // tap → random kick so it bounces around
-          const angle = Math.random() * Math.PI * 2;
-          const speed = 9 + Math.random() * 5;
-          n.vx = Math.cos(angle) * speed;
-          n.vy = Math.sin(angle) * speed;
+          // tap → send a signal pulse through the network
+          triggerWave(draggedIdx);
+        }
+        if (maxStrain > 0.45) {
+          releaseBurst(draggedIdx);
         }
       }
       isDragging = false;
       draggedIdx = null;
       pointerHistory = [];
       canvas.style.cursor = '';
+      lastInteraction = performance.now();
       if (e) {
         try {
           canvas.releasePointerCapture(e.pointerId);
@@ -614,7 +1237,7 @@ const { class: className = '' } = Astro.props;
     }
 
     function mouseRepel() {
-      if (!mouse || hoveredLabel !== null || isDragging) return;
+      if (!mouse || hoveredLabel !== null || isDragging || constel) return;
       for (const n of nodes) {
         if (n.label) continue;
         const dx = n.x - mouse.x;
@@ -631,9 +1254,14 @@ const { class: className = '' } = Astro.props;
 
     let raf = 0;
     function loop() {
+      tNow = performance.now();
       mouseRepel();
       step();
+      updateAI();
       updatePackets();
+      updateSparks();
+      updateWave();
+      maybeStartConstellation();
       render();
       updateHover();
       raf = requestAnimationFrame(loop);
