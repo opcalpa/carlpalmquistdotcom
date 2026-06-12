@@ -613,6 +613,9 @@ import Layout from '../layouts/Layout.astro';
         ${ctrl('title', busy)}
       </div>
       <p class="mt-2 max-w-3xl text-lg italic text-stone-300">“${esc(v.logline || '')}”</p>`;
+    // Kommentarsfliken speglar aktivt namn ("This forge: BOOGIE BEYOND") — uppdateras vid re-roll/versionsbyte.
+    const tabName = document.getElementById('cf-ctab-forgename');
+    if (tabName) tabName.textContent = names[0] ? ': ' + names[0] : '';
   }
   function renderFeatureIntro() {
     const el = document.getElementById('cf-intro'); if (!el) return;
@@ -1068,8 +1071,8 @@ import Layout from '../layouts/Layout.astro';
         <div class="mb-4 flex flex-wrap items-center justify-between gap-3">
           <div class="flex items-center gap-1.5">
             <span class="mr-1 text-xs font-semibold uppercase tracking-wide text-stone-500">Topic:</span>
-            <button class="cf-ctab cf-ctab-on" data-cscope="theme">💬 This forge</button>
-            <button class="cf-ctab" data-cscope="global">🌐 Concept Forge</button>
+            <button class="cf-ctab cf-ctab-on" data-cscope="theme">💬 This forge<span id="cf-ctab-forgename"></span></button>
+            <button class="cf-ctab" data-cscope="global">🌐 App feedback</button>
           </div>
           <span class="text-xs text-stone-500"><span id="cf-cmt-count">0</span> comments</span>
         </div>
