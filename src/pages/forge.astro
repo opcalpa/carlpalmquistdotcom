@@ -264,6 +264,9 @@ import Layout from '../layouts/Layout.astro';
   /* Onboarding: pulsande ring runt Recent tills man hittat dit (slutar vid klick) */
   @keyframes cfpulse { 0%{box-shadow:0 0 0 0 rgba(198,255,0,.5)} 70%{box-shadow:0 0 0 9px rgba(198,255,0,0)} 100%{box-shadow:0 0 0 0 rgba(198,255,0,0)} }
   .cf-pulse { animation:cfpulse 1.9s ease-out infinite; border-color:#c6ff00 !important; }
+  /* Behåll den gröna kanten på Gallery-knappen så länge dropdownen är öppen */
+  #recent-wrap:has(#recent-panel:not(.hidden)) #recent-btn { border-color:#c6ff00; }
+  .cf-light #recent-wrap:has(#recent-panel:not(.hidden)) #recent-btn { border-color:#0a8f54; }
   /* Invite: SPIN-knappen andas tills första snurr → bjuder in att trycka */
   @keyframes cfinvite { 0%,100%{box-shadow:0 0 0 4px rgba(198,255,0,.16),0 4px 12px rgba(0,0,0,.5)} 50%{box-shadow:0 0 0 9px rgba(198,255,0,.38),0 0 24px rgba(198,255,0,.55)} }
   .cf-spinbtn.cf-invite { animation:cfinvite 1.55s ease-in-out infinite; }
@@ -495,9 +498,72 @@ import Layout from '../layouts/Layout.astro';
 
   // ---------- Loading ----------
   let msgTimer;
-  const holdAudio = new Audio('/hold-music.mp3'); holdAudio.loop = true; holdAudio.volume = 0.45;
-  function startLoading() { result.classList.add('hidden'); loading.classList.remove('hidden'); btn.disabled = true; try { const prev = document.querySelector('#soundtrack-slot audio'); if (prev) prev.pause(); } catch (e) {} try { holdAudio.currentTime = 0; holdAudio.play().catch(() => {}); } catch (e) {} let i = 0; loadingMsg.textContent = LOADING_MSGS[0]; msgTimer = setInterval(() => { i = (i + 1) % LOADING_MSGS.length; loadingMsg.textContent = LOADING_MSGS[i]; }, 1500); startPong(); updateSwipeVis(); }
-  function stopLoading() { clearInterval(msgTimer); loading.classList.add('hidden'); btn.disabled = false; try { holdAudio.pause(); } catch (e) {} stopPong(); }
+  // ---------- 8-bit hissmusik (Web Audio chiptune, loopar med Pong under väntetiden) ----------
+  // NES-uppställning: pulse-lead (melodi) + triangel-bas + mjuk pulse-arpeggio (shimmer), lågpass = len, inte gäll.
+  // Lugn, harmonisk slinga i C-dur (I–V–vi–IV). Ingen ljudfil → loopar sömlöst, byggs på FORGE IT-gesten.
+  const chip = (() => {
+    let ctx = null, master = null, filt = null, timer = null;
+    let running = false, nextTime = 0, step = 0;
+    const BPM = 96, STEP = (60 / BPM) / 2;        // åttondelar, lugnt tempo
+    const LOOK = 0.12, TICK = 25;                  // schemaläggare (sek / ms)
+    const m2f = (m) => 440 * Math.pow(2, (m - 69) / 12);
+    // 8 takter × 8 åttondelar. 0 = paus/håll.
+    const LEAD = [
+      67,0,64,0,72,0,0,0,   74,0,71,0,67,0,0,0,
+      72,0,69,0,64,0,0,0,   69,0,65,0,72,0,74,0,
+      76,0,72,0,67,0,64,0,  74,0,67,0,71,0,74,0,
+      72,0,76,0,69,0,72,0,  77,0,74,0,69,0,67,0,
+    ];
+    const ROOTS = [48, 43, 45, 41, 48, 43, 45, 41];          // C G A F (bas)
+    const CHORDS = [[60,64,67],[55,59,62],[57,60,64],[53,57,60],
+                    [60,64,67],[55,59,62],[57,60,64],[53,57,60]];
+    function blip(freq, t, dur, type, peak) {
+      const o = ctx.createOscillator(), g = ctx.createGain();
+      o.type = type; o.frequency.value = freq;
+      g.gain.setValueAtTime(0, t);
+      g.gain.linearRampToValueAtTime(peak, t + 0.012);
+      g.gain.exponentialRampToValueAtTime(0.0008, t + dur);
+      o.connect(g); g.connect(filt);
+      o.start(t); o.stop(t + dur + 0.03);
+    }
+    function schedule() {
+      while (nextTime < ctx.currentTime + LOOK) {
+        const i = step % LEAD.length, bar = Math.floor(i / 8), inBar = i % 8, t = nextTime;
+        if (LEAD[i]) blip(m2f(LEAD[i]), t, STEP * 1.8, 'square', 0.16);   // lead
+        if (inBar === 0) blip(m2f(ROOTS[bar]), t, STEP * 3.4, 'triangle', 0.34);       // bas: grundton
+        if (inBar === 4) blip(m2f(ROOTS[bar] + 7), t, STEP * 3.4, 'triangle', 0.30);   // bas: kvint
+        blip(m2f(CHORDS[bar][inBar % 3] + 12), t, STEP * 0.9, 'square', 0.045);        // arp-shimmer
+        nextTime += STEP; step++;
+      }
+      timer = setTimeout(schedule, TICK);
+    }
+    return {
+      get running() { return running; },
+      start() {
+        if (!ctx) {
+          ctx = new (window.AudioContext || window.webkitAudioContext)();
+          filt = ctx.createBiquadFilter(); filt.type = 'lowpass'; filt.frequency.value = 2600; filt.Q.value = 0.6;
+          master = ctx.createGain(); master.gain.value = 0.0001;
+          filt.connect(master); master.connect(ctx.destination);
+        }
+        if (ctx.state === 'suspended') ctx.resume().catch(() => {});
+        if (running) return;
+        running = true; step = 0; nextTime = ctx.currentTime + 0.06;
+        master.gain.cancelScheduledValues(ctx.currentTime);
+        master.gain.setValueAtTime(0.0001, ctx.currentTime);
+        master.gain.exponentialRampToValueAtTime(0.5, ctx.currentTime + 0.4);   // mjuk fade-in
+        schedule();
+      },
+      stop() {
+        if (!running) return;
+        running = false;
+        clearTimeout(timer);
+        if (master) { master.gain.cancelScheduledValues(ctx.currentTime); master.gain.setValueAtTime(master.gain.value, ctx.currentTime); master.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.25); }
+      },
+    };
+  })();
+  function startLoading() { result.classList.add('hidden'); loading.classList.remove('hidden'); btn.disabled = true; try { const prev = document.querySelector('#soundtrack-slot audio'); if (prev) prev.pause(); } catch (e) {} try { chip.start(); } catch (e) {} let i = 0; loadingMsg.textContent = LOADING_MSGS[0]; msgTimer = setInterval(() => { i = (i + 1) % LOADING_MSGS.length; loadingMsg.textContent = LOADING_MSGS[i]; }, 1500); startPong(); updateSwipeVis(); }
+  function stopLoading() { clearInterval(msgTimer); loading.classList.add('hidden'); btn.disabled = false; try { chip.stop(); } catch (e) {} stopPong(); }
 
   // ---------- Pong-loader: du mot datorn medan konceptet genereras ----------
   const pong = { raf: 0, running: false, cleanup: null };
@@ -571,7 +637,7 @@ import Layout from '../layouts/Layout.astro';
       },
       idx: { title: 0, art: 0, mechanic: 0, music: 0, hooks: 0, image: 0, soundtrack: 0, sfx: 0, animation: 0, gameview: 0, symbols: 0 },
       aspect: '16:9',   // nya koncept genereras i landscape (karaktär till höger om spelplanen); gamla saknar fältet → kvadrat
-      visualMode: 'game', animBusy: false, gameBusy: false, symbolsBusy: false, grid: null, spinning: false,
+      visualMode: 'mood', animBusy: false, gameBusy: false, symbolsBusy: false, grid: null, spinning: false,   // öppna i Mood → intro-timern flippar till Game efter 7 s
     };
   }
   // Bakåtkompat: äldre sparade states saknar symbols/grid-fält → fyll i så de inte kraschar.
@@ -583,7 +649,7 @@ import Layout from '../layouts/Layout.astro';
     if (!Array.isArray(s.symbolPrompts)) s.symbolPrompts = [];
     if (s.motionPrompt == null) s.motionPrompt = '';
     if (s.aspect == null) s.aspect = '1:1';   // back-compat: tidigare koncept genererades kvadratiskt → lämna dem så
-    s.visualMode = 'game';   // öppna alltid i Game (rikast); Mood ett tap bort
+    s.visualMode = 'mood';   // öppna alltid i Mood (intro-känsla för temat); intro-timern flippar till Game efter 7 s
     s.symbolsBusy = false; s.grid = null; s.spinning = false;
     return s;
   }
@@ -650,7 +716,7 @@ import Layout from '../layouts/Layout.astro';
     if (mode === 'game') reroll = `<button class="cf-mini cf-refresh" data-refresh="symbols" title="Re-skin the symbols">${symBusy ? '<span class="cf-spin"></span>' : '↻'}</button>`;
     else if (hasLoop) reroll = `<button class="cf-mini cf-refresh" data-refresh="animation" title="Re-roll loop">${animBusy ? '<span class="cf-spin"></span>' : '↻'}</button>`;   // Mood visar loopen → ↻ re-rollar loopen
     else reroll = ctrl('image', busy && !animBusy && !symBusy);   // Mood visar statisk key art → ↻ re-rollar bilden
-    const note = animBusy ? `<div class="absolute inset-x-2 bottom-2 rounded bg-black/70 px-2 py-1 text-center text-[11px] text-[#c6ff00]">Animating with Luma Ray 2… ~1-2 min</div>`
+    const note = animBusy ? `<div class="absolute inset-x-2 bottom-2 rounded bg-black/70 px-2 py-1 text-center text-[11px] text-[#c6ff00]">Animating with Veo 3… ~1-2 min</div>`
       : (symBusy && mode === 'game' ? `<div class="absolute inset-x-2 bottom-2 rounded bg-black/70 px-2 py-1 text-center text-[11px] text-[#c6ff00]">Generating themed symbols with Flux…</div>` : '');
     el.innerHTML = `<div class="relative">${media}<div class="absolute right-2 top-2 flex flex-wrap items-center justify-end gap-1">${reroll}<span class="cf-ctrl">${pills}</span></div>${note}</div>`;
   }
@@ -773,7 +839,7 @@ import Layout from '../layouts/Layout.astro';
     try { const r = await fetch('/api/audio', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ sfx: (cur('music') || {}).sfxPrompts || [] }) }); const j = await r.json(); if (j.creditsOut) notifyCreditsOut('sfx'); return j.sfx || []; } catch (e) { return []; }
   }
 
-  // ---------- Animation (key art -> attract-loop via Luma Ray 2) ----------
+  // ---------- Animation (key art -> attract-loop via Veo 3 Fast) ----------
   function motionPrompt() {
     const scene = (state.imagePrompt || state.theme || '').slice(0, 260);
     const tailored = (state.motionPrompt || '').trim();
@@ -804,7 +870,7 @@ import Layout from '../layouts/Layout.astro';
     try {
       const r = await fetch('/api/animate', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ imageUrl: src.url, prompt }) });
       const j = await r.json(); if (!j.requestId) { if (j.creditsOut) notifyCreditsOut('animation'); return null; }
-      const url = await pollAnimate(j.requestId); if (url) return { url, engine: j.engine || 'Luma Ray 2' };
+      const url = await pollAnimate(j.requestId); if (url) return { url, engine: j.engine || 'Veo 3 Fast' };
     } catch (e) {}
     return null;
   }
@@ -1097,27 +1163,28 @@ import Layout from '../layouts/Layout.astro';
     if (regen) regen.addEventListener('click', () => { if (state && state.theme) generateFresh(state.theme); });
     wireConceptActions();
     initComments();   // kommentarssektion: per-koncept-fliken laddas (global ett klick bort)
-    state.spun = false;   // Game är default-vyn; symbol-jobbet (eller persistade symboler) fyller rullen progressivt
+    state.spun = false;   // intro öppnar i Mood; symbol-jobbet (eller persistade symboler) fyller rullen progressivt
     updateSwipeVis();
+    startIntro();   // Mood i 7 s → auto-flippa till Game (garanterad upptäckt)
   }
 
-  // Auto-rotera Mood↔Game var 7:e sek så nya användare upptäcker Game-vyn — slutar permanent
-  // vid första egna interaktion (vy-klick/snurr), pausar när fliken är dold, hoppar över Loop.
-  // Rotationen fortsätter tills användaren AKTIVT väljer en vy via Mood/Game-knapparna (data-vis).
-  // Ett klick mitt på bilden (snurr) räcker inte. Pausar artigt när fliken är dold / mitt i snurr.
-  let viewAutoTimer = null, viewTouched = false;
-  function startViewAuto() {
-    clearInterval(viewAutoTimer);
-    viewAutoTimer = setInterval(() => {
-      if (viewTouched || document.hidden || state.spinning) return;
-      const canGame = ((cur('symbols') || []).length > 0);
-      if (state.visualMode === 'game') state.visualMode = 'mood';
-      else if (canGame) { state.visualMode = 'game'; ensureSymbols(); }
-      else return;   // inga symboler än → stanna på Mood tills de kommit
+  // Intro: varje nytt koncept (ny sidladdning / bytt forge / nyskapt forge) öppnar i Mood och visar
+  // tema-känslan i 7 s, sedan flippar EN gång till Game så Game-läget garanterat upptäcks.
+  // Avbryts permanent om användaren själv väljer en vy (data-vis) eller snurrar. Väntar ut dold flik.
+  const INTRO_MS = 7000;
+  let introTimer = null, viewTouched = false;
+  function startIntro() {
+    clearTimeout(introTimer);
+    viewTouched = false;
+    introTimer = setTimeout(function flip() {
+      if (viewTouched) return;
+      if (document.hidden || state.spinning) { introTimer = setTimeout(flip, 1000); return; }   // vänta tills fliken syns / snurr klar
+      state.visualMode = 'game';
+      ensureSymbols();
       renderImage(false);
-    }, 7000);
+    }, INTRO_MS);
   }
-  function stopViewAuto() { viewTouched = true; clearInterval(viewAutoTimer); }
+  function stopViewAuto() { viewTouched = true; clearTimeout(introTimer); }
 
   // Lås textsektionens höjd till bilddelens höjd (alltid enhetlig ruta, scroll inuti när innehållet är längre).
   // Hero är nu full-bredd ovanför texten → ingen höjd-matchning behövs. Texten har egen maxhöjd + scroll (lg:max-h).
@@ -1356,8 +1423,8 @@ import Layout from '../layouts/Layout.astro';
         const imageSize = state.aspect === '16:9' ? 'landscape_16_9' : 'square_hd';
         try { const r = await fetch('/api/image', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ prompt: state.imagePrompt, imageSize }) }); const j = await r.json(); if (j.url) pushVersion('image', { url: j.url, engine: j.engine }); else if (j.creditsOut) notifyCreditsOut('image'); } catch (e) {}
         render('image', false);
-        // Auto-loop: animera key art till en attract-loop som spelas på BÅDE Mood och Game. Kostar Luma-credits
-        // men gör varje koncept levande. Kör efter bilden (Luma animerar key art). Faller graciöst till statisk bild om det failar.
+        // Auto-loop: animera key art till en attract-loop som spelas på BÅDE Mood och Game. Kostar Veo-credits
+        // men gör varje koncept levande. Kör efter bilden (Veo animerar key art). Faller graciöst till statisk bild om det failar.
         if ((cur('image') || {}).url) {
           state.animBusy = true; render('image', false);
           const an = await fetchAnimation();
@@ -1385,7 +1452,7 @@ import Layout from '../layouts/Layout.astro';
     // Men ALDRIG ovanpå hissmusiken: pågår en generering (loader synlig / hold music spelar) släpps gesten utan resume.
     a.play().catch(() => {
       const kick = () => {
-        if (!holdAudio.paused || !loading.classList.contains('hidden')) return;
+        if (chip.running || !loading.classList.contains('hidden')) return;
         const cur = document.querySelector('#soundtrack-slot audio');
         if (cur && cur.paused) { cur.volume = 0.5; cur.play().catch(() => {}); }
       };
