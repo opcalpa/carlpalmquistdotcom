@@ -522,29 +522,29 @@ import Layout from '../layouts/Layout.astro';
   // ---------- Loading ----------
   let msgTimer;
   // ---------- 8-bit hissmusik (Web Audio chiptune, loopar med Pong under väntetiden) ----------
-  // NES-uppställning: pulse-lead (melodi) + triangel-bas + mjuk pulse-arpeggio (shimmer), lågpass = len, inte gäll.
-  // Lugn, harmonisk slinga i C-dur (I–V–vi–IV). Ingen ljudfil → loopar sömlöst, byggs på FORGE IT-gesten.
+  // NES-uppställning: pulse-lead (melodi) + triangel-bas + drivande 16-dels-arpeggio.
+  // Heroisk a-moll med höjd ledton (E-dur som V) → Tetris/Castlevania/Zelda-vibe. Ingen ljudfil → loopar sömlöst.
   const chip = (() => {
     let ctx = null, master = null, filt = null, timer = null;
-    let running = false, nextTime = 0, step = 0;
-    const BPM = 96, STEP = (60 / BPM) / 2;        // åttondelar, lugnt tempo
+    let running = false, nextTime = 0, step = 0, arpN = 0;
+    const BPM = 138, STEP = (60 / BPM) / 2;        // åttondelar, drivande tempo
     const LOOK = 0.12, TICK = 25;                  // schemaläggare (sek / ms)
     const m2f = (m) => 440 * Math.pow(2, (m - 69) / 12);
-    // 8 takter × 8 åttondelar. 0 = paus/håll.
+    // 8 takter × 8 åttondelar. 0 = paus/håll. Ackord: Am G F E | Am G Dm E.
     const LEAD = [
-      67,0,64,0,72,0,0,0,   74,0,71,0,67,0,0,0,
-      72,0,69,0,64,0,0,0,   69,0,65,0,72,0,74,0,
-      76,0,72,0,67,0,64,0,  74,0,67,0,71,0,74,0,
-      72,0,76,0,69,0,72,0,  77,0,74,0,69,0,67,0,
+      69,0,72,0,76,0,72,0,   71,0,74,0,79,0,74,0,
+      69,0,72,0,77,0,72,0,   68,0,71,0,76,0,71,0,
+      69,0,76,0,81,0,76,0,   67,0,74,0,71,0,67,0,
+      65,0,69,0,74,0,69,0,   64,0,68,0,71,0,76,0,
     ];
-    const ROOTS = [48, 43, 45, 41, 48, 43, 45, 41];          // C G A F (bas)
-    const CHORDS = [[60,64,67],[55,59,62],[57,60,64],[53,57,60],
-                    [60,64,67],[55,59,62],[57,60,64],[53,57,60]];
+    const ROOTS = [45,43,41,40, 45,43,38,40];                 // Am G F E  Am G Dm E (bas)
+    const CHORDS = [[57,60,64],[55,59,62],[53,57,60],[52,56,59],
+                    [57,60,64],[55,59,62],[62,65,69],[52,56,59]];
     function blip(freq, t, dur, type, peak) {
       const o = ctx.createOscillator(), g = ctx.createGain();
       o.type = type; o.frequency.value = freq;
       g.gain.setValueAtTime(0, t);
-      g.gain.linearRampToValueAtTime(peak, t + 0.012);
+      g.gain.linearRampToValueAtTime(peak, t + 0.008);
       g.gain.exponentialRampToValueAtTime(0.0008, t + dur);
       o.connect(g); g.connect(filt);
       o.start(t); o.stop(t + dur + 0.03);
@@ -552,10 +552,12 @@ import Layout from '../layouts/Layout.astro';
     function schedule() {
       while (nextTime < ctx.currentTime + LOOK) {
         const i = step % LEAD.length, bar = Math.floor(i / 8), inBar = i % 8, t = nextTime;
-        if (LEAD[i]) blip(m2f(LEAD[i]), t, STEP * 1.8, 'square', 0.16);   // lead
-        if (inBar === 0) blip(m2f(ROOTS[bar]), t, STEP * 3.4, 'triangle', 0.34);       // bas: grundton
-        if (inBar === 4) blip(m2f(ROOTS[bar] + 7), t, STEP * 3.4, 'triangle', 0.30);   // bas: kvint
-        blip(m2f(CHORDS[bar][inBar % 3] + 12), t, STEP * 0.9, 'square', 0.045);        // arp-shimmer
+        if (LEAD[i]) blip(m2f(LEAD[i]), t, STEP * 1.7, 'square', 0.15);                  // lead
+        if (inBar === 0) blip(m2f(ROOTS[bar]), t, STEP * 3.2, 'triangle', 0.36);         // bas: grundton
+        if (inBar === 4) blip(m2f(ROOTS[bar] + 12), t, STEP * 3.2, 'triangle', 0.30);    // bas: oktav
+        const ch = CHORDS[bar];   // drivande 16-dels-arpeggio genom ackordtonerna
+        blip(m2f(ch[arpN % 3] + 12), t, STEP * 0.55, 'square', 0.05); arpN++;
+        blip(m2f(ch[arpN % 3] + 12), t + STEP / 2, STEP * 0.55, 'square', 0.05); arpN++;
         nextTime += STEP; step++;
       }
       timer = setTimeout(schedule, TICK);
@@ -565,13 +567,13 @@ import Layout from '../layouts/Layout.astro';
       start() {
         if (!ctx) {
           ctx = new (window.AudioContext || window.webkitAudioContext)();
-          filt = ctx.createBiquadFilter(); filt.type = 'lowpass'; filt.frequency.value = 2600; filt.Q.value = 0.6;
+          filt = ctx.createBiquadFilter(); filt.type = 'lowpass'; filt.frequency.value = 3000; filt.Q.value = 0.7;
           master = ctx.createGain(); master.gain.value = 0.0001;
           filt.connect(master); master.connect(ctx.destination);
         }
         if (ctx.state === 'suspended') ctx.resume().catch(() => {});
         if (running) return;
-        running = true; step = 0; nextTime = ctx.currentTime + 0.06;
+        running = true; step = 0; arpN = 0; nextTime = ctx.currentTime + 0.06;
         master.gain.cancelScheduledValues(ctx.currentTime);
         master.gain.setValueAtTime(0.0001, ctx.currentTime);
         master.gain.exponentialRampToValueAtTime(0.5, ctx.currentTime + 0.4);   // mjuk fade-in
@@ -1425,13 +1427,22 @@ import Layout from '../layouts/Layout.astro';
   }
 
   // ---------- Flows ----------
+  let generating = false;   // spärr mot dubbel-generering (annars kan två Pong-loaders överlappa)
   async function generateFresh(theme) {
+    if (generating) return;
+    generating = true;
     lastTheme = theme; closeRecent(); startLoading();
     creditsPopupShown = false;   // en credits-ruta per generering
     let concept;
-    try { const res = await fetch('/api/concept', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ theme }) }); concept = await res.json(); }
-    catch (err) { stopLoading(); result.innerHTML = `<p class="text-stone-400">Something broke: ${esc(String(err))}. Try again.</p>`; result.classList.remove('hidden'); return; }
-    stopLoading();
+    // Hård timeout: concept-anropet får ALDRIG hänga Pong-loadern i evighet (sågs på live: en match i 10 min).
+    const ctrl = new AbortController(), toAbort = setTimeout(() => ctrl.abort(), 45000);
+    try { const res = await fetch('/api/concept', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ theme }), signal: ctrl.signal }); concept = await res.json(); }
+    catch (err) {
+      clearTimeout(toAbort); stopLoading(); generating = false;
+      const msg = ctrl.signal.aborted ? 'That took too long — the forge timed out. Hit Forge it to try again.' : ('Something broke: ' + esc(String(err)) + '. Try again.');
+      result.innerHTML = `<div class="rounded-2xl border border-[#22222e] bg-[#13131c] p-6 text-stone-300">⚠️ ${msg}</div>`; result.classList.remove('hidden'); return;
+    }
+    clearTimeout(toAbort); stopLoading(); generating = false;
     if (concept && concept.limit) { showLimitPopup(); return; }
     if (concept && concept.creditsOut) { notifyCreditsOut('concept'); return; }   // hård fail: konceptet kunde inte genereras → vänlig ruta + galleri
     if (!concept || concept.note === 'error') { result.innerHTML = `<div class="rounded-2xl border border-[#22222e] bg-[#13131c] p-6 text-stone-300">⚠️ Generation hiccupped${concept && concept.error ? ' (' + esc(concept.error) + ')' : ''}. Hit <strong class="text-[#c6ff00]">Forge it</strong> again.</div>`; result.classList.remove('hidden'); return; }
@@ -1539,8 +1550,8 @@ import Layout from '../layouts/Layout.astro';
   }
   // Förvalt koncept på landningen så nya besökare ser direkt vad Forge gör (laddas ur galleriet = gratis/direkt, ingen credit).
   // ID pinnar exakt koncept (temat finns i flera versioner i galleriet); tema + senaste är fallback.
-  const FEATURED_ID = 'e1781102655271568';       // "Boogie Beyond" (haunted disco inferno)
-  const FEATURED_THEME = 'haunted disco inferno';
+  const FEATURED_ID = 'e1781523003461913';       // "TIKIBOOM!" (tropical tiki volcano party)
+  const FEATURED_THEME = 'tropical tiki volcano party';
   function loadFeatured() {
     if (!result.classList.contains('hidden')) return;   // något visas redan
     if (!galleryList.length) return;                     // tomt galleri (t.ex. :4321) → behåll tom hero
