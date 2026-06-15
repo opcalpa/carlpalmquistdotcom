@@ -28,7 +28,7 @@ import Layout from '../layouts/Layout.astro';
       </header>
 
       <form id="forge-form" class="mb-6">
-        <div class="flex flex-col gap-3 sm:flex-row">
+        <div id="cf-tour-input" class="flex flex-col gap-3 sm:flex-row">
           <div class="relative flex-1">
             <input id="theme" type="text" autocomplete="off" placeholder="neon yakuza with a country vibe…"
               class="w-full rounded-xl border border-[#2a2a3a] bg-[#15151f] px-4 py-3.5 text-lg text-stone-100 placeholder-stone-500 outline-none focus:border-[#c6ff00]" />
@@ -267,6 +267,29 @@ import Layout from '../layouts/Layout.astro';
   /* Behåll den gröna kanten på Gallery-knappen så länge dropdownen är öppen */
   #recent-wrap:has(#recent-panel:not(.hidden)) #recent-btn { border-color:#c6ff00; }
   .cf-light #recent-wrap:has(#recent-panel:not(.hidden)) #recent-btn { border-color:#0a8f54; }
+
+  /* ---- Onboarding-tur (spotlight + tooltip) ---- */
+  .cf-tour-ov { position:fixed; inset:0; z-index:60; }
+  .cf-tour-hole { position:fixed; border-radius:14px; border:2px solid #c6ff00; box-shadow:0 0 0 9999px rgba(8,8,12,.74); transition:top .28s ease, left .28s ease, width .28s ease, height .28s ease; pointer-events:none; }
+  .cf-light .cf-tour-hole { border-color:#0a8f54; box-shadow:0 0 0 9999px rgba(20,22,28,.55); }
+  .cf-tour-card { position:fixed; z-index:62; width:312px; max-width:calc(100vw - 28px); background:#15151f; border:1px solid #2a2a3a; border-radius:16px; padding:16px 16px 14px; box-shadow:0 14px 44px rgba(0,0,0,.6); transition:top .28s ease, left .28s ease; }
+  .cf-light .cf-tour-card { background:#fff; border-color:#d7d9e1; }
+  .cf-tour-step { font-size:10px; font-weight:800; letter-spacing:.08em; text-transform:uppercase; color:#ff2d78; }
+  .cf-light .cf-tour-step { color:#d81b60; }
+  .cf-tour-title { margin:4px 0 6px; font-size:16px; font-weight:900; color:#f5f5f4; }
+  .cf-light .cf-tour-title { color:#15161a; }
+  .cf-tour-body { font-size:13px; line-height:1.5; color:#a8a29e; }
+  .cf-light .cf-tour-body { color:#4b4d57; }
+  .cf-tour-row { margin-top:14px; display:flex; align-items:center; justify-content:space-between; gap:8px; }
+  .cf-tour-skip { font-size:12px; color:#78716c; cursor:pointer; background:none; border:none; padding:4px 2px; }
+  .cf-tour-skip:hover { color:#a8a29e; }
+  .cf-tour-nav { display:flex; align-items:center; gap:8px; }
+  .cf-tour-back { font-size:12px; font-weight:700; color:#d6d3d1; background:none; border:none; cursor:pointer; padding:6px 6px; }
+  .cf-tour-back:hover { color:#fff; }
+  .cf-light .cf-tour-back { color:#4b4d57; } .cf-light .cf-tour-back:hover { color:#15161a; }
+  .cf-tour-next { font-size:13px; font-weight:900; color:#0a0a0f; background:#c6ff00; border:none; border-radius:999px; padding:7px 16px; cursor:pointer; }
+  .cf-tour-next:hover { background:#d6ff3a; }
+  .cf-light .cf-tour-next { background:#0a8f54; color:#fff; } .cf-light .cf-tour-next:hover { background:#0fa863; }
   /* Invite: SPIN-knappen andas tills första snurr → bjuder in att trycka */
   @keyframes cfinvite { 0%,100%{box-shadow:0 0 0 4px rgba(198,255,0,.16),0 4px 12px rgba(0,0,0,.5)} 50%{box-shadow:0 0 0 9px rgba(198,255,0,.38),0 0 24px rgba(198,255,0,.55)} }
   .cf-spinbtn.cf-invite { animation:cfinvite 1.55s ease-in-out infinite; }
@@ -1113,21 +1136,21 @@ import Layout from '../layouts/Layout.astro';
       <div id="cf-image" class="mb-5${state.aspect === '16:9' ? '' : ' mx-auto w-full max-w-[560px]'}"></div>
       <!-- Under hero: bred textmodul (max exponering) + kompakt ljud-sidebar (Soundtrack + SFX) -->
       <div class="grid items-start gap-5 lg:grid-cols-[1fr_minmax(0,310px)]">
-        <div class="flex min-h-0 flex-col">
+        <div id="cf-tour-text" class="flex min-h-0 flex-col">
           <div class="mb-3 flex flex-wrap gap-2">${tabs.map((t, i) => `<button class="cf-tab${i === 0 ? ' active' : ''}" data-tab="${t[0]}">${esc(t[1])}</button>`).join('')}</div>
           <div data-panelbox class="cf-scrollfade no-scrollbar overflow-auto rounded-2xl border border-[#22222e] bg-[#13131c] p-6 lg:max-h-[68vh]">
             ${tabs.map((t, i) => `<div data-panel="${t[0]}" class="${i === 0 ? '' : 'hidden'}"><div id="cf-panel-${t[0]}"></div></div>`).join('')}
           </div>
         </div>
         <div class="flex flex-col gap-4">
-          <div class="rounded-2xl border border-[#22222e] bg-[#13131c] p-4">
+          <div id="cf-tour-st" class="rounded-2xl border border-[#22222e] bg-[#13131c] p-4">
             <div class="mb-2 flex items-center justify-between">
               <span class="text-[11px] font-black uppercase tracking-wide text-[#ff2d78]">🎵 Soundtrack</span>
               <span class="flex items-center gap-2"><span id="st-engine" class="text-[10px] text-stone-600"></span><span id="cf-st-ctrl"></span></span>
             </div>
             <div id="soundtrack-slot"></div>
           </div>
-          <div class="rounded-2xl border border-[#22222e] bg-[#13131c] p-4">
+          <div id="cf-tour-sfx" class="rounded-2xl border border-[#22222e] bg-[#13131c] p-4">
             <div class="mb-2 flex items-center justify-between"><span class="text-[11px] font-black uppercase tracking-wide text-[#ff2d78]">🔊 SFX</span><span id="cf-sfx-ctrl"></span></div>
             <div id="sfx-slot"></div>
           </div>
@@ -1472,6 +1495,7 @@ import Layout from '../layouts/Layout.astro';
     if (opts.featured) {
       // Landnings-showcase: ingen scroll (hero ska synas) men ljudet startar (faller till första gesten om blockerat)
       autoplaySoundtrack();
+      setTimeout(maybeStartTour, 500);   // nya besökare: starta onboarding-turen när konceptet renderats
     } else if (opts.share) {
       // Ankom via delad länk: visa konceptet + scrolla dit
       autoplaySoundtrack();
@@ -1573,6 +1597,89 @@ import Layout from '../layouts/Layout.astro';
   input.addEventListener('input', () => { input.value.trim() ? closeAc() : openAc(); });
   input.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeAc(); });
   document.addEventListener('click', (e) => { if (e.target !== input && !e.target.closest('#ac-panel')) closeAc(); });
+
+  // ---------- Onboarding-tur (spotlight + tooltip) ----------
+  // Visas EN gång för nya besökare (localStorage per webbläsare). ?tour=1 i URL:en tvingar fram den (test/återtittning).
+  // Startar först när featured-konceptet renderats så alla mål-element finns (bild/text/soundtrack/sfx/kommentarer).
+  const TOUR_KEY = 'forge-tour-done';
+  const TOUR_STEPS = [
+    { sel: '#cf-tour-input', title: 'Describe a vibe', body: 'Type any theme — “neon yakuza with a country vibe”, “haunted disco” — and hit Forge it. The AI turns it into a complete slot-game concept.' },
+    { sel: '#recent-wrap', title: 'Browse the gallery', body: 'Every concept ever forged is saved here. Open the gallery to explore, search and replay them — free, no credits spent.' },
+    { sel: '#cf-image', title: 'Mood & Game views', body: 'Flip the art between a cinematic Mood shot and a playable Game mock-up — then hit the spin button to reshuffle the reels.' },
+    { sel: '#cf-tour-text', title: 'The full concept', body: 'Names, art direction, mechanics, the math and launch hooks — the entire brief lives across these tabs.' },
+    { sel: '#cf-tour-st', title: 'Generated soundtrack', body: 'A custom soundtrack is composed for every concept. When you forge a new one this can take a little longer than the rest — it streams in when it’s ready.' },
+    { sel: '#cf-tour-sfx', title: 'Themed sound effects', body: 'Tap any cue to hear bespoke SFX forged for the theme — reel spins, bonus triggers and big wins.' },
+    { sel: '#cf-comments', title: 'Join in', body: 'Drop a comment on this forge or on Concept Forge itself, upvote and react. That’s the tour — now go forge something!' },
+  ];
+  let tourOv = null, tourHole = null, tourCard = null, tourIdx = 0, tourReflow = null, tourTried = false;
+  function endTour(done) {
+    if (tourReflow) { window.removeEventListener('resize', tourReflow); window.removeEventListener('scroll', tourReflow, true); tourReflow = null; }
+    document.removeEventListener('keydown', tourKey);
+    if (tourOv) tourOv.remove(); if (tourCard) tourCard.remove();
+    tourOv = tourHole = tourCard = null;
+    if (done) { try { localStorage.setItem(TOUR_KEY, '1'); } catch (e) {} }
+  }
+  function positionTour() {
+    const target = document.querySelector(TOUR_STEPS[tourIdx].sel);
+    if (!target || !tourHole || !tourCard) return;
+    const r = target.getBoundingClientRect(), pad = 8;
+    const top = Math.max(6, r.top - pad), left = Math.max(6, r.left - pad);
+    const w = Math.min(window.innerWidth - 12, r.width + pad * 2), h = r.height + pad * 2;
+    tourHole.style.top = top + 'px'; tourHole.style.left = left + 'px'; tourHole.style.width = w + 'px'; tourHole.style.height = h + 'px';
+    const cardH = tourCard.offsetHeight || 180, cardW = tourCard.offsetWidth || 312;
+    let cTop = top + h + 12; if (cTop + cardH > window.innerHeight - 8) cTop = Math.max(8, top - cardH - 12);
+    const cLeft = Math.min(Math.max(8, left), window.innerWidth - cardW - 8);
+    tourCard.style.top = cTop + 'px'; tourCard.style.left = cLeft + 'px';
+  }
+  function renderTourStep() {
+    const step = TOUR_STEPS[tourIdx], target = document.querySelector(step.sel);
+    if (!target) { if (tourIdx < TOUR_STEPS.length - 1) { tourIdx++; return renderTourStep(); } return endTour(true); }
+    const last = tourIdx === TOUR_STEPS.length - 1;
+    tourCard.innerHTML = `
+      <div class="cf-tour-step">Step ${tourIdx + 1} of ${TOUR_STEPS.length}</div>
+      <div class="cf-tour-title">${step.title}</div>
+      <div class="cf-tour-body">${step.body}</div>
+      <div class="cf-tour-row">
+        <button class="cf-tour-skip" data-tour="skip">${last ? '' : 'Skip tour'}</button>
+        <div class="cf-tour-nav">
+          ${tourIdx > 0 ? '<button class="cf-tour-back" data-tour="back">Back</button>' : ''}
+          <button class="cf-tour-next" data-tour="next">${last ? 'Got it' : 'Next'}</button>
+        </div>
+      </div>`;
+    target.scrollIntoView({ block: 'center', behavior: 'smooth' });
+    setTimeout(positionTour, 360);
+  }
+  function tourKey(e) {
+    if (!tourOv) return;
+    if (e.key === 'Escape') endTour(true);
+    else if (e.key === 'ArrowRight' || e.key === 'Enter') { if (tourIdx >= TOUR_STEPS.length - 1) endTour(true); else { tourIdx++; renderTourStep(); } }
+    else if (e.key === 'ArrowLeft' && tourIdx > 0) { tourIdx--; renderTourStep(); }
+  }
+  function startTour() {
+    if (tourOv) return;
+    tourOv = document.createElement('div'); tourOv.className = 'cf-tour-ov';
+    tourHole = document.createElement('div'); tourHole.className = 'cf-tour-hole';
+    tourCard = document.createElement('div'); tourCard.className = 'cf-tour-card';
+    tourOv.appendChild(tourHole); document.body.appendChild(tourOv); document.body.appendChild(tourCard);
+    tourCard.addEventListener('click', (e) => {
+      const b = e.target.closest('[data-tour]'); if (!b) return;
+      const a = b.dataset.tour;
+      if (a === 'skip') return endTour(true);
+      if (a === 'back') { tourIdx = Math.max(0, tourIdx - 1); return renderTourStep(); }
+      if (tourIdx >= TOUR_STEPS.length - 1) return endTour(true);
+      tourIdx++; renderTourStep();
+    });
+    document.addEventListener('keydown', tourKey);
+    tourReflow = () => positionTour();
+    window.addEventListener('resize', tourReflow); window.addEventListener('scroll', tourReflow, true);
+    tourIdx = 0; renderTourStep();
+  }
+  function maybeStartTour() {
+    if (tourTried) return; tourTried = true;
+    const force = new URL(location.href).searchParams.get('tour') === '1';
+    let done = false; try { done = localStorage.getItem(TOUR_KEY) === '1'; } catch (e) {}
+    if ((force || !done) && !result.classList.contains('hidden')) startTour();
+  }
 
   const shareId = new URL(location.href).searchParams.get('c');   // delad länk: /forge?c=<id>
   refreshGallery().then(() => { if (shareId) loadSearch(shareId, { share: true }); else loadFeatured(); });
