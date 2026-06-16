@@ -110,10 +110,37 @@ function extractJson(text) {
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
-// Claude med retry — överbelastning/timeout/parse-strul är transient, så vi försöker om.
+// Läs Anthropics SSE-ström och sätt ihop text-deltan. Streaming krävs för höga max_tokens —
+// annars riskerar det långa svaret att slå i request-timeouts (frontendens 45s+ abort, proxy-idle).
+async function readAnthropicStream(res) {
+  const reader = res.body.getReader();
+  const decoder = new TextDecoder();
+  let buf = "", text = "";
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    buf += decoder.decode(value, { stream: true });
+    let nl;
+    while ((nl = buf.indexOf("\n")) !== -1) {
+      const line = buf.slice(0, nl).trim();
+      buf = buf.slice(nl + 1);
+      if (!line.startsWith("data:")) continue;
+      const payload = line.slice(5).trim();
+      if (!payload || payload === "[DONE]") continue;
+      try {
+        const evt = JSON.parse(payload);
+        if (evt.type === "content_block_delta" && evt.delta && evt.delta.type === "text_delta") text += evt.delta.text;
+      } catch {}
+    }
+  }
+  return text;
+}
+
+// Claude med streaming + retry. Streaming håller anslutningen vid liv under hela genereringen.
+// Max 2 försök så att ett omförsök inte kan stapla sig förbi klientens tidsbudget.
 async function generateConceptClaude(theme, apiKey) {
   let lastErr;
-  for (let attempt = 0; attempt < 3; attempt++) {
+  for (let attempt = 0; attempt < 2; attempt++) {
     try {
       const res = await fetch("https://api.anthropic.com/v1/messages", {
         method: "POST",
@@ -122,23 +149,24 @@ async function generateConceptClaude(theme, apiKey) {
           model: "claude-sonnet-4-6",
           max_tokens: 4000,
           temperature: 1,
+          stream: true,
           system: SYSTEM_PROMPT,
           messages: [{ role: "user", content: `Tema: ${theme}\n\nSvara med ENBART giltig JSON enligt schemat. Ingen text före eller efter, inga kodblock-markörer.` }],
         }),
       });
       if (!res.ok) {
         const body = await res.text();
-        if ([429, 500, 502, 503, 529].includes(res.status) && attempt < 2) { lastErr = new Error(`anthropic ${res.status}`); await sleep(700 * (attempt + 1)); continue; }
+        if ([429, 500, 502, 503, 529].includes(res.status) && attempt < 1) { lastErr = new Error(`anthropic ${res.status}`); await sleep(500); continue; }
         throw new Error(`anthropic ${res.status}: ${body}`);
       }
-      const data = await res.json();
-      const concept = extractJson(data.content[0].text);
+      const text = await readAnthropicStream(res);
+      const concept = extractJson(text);
       concept.theme = theme;
       concept.engine = "Claude (claude-sonnet-4-6)";
       return concept;
     } catch (e) {
       lastErr = e;
-      if (attempt < 2) { await sleep(700 * (attempt + 1)); continue; }
+      if (attempt < 1) { await sleep(500); continue; }
       throw e;
     }
   }

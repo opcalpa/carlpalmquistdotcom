@@ -1435,7 +1435,7 @@ import Layout from '../layouts/Layout.astro';
     creditsPopupShown = false;   // en credits-ruta per generering
     let concept;
     // Hård timeout: concept-anropet får ALDRIG hänga Pong-loadern i evighet (sågs på live: en match i 10 min).
-    const ctrl = new AbortController(), toAbort = setTimeout(() => ctrl.abort(), 45000);
+    const ctrl = new AbortController(), toAbort = setTimeout(() => ctrl.abort(), 90000);
     try { const res = await fetch('/api/concept', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ theme }), signal: ctrl.signal }); concept = await res.json(); }
     catch (err) {
       clearTimeout(toAbort); stopLoading(); generating = false;
