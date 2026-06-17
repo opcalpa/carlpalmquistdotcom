@@ -11,7 +11,7 @@
     --card:rgba(255,255,255,.05); --card-line:rgba(255,255,255,.10);
     --text:#f4f2fb; --muted:#a9a6c4; --faint:#6f6b90;
     --gold:#e8b96a; --cool:#7c83d6; --rose:#d68fb0;
-    --good:#8fd6a8; --low:#5a5780;
+    --bio:#8fd6a8; --low:#5a5780;
   }
   *{box-sizing:border-box; margin:0; padding:0}
   html,body{height:100%}
@@ -21,7 +21,6 @@
     color:var(--text); min-height:100dvh;
     display:flex; align-items:center; justify-content:center; padding:24px 16px;
   }
-  /* phone frame */
   .phone{
     width:100%; max-width:392px; height:812px; max-height:92dvh;
     background:linear-gradient(180deg,var(--bg-1),var(--bg-0));
@@ -30,78 +29,114 @@
     overflow:hidden; position:relative; display:flex; flex-direction:column;
   }
   .notch{position:absolute; top:10px; left:50%; transform:translateX(-50%); width:120px; height:26px; background:var(--bg-0); border-radius:0 0 16px 16px; z-index:30}
-  /* header */
-  header{padding:30px 22px 10px; display:flex; align-items:center; justify-content:space-between}
+  header{padding:30px 22px 8px; display:flex; align-items:center; justify-content:space-between}
   .brand{display:flex; align-items:center; gap:9px}
   .brand .dot{width:11px; height:11px; border-radius:50%; background:radial-gradient(circle at 30% 30%, var(--gold), #b07d2e); box-shadow:0 0 14px rgba(232,185,106,.6)}
   .brand .name{font-size:15px; letter-spacing:.22em; font-weight:600; text-transform:uppercase}
   .date{font-size:12.5px; color:var(--muted)}
-  /* tone toggle */
-  .tone{margin:8px 22px 4px; background:rgba(0,0,0,.25); border:1px solid var(--card-line); border-radius:30px; padding:4px; display:flex; gap:4px}
-  .tone button{flex:1; border:0; background:transparent; color:var(--muted); font-size:12.5px; font-weight:600; padding:9px 0; border-radius:24px; cursor:pointer; transition:.25s; letter-spacing:.02em}
-  .tone button.on{background:linear-gradient(180deg,rgba(255,255,255,.13),rgba(255,255,255,.05)); color:var(--text); box-shadow:0 2px 10px rgba(0,0,0,.3)}
-  .tone .hint{flex-basis:100%; text-align:center; font-size:10.5px; color:var(--faint); padding-top:6px}
-  /* scroll body */
+
+  .lens{margin:6px 18px 2px}
+  .lens .cap{font-size:10.5px; color:var(--faint); letter-spacing:.04em; margin:6px 4px}
+  .chips-row{display:flex; gap:7px; flex-wrap:wrap}
+  .lchip{font-size:12px; font-weight:600; border-radius:22px; padding:8px 13px; cursor:pointer; border:1px solid var(--card-line); background:rgba(255,255,255,.04); color:var(--muted); transition:.2s; display:flex; align-items:center; gap:6px}
+  .lchip.locked{cursor:default; border-color:rgba(143,214,168,.4); background:rgba(143,214,168,.10); color:#cfeeda}
+  .lchip.locked .tag{font-size:9px; opacity:.7; text-transform:uppercase; letter-spacing:.05em}
+  .lchip.on{border-color:var(--gold); background:rgba(232,185,106,.16); color:var(--text)}
+  .lchip .x{opacity:.5; font-size:13px}
+
   .screen{flex:1; overflow-y:auto; padding:6px 18px 14px; scrollbar-width:none}
   .screen::-webkit-scrollbar{display:none}
-  .view{display:none; animation:fade .3s ease}
-  .view.on{display:block}
+  .view{display:none}
+  .view.on{display:block; animation:fade .3s ease}
   @keyframes fade{from{opacity:0; transform:translateY(6px)}to{opacity:1; transform:none}}
-  /* daily card */
-  .card{background:var(--card); border:1px solid var(--card-line); border-radius:24px; padding:22px; margin-top:10px; backdrop-filter:blur(8px)}
-  .moonrow{display:flex; align-items:center; gap:12px; margin-bottom:14px}
-  .moon{font-size:30px; filter:drop-shadow(0 0 12px rgba(124,131,214,.5))}
-  .headline{font-size:20px; font-weight:600; line-height:1.2}
-  .sub{font-size:12px; color:var(--faint); margin-top:2px; letter-spacing:.03em}
-  .body{font-size:14.5px; line-height:1.62; color:#ded9f3; margin-bottom:18px}
-  /* bars */
+
+  .card{background:var(--card); border:1px solid var(--card-line); border-radius:24px; padding:22px; margin-top:10px}
+  .phasebar{display:flex; align-items:center; gap:8px; font-size:11px; color:var(--bio); background:rgba(143,214,168,.10); border:1px solid rgba(143,214,168,.25); border-radius:20px; padding:6px 12px; width:fit-content; margin-bottom:14px}
+  .phasebar .pd{width:6px; height:6px; border-radius:50%; background:var(--bio)}
+  .headline{font-size:21px; font-weight:600; line-height:1.2; margin-bottom:14px}
+  .body{font-size:14.5px; line-height:1.64; color:#ded9f3; margin-bottom:18px}
+  .body .seg-moon{color:#c7cbf0}
+  .body .seg-astro{color:#e8cdde}
   .bars{display:flex; flex-direction:column; gap:11px}
   .bar{display:flex; align-items:center; gap:12px}
   .bar .lbl{width:58px; font-size:12px; color:var(--muted)}
   .track{flex:1; display:flex; gap:3px}
   .seg{height:7px; flex:1; border-radius:3px; background:rgba(255,255,255,.07)}
-  .seg.f{background:linear-gradient(90deg,var(--cool),var(--gold))}
-  .bar .val{width:64px; text-align:right; font-size:11px; color:var(--faint)}
-  /* mood */
+  .seg.f{background:linear-gradient(90deg,var(--bio),var(--cool))}
+  .bar .val{width:58px; text-align:right; font-size:11px; color:var(--faint)}
   .mood{margin-top:18px; padding-top:16px; border-top:1px solid var(--card-line)}
   .mood p{font-size:13px; color:var(--muted); margin-bottom:11px}
   .faces{display:flex; gap:10px}
   .faces button{flex:1; font-size:24px; background:rgba(255,255,255,.04); border:1px solid var(--card-line); border-radius:16px; padding:10px 0; cursor:pointer; transition:.2s; filter:grayscale(.5) opacity(.7)}
-  .faces button:hover{transform:translateY(-2px)}
   .faces button.sel{filter:none; background:rgba(232,185,106,.16); border-color:var(--gold); transform:translateY(-2px)}
-  /* week strip */
+
   .strip-title{font-size:12px; color:var(--muted); margin:24px 4px 10px; letter-spacing:.04em}
   .strip{display:flex; gap:6px}
   .day{flex:1; text-align:center; background:var(--card); border:1px solid var(--card-line); border-radius:14px; padding:9px 0 8px}
-  .day.now{border-color:var(--gold); box-shadow:0 0 0 1px rgba(232,185,106,.3)}
-  .day .dn{font-size:10px; color:var(--faint); text-transform:uppercase; letter-spacing:.04em}
-  .day .mp{font-size:14px; margin:4px 0}
+  .day.now{border-color:var(--gold)}
+  .day .dn{font-size:10px; color:var(--faint); text-transform:uppercase}
+  .day .ph{font-size:9.5px; color:var(--bio); margin:3px 0 4px}
   .day .en{height:5px; width:60%; margin:0 auto; border-radius:3px}
-  /* calendar */
-  .cal-head{display:flex; justify-content:space-between; align-items:baseline; margin:14px 4px 12px}
+
+  /* koppla kalender */
+  .connect{background:var(--card); border:1px solid var(--card-line); border-radius:20px; padding:22px 20px; margin-top:12px; text-align:center}
+  .connect .ci{font-size:26px}
+  .connect h3{font-size:15.5px; font-weight:600; margin:8px 0 6px}
+  .connect p{font-size:12.5px; color:var(--muted); line-height:1.5; margin-bottom:15px}
+  .connect .priv{font-size:10.5px; color:var(--bio); margin-top:12px}
+  .btn-g{display:inline-flex; align-items:center; gap:10px; background:#fff; color:#3c4043; font-weight:600; font-size:13px; border:0; border-radius:24px; padding:11px 18px; cursor:pointer; box-shadow:0 1px 4px rgba(0,0,0,.3)}
+  .btn-g .g{font-weight:700; font-size:15px; color:#4285F4}
+  .cweek{display:flex; gap:6px; margin-top:12px}
+  .cday{flex:1; background:var(--card); border:1px solid var(--card-line); border-radius:12px; padding:8px 0 7px; text-align:center}
+  .cday.heavy{border-color:var(--rose); background:rgba(214,143,176,.12)}
+  .cday .dn{font-size:10px; color:var(--faint); text-transform:uppercase}
+  .cday .mt{display:flex; flex-direction:column; gap:2px; align-items:center; margin:6px 0; min-height:18px; justify-content:center}
+  .cday .mdot{width:14px; height:3px; border-radius:2px; background:var(--cool)}
+  .cday.heavy .mdot{background:var(--rose)}
+  .cday .en2{height:5px; width:60%; margin:2px auto 0; border-radius:3px}
+  .nudge{display:flex; gap:11px; background:rgba(214,143,176,.10); border:1px solid rgba(214,143,176,.30); border-radius:16px; padding:14px; margin-top:14px}
+  .nudge .ni{font-size:17px; line-height:1.3}
+  .nudge p{font-size:12.5px; line-height:1.55; color:#ecd6e2}
+
+  .cal-head{display:flex; justify-content:space-between; align-items:baseline; margin:22px 4px 12px}
   .cal-head h2{font-size:18px; font-weight:600}
-  .cal-head span{font-size:11.5px; color:var(--faint)}
+  .cal-head span{font-size:11px; color:var(--faint)}
   .grid{display:grid; grid-template-columns:repeat(7,1fr); gap:6px}
-  .gd{aspect-ratio:1; border-radius:12px; border:1px solid var(--card-line); display:flex; flex-direction:column; align-items:center; justify-content:center; gap:2px; font-size:11px; color:var(--muted); position:relative}
-  .gd .num{font-size:11px}
-  .gd .mm{font-size:9px; position:absolute; top:4px; right:5px; opacity:.8}
-  .gd.today{border-color:var(--gold)}
+  .gd{aspect-ratio:1; border-radius:12px; border:1px solid var(--card-line); display:flex; flex-direction:column; align-items:center; justify-content:center; font-size:11px; color:var(--muted); position:relative}
+  .gd .mm{font-size:9px; position:absolute; top:4px; right:5px; opacity:.85}
   .legend{display:flex; align-items:center; gap:8px; margin:18px 4px 6px; font-size:11px; color:var(--muted)}
-  .legend .scale{flex:1; height:7px; border-radius:4px; background:linear-gradient(90deg,var(--low),var(--cool),var(--gold))}
+  .legend .scale{flex:1; height:7px; border-radius:4px; background:linear-gradient(90deg,var(--low),var(--cool),var(--bio))}
   .note{font-size:11.5px; color:var(--faint); line-height:1.55; margin:16px 4px 0}
-  /* mig */
-  .blueprint{background:linear-gradient(160deg,rgba(124,131,214,.16),rgba(232,185,106,.08)); border:1px solid var(--card-line); border-radius:24px; padding:24px; margin-top:12px}
-  .blueprint .eyebrow{font-size:11px; letter-spacing:.18em; text-transform:uppercase; color:var(--gold); margin-bottom:10px}
+
+  .blueprint{background:linear-gradient(160deg,rgba(143,214,168,.14),rgba(124,131,214,.08)); border:1px solid var(--card-line); border-radius:24px; padding:24px; margin-top:12px}
+  .blueprint .eyebrow{font-size:11px; letter-spacing:.18em; text-transform:uppercase; color:var(--bio); margin-bottom:10px}
   .blueprint h2{font-size:19px; font-weight:600; line-height:1.25; margin-bottom:12px}
   .blueprint p{font-size:14px; line-height:1.62; color:#ded9f3}
   .chips{display:flex; flex-wrap:wrap; gap:8px; margin-top:18px}
   .chip{font-size:11.5px; color:var(--text); background:rgba(255,255,255,.07); border:1px solid var(--card-line); border-radius:20px; padding:6px 12px}
-  /* nav */
+  .chip.moon{background:rgba(124,131,214,.16)}
+  .chip.astro{background:rgba(214,143,176,.16)}
+
+  /* google consent mock */
+  .modal{position:absolute; inset:0; background:rgba(0,0,0,.62); display:none; align-items:center; justify-content:center; z-index:40; padding:24px}
+  .modal.on{display:flex}
+  .gsheet{background:#fff; color:#3c4043; border-radius:16px; width:100%; max-width:300px; padding:22px; box-shadow:0 20px 50px rgba(0,0,0,.4)}
+  .glogo{font-weight:700; font-size:20px; letter-spacing:-.5px}
+  .gtitle{font-size:15px; color:#202124; margin:14px 0 2px; font-weight:500; line-height:1.35}
+  .gsub{font-size:12px; color:#5f6368}
+  .gacct{display:flex; align-items:center; gap:9px; border:1px solid #dadce0; border-radius:10px; padding:9px 11px; margin:14px 0; font-size:12px}
+  .gacct .av{width:24px; height:24px; border-radius:50%; background:#d68fb0; color:#fff; display:flex; align-items:center; justify-content:center; font-weight:600; font-size:12px}
+  .gscope{display:flex; gap:9px; font-size:12px; color:#5f6368; margin:12px 0; line-height:1.45}
+  .gunverified{font-size:10.5px; color:#9a6700; background:#fef7e0; border-radius:8px; padding:9px 11px; margin-top:8px; line-height:1.45}
+  .gbtns{display:flex; justify-content:flex-end; gap:6px; margin-top:16px}
+  .gbtns button{border:0; background:none; color:#1a73e8; font-weight:600; font-size:13px; padding:9px 13px; border-radius:6px; cursor:pointer}
+  .gbtns .allow{background:#1a73e8; color:#fff}
+
   nav{display:flex; border-top:1px solid var(--card-line); background:rgba(0,0,0,.25); padding:8px 10px 14px}
   nav button{flex:1; background:none; border:0; color:var(--faint); cursor:pointer; display:flex; flex-direction:column; align-items:center; gap:4px; font-size:10.5px; padding:6px 0}
   nav button .ic{font-size:18px}
   nav button.on{color:var(--gold)}
-  .disclaimer{text-align:center; font-size:10px; color:var(--faint); padding:10px 18px 0; line-height:1.5}
+  .disclaimer{text-align:center; font-size:10px; color:var(--faint); padding:9px 18px 0; line-height:1.5}
 </style>
 </head>
 <body>
@@ -113,10 +148,13 @@
     <span class="date">Onsdag 17 juni</span>
   </header>
 
-  <div class="tone" id="tone">
-    <button data-tone="van" class="on">Vän</button>
-    <button data-tone="astro">Astrologi</button>
-    <div class="hint">Samma motor. Bara tonen ändras.</div>
+  <div class="lens">
+    <div class="cap">Vetenskaplig bas. Lägg på perspektiv du är nyfiken på.</div>
+    <div class="chips-row" id="lensrow">
+      <span class="lchip locked">Cykel <span class="tag">bas</span></span>
+      <span class="lchip" data-lens="moon">🌑 Måne</span>
+      <span class="lchip" data-lens="astro">✦ Astrologi</span>
+    </div>
   </div>
 
   <div class="screen">
@@ -124,53 +162,71 @@
     <!-- IDAG -->
     <section class="view on" data-view="idag">
       <div class="card">
-        <div class="moonrow">
-          <span class="moon">🌑</span>
-          <div>
-            <div class="headline" id="d-head">En lugn dag</div>
-            <div class="sub" id="d-sub">Nymåne, låg energi</div>
-          </div>
-        </div>
+        <div class="phasebar"><span class="pd"></span>Cykeldag 22 · Lutealfas</div>
+        <div class="headline">En dag att landa</div>
         <p class="body" id="d-body"></p>
         <div class="bars">
-          <div class="bar"><span class="lbl">Energi</span><div class="track" data-fill="3"></div><span class="val" id="b-energi"></span></div>
-          <div class="bar"><span class="lbl">Fokus</span><div class="track" data-fill="6"></div><span class="val" id="b-fokus"></span></div>
-          <div class="bar"><span class="lbl">Socialt</span><div class="track" data-fill="2"></div><span class="val" id="b-socialt"></span></div>
+          <div class="bar"><span class="lbl">Energi</span><div class="track" data-fill="3"></div><span class="val">lågt</span></div>
+          <div class="bar"><span class="lbl">Fokus</span><div class="track" data-fill="5"></div><span class="val">medel</span></div>
+          <div class="bar"><span class="lbl">Socialt</span><div class="track" data-fill="2"></div><span class="val">lågt</span></div>
         </div>
         <div class="mood">
-          <p id="d-moodq">Hur känns det idag?</p>
-          <div class="faces">
-            <button>😣</button><button>😐</button><button>🙂</button><button>😄</button>
-          </div>
+          <p>Hur känns det idag?</p>
+          <div class="faces"><button>😣</button><button>😐</button><button>🙂</button><button>😄</button></div>
         </div>
       </div>
 
-      <div class="strip-title">Veckans rytm</div>
+      <div class="strip-title">Din cykel den här veckan</div>
       <div class="strip" id="strip"></div>
     </section>
 
     <!-- KALENDER -->
     <section class="view" data-view="kalender">
-      <div class="cal-head"><h2>Juni</h2><span>Periodens kvalitet, inte möten</span></div>
+      <div class="connect" id="connect-card">
+        <div class="ci">🗓️</div>
+        <h3>Se dina möten ovanpå din rytm</h3>
+        <p>Koppla din kalender så kan Eqvanox tipsa när en period ser överbokad ut för din fas.</p>
+        <button class="btn-g" id="btn-connect"><span class="g">G</span> Koppla kalender</button>
+        <div class="priv">Eqvanox ser bara när du är upptagen, aldrig vad mötena handlar om.</div>
+      </div>
+
+      <div id="cal-connected" style="display:none">
+        <div class="strip-title" style="margin-top:4px">Din vecka ovanpå rytmen</div>
+        <div class="cweek" id="cweek"></div>
+        <div class="nudge"><span class="ni">🌙</span><p><b>Torsdag ser tung ut.</b> Fem möten mitt i din lågenergifas, många tycker det blir motigt. Fredag eftermiddag verkar passa din rytm bättre. Du bestämmer.</p></div>
+      </div>
+
+      <div class="cal-head"><h2>Juni</h2><span id="cal-sub">Din cykel · periodens kvalitet</span></div>
       <div class="grid" id="grid"></div>
       <div class="legend"><span>Lågt</span><div class="scale"></div><span>Högt</span></div>
-      <p class="note">Kalendern visar din egen energirytm som ett lager ovanpå tiden. Den
-      säger inte vad du ska göra, den visar hur perioden kan kännas så att du kan planera
-      med din rytm istället för emot den.</p>
+      <p class="note">Kalendern visar din egen energirytm över cykeln som ett lager ovanpå tiden.
+      Kopplar du din kalender läggs dina möten in, så du ser var de krockar med din rytm.</p>
     </section>
 
     <!-- MIG -->
     <section class="view" data-view="mig">
       <div class="blueprint">
         <div class="eyebrow">Din blueprint</div>
-        <h2 id="m-head"></h2>
+        <h2 id="m-head">Din kropp arbetar i en cirka 29-dagars rytm</h2>
         <p id="m-body"></p>
         <div class="chips" id="m-chips"></div>
       </div>
-      <p class="note">En enda sammanhållen karta, inte fem separata rapporter. Den byggs en
-      gång ur din födelseinfo och blir grunden för varje dagligt kort.</p>
+      <p class="note">Basen är din biologiska rytm. Linserna du slår på ovan vävs in här med,
+      som extra perspektiv, aldrig som påståenden om orsak.</p>
     </section>
 
+  </div>
+
+  <!-- Google-godkännande (mock) -->
+  <div class="modal" id="gmodal">
+    <div class="gsheet">
+      <div class="glogo"><span style="color:#4285F4">G</span><span style="color:#EA4335">o</span><span style="color:#FBBC05">o</span><span style="color:#4285F4">g</span><span style="color:#34A853">l</span><span style="color:#EA4335">e</span></div>
+      <div class="gtitle">Eqvanox vill få åtkomst till ditt Google-konto</div>
+      <div class="gacct"><span class="av">J</span><div><div style="color:#202124">Jossi</div><div style="color:#5f6368; font-size:11px">jossi@gmail.com</div></div></div>
+      <div class="gscope"><span>📅</span><div>Se när du är upptagen i din kalender. Eqvanox ser inte mötenas innehåll.</div></div>
+      <div class="gunverified">Den här appen är inte verifierad av Google än. Under testfasen visas den här rutan.</div>
+      <div class="gbtns"><button id="g-cancel">Avbryt</button><button class="allow" id="g-allow">Tillåt</button></div>
+    </div>
   </div>
 
   <p class="disclaimer">Eqvanox ger perspektiv, inte spådom eller medicinska råd.</p>
@@ -183,27 +239,19 @@
 </div>
 
 <script>
-  // ---- innehåll: samma siffror, två toner ----
-  const C = {
-    van:{
-      head:"En lugn dag", sub:"Nymåne, låg energi",
-      body:"Din energi ligger på sparlåga idag. Tunga uppgifter kan kännas extra motiga, bra att veta innan du sätter igång. Du kanske märker mindre lust att ta stora beslut. Notera om det stämmer för dig.",
-      bars:["lågt","högt","lågt"], moodq:"Hur känns det idag?",
-      mhead:"Du laddar inifrån och behöver din egen rytm",
-      mbody:"Du har stark fokusförmåga i lugna perioder och tappar lätt kraft när du pressar dig socialt för länge. Din styrka är uthållighet när något känns rätt, och din timing fungerar bäst när du får reagera istället för att tvinga fram.",
-      chips:["Inåtvänd laddning","Stark fokus","Uthållig","Reagerar hellre än initierar"]
-    },
-    astro:{
-      head:"Nymåne i Tvillingarna", sub:"Måne ☌ Mars, Saturn □",
-      body:"Månen är mörk och möter din Mars i tolfte huset, ett introvert fönster öppnas. Som Generator med sakral auktoritet kan det kännas naturligt att vänta på något att reagera på snarare än att initiera. Saturns kvadratur ber dig sakta ner, notera om du känner det.",
-      bars:["sakral paus","12:e huset","introvert"], moodq:"Hur resonerar detta?",
-      mhead:"Sol i Väduren, måne i Kräftan, Generator",
-      mbody:"Stigande Vågen, sakral auktoritet i Human Design. Vedisk Rohini nakshatra, kinesiskt år Metallhästen. En blåkopia byggd för att reagera på livet, inte forcera det. Tolfte huset betonat: mycket sker i det inre först.",
-      chips:["☉ Väduren","☽ Kräftan","Generator","Metallhäst","Rohini"]
-    }
-  };
+  const lens = { moon:false, astro:false };
 
-  let tone="van";
+  const day = {
+    base:"Du är i lutealfasen, hormonerna sjunker mot mens. Många märker lägre energi, mer behov av vila och kortare stubin. Var snäll mot dig själv idag.",
+    moon:" Månen närmar sig nymåne, en inåtvänd fas som följer din egen cykel tätt just nu.",
+    astro:" Din måne i Kräftan förstärker behovet av trygghet och återhämtning."
+  };
+  const me = {
+    base:"Du tenderar att ha mest utåtriktad energi runt ägglossningen och mest inåtvändhet sista veckan före mens. När du känner din fas kan du planera med kroppen istället för emot den.",
+    moon:" Din cykel ligger nära nymånen, många med den rytmen känner igen sig i månens faser.",
+    astro:" Sol i Väduren och måne i Kräftan: en drivande yta med ett mjukt, trygghetssökande inre."
+  };
+  const baseChips = ["29-dagars rytm","Ägglossning = utåt","Förmens = inåt"];
 
   function fillBars(){
     document.querySelectorAll('.track').forEach(t=>{
@@ -211,74 +259,96 @@
       for(let i=0;i<8;i++){const s=document.createElement('span'); s.className='seg'+(i<n?' f':''); t.appendChild(s);}
     });
   }
-
   function render(){
-    const d=C[tone];
-    d_head.textContent=d.head; d_sub.textContent=d.sub; d_body.textContent=d.body;
-    d_moodq.textContent=d.moodq;
-    b_energi.textContent=d.bars[0]; b_fokus.textContent=d.bars[1]; b_socialt.textContent=d.bars[2];
-    m_head.textContent=d.mhead; m_body.textContent=d.mbody;
-    m_chips.innerHTML=d.chips.map(c=>`<span class="chip">${c}</span>`).join('');
-  }
-  // korta id-referenser
-  const d_head=document.getElementById('d-head'), d_sub=document.getElementById('d-sub'),
-    d_body=document.getElementById('d-body'), d_moodq=document.getElementById('d-moodq'),
-    b_energi=document.getElementById('b-energi'), b_fokus=document.getElementById('b-fokus'),
-    b_socialt=document.getElementById('b-socialt'), m_head=document.getElementById('m-head'),
-    m_body=document.getElementById('m-body'), m_chips=document.getElementById('m-chips');
+    let b = day.base;
+    if(lens.moon)  b += `<span class="seg-moon">${day.moon}</span>`;
+    if(lens.astro) b += `<span class="seg-astro">${day.astro}</span>`;
+    document.getElementById('d-body').innerHTML = b;
 
-  // tontoggle
-  document.getElementById('tone').addEventListener('click',e=>{
-    const b=e.target.closest('button[data-tone]'); if(!b) return;
-    tone=b.dataset.tone;
-    document.querySelectorAll('#tone button').forEach(x=>x.classList.toggle('on',x===b));
+    let mb = me.base;
+    if(lens.moon)  mb += `<span class="seg-moon">${me.moon}</span>`;
+    if(lens.astro) mb += `<span class="seg-astro">${me.astro}</span>`;
+    document.getElementById('m-body').innerHTML = mb;
+
+    let chips = baseChips.map(c=>`<span class="chip">${c}</span>`);
+    if(lens.moon)  chips.push(`<span class="chip moon">🌑 Nära nymåne</span>`);
+    if(lens.astro) chips.push(`<span class="chip astro">☉ Väduren</span><span class="chip astro">☽ Kräftan</span>`);
+    document.getElementById('m-chips').innerHTML = chips.join('');
+
+    document.getElementById('cal-sub').textContent = lens.moon ? "Din cykel + månfaser" : "Din cykel · periodens kvalitet";
+  }
+
+  document.getElementById('lensrow').addEventListener('click',e=>{
+    const c=e.target.closest('.lchip[data-lens]'); if(!c) return;
+    const k=c.dataset.lens; lens[k]=!lens[k];
+    c.classList.toggle('on',lens[k]);
+    c.innerHTML = (k==='moon'?'🌑 Måne':'✦ Astrologi') + (lens[k]?' <span class="x">×</span>':'');
     render();
   });
 
-  // navigering
-  document.getElementById('nav').addEventListener('click',e=>{
-    const b=e.target.closest('button[data-go]'); if(!b) return;
-    const v=b.dataset.go;
-    document.querySelectorAll('#nav button').forEach(x=>x.classList.toggle('on',x===b));
-    document.querySelectorAll('.view').forEach(x=>x.classList.toggle('on',x.dataset.view===v));
+  function goView(name){
+    document.querySelectorAll('#nav button').forEach(x=>x.classList.toggle('on',x.dataset.go===name));
+    document.querySelectorAll('.view').forEach(x=>x.classList.toggle('on',x.dataset.view===name));
     document.querySelector('.screen').scrollTop=0;
+  }
+  document.getElementById('nav').addEventListener('click',e=>{
+    const b=e.target.closest('button[data-go]'); if(!b) return; goView(b.dataset.go);
   });
 
-  // humör
   document.querySelectorAll('.faces button').forEach(b=>b.addEventListener('click',()=>{
     document.querySelectorAll('.faces button').forEach(x=>x.classList.remove('sel'));
     b.classList.add('sel');
   }));
 
-  // veckostrip
-  const days=["må","ti","on","to","fr","lö","sö"];
-  const phase=["🌑","🌒","🌒","🌓","🌓","🌔","🌔"];
-  const wEnergy=[3,4,4,5,6,7,7];
-  function eColor(n){ // 1..8 -> färg
-    if(n<=3) return "var(--low)";
-    if(n<=5) return "var(--cool)";
-    return "var(--gold)";
+  // koppla-kalender-flöde (mock)
+  const gmodal=document.getElementById('gmodal');
+  function connectDone(){
+    gmodal.classList.remove('on');
+    document.getElementById('connect-card').style.display='none';
+    document.getElementById('cal-connected').style.display='block';
   }
-  document.getElementById('strip').innerHTML=days.map((d,i)=>{
-    const now=i===2?' now':'';
-    return `<div class="day${now}"><div class="dn">${d}</div><div class="mp">${phase[i]}</div>
-      <div class="en" style="background:${eColor(wEnergy[i])}"></div></div>`;
+  document.getElementById('btn-connect').addEventListener('click',()=>gmodal.classList.add('on'));
+  document.getElementById('g-cancel').addEventListener('click',()=>gmodal.classList.remove('on'));
+  document.getElementById('g-allow').addEventListener('click',connectDone);
+
+  const eColor=n=> n<=2?"var(--low)": n<=4?"var(--cool)":"var(--bio)";
+
+  // veckostrip: cykelfas + energi
+  const days=["må","ti","on","to","fr","lö","sö"];
+  const phases=["Luteal","Luteal","Luteal","Luteal","Mens","Mens","Mens"];
+  const wEnergy=[4,3,3,2,2,3,4];
+  document.getElementById('strip').innerHTML=days.map((d,i)=>
+    `<div class="day${i===2?' now':''}"><div class="dn">${d}</div><div class="ph">${phases[i]}</div>
+     <div class="en" style="background:${eColor(wEnergy[i])}"></div></div>`).join('');
+
+  // kopplad vecka: möten ovanpå rytm
+  const cw=[{d:'må',m:2,e:4},{d:'ti',m:3,e:3},{d:'on',m:1,e:3},{d:'to',m:5,e:2},{d:'fr',m:2,e:2},{d:'lö',m:0,e:3},{d:'sö',m:0,e:4}];
+  document.getElementById('cweek').innerHTML=cw.map(x=>{
+    const dots = x.m ? Array.from({length:x.m},()=>'<span class="mdot"></span>').join('')
+                     : '<span style="font-size:9px;color:var(--faint)">–</span>';
+    return `<div class="cday${x.d==='to'?' heavy':''}"><div class="dn">${x.d}</div><div class="mt">${dots}</div>
+      <div class="en2" style="background:${eColor(x.e)}"></div></div>`;
   }).join('');
 
-  // kalendergrid (juni, börjar måndag)
-  const startBlank=6; // 1 juni = söndag -> 6 tomma om vecka börjar måndag
-  let cells='';
-  for(let i=0;i<startBlank;i++) cells+=`<div class="gd" style="opacity:.18"></div>`;
+  // månadsgrid: cykeldriven energi
+  let cells=''; for(let i=0;i<6;i++) cells+=`<div class="gd" style="opacity:.18"></div>`;
   for(let day=1; day<=30; day++){
-    // deterministiskt rytmmönster
-    const e=Math.round(4.5+3.4*Math.sin((day/29.5)*6.283 - 1.1));
+    const e=Math.round(4.5+3.2*Math.sin((day/29.5)*6.283 - 0.6));
     const mm = day===1?"🌑": day===8?"🌓": day===15?"🌕": day===23?"🌗": "";
-    const today=day===17?' today':'';
     const col=eColor(Math.max(1,Math.min(8,e)));
-    cells+=`<div class="gd${today}" style="background:linear-gradient(180deg, ${col}22, transparent)">
-      <span class="mm">${mm}</span><span class="num" style="color:${day===17?'var(--gold)':''}">${day}</span></div>`;
+    cells+=`<div class="gd${day===17?' today':''}" style="background:linear-gradient(180deg, ${col}22, transparent); ${day===17?'border-color:var(--gold)':''}">
+      <span class="mm">${mm}</span><span style="color:${day===17?'var(--gold)':''}">${day}</span></div>`;
   }
   document.getElementById('grid').innerHTML=cells;
+
+  // demo-hooks för screenshots
+  const h=location.hash;
+  if(h.includes('all')){ lens.moon=true; lens.astro=true;
+    document.querySelectorAll('.lchip[data-lens]').forEach(c=>{const k=c.dataset.lens;
+      c.classList.add('on'); c.innerHTML=(k==='moon'?'🌑 Måne':'✦ Astrologi')+' <span class="x">×</span>';}); }
+  if(h.includes('cal')) goView('kalender');
+  if(h.includes('consent')){ goView('kalender'); gmodal.classList.add('on'); }
+  if(h.includes('calok')){ goView('kalender'); connectDone(); }
 
   fillBars(); render();
 </script>
