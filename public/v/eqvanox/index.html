@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="sv">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex, nofollow">
+<title>Eqvanox State, prototyp</title>
+<style>
+  :root{
+    --bg-0:#0d0c1a; --bg-1:#1a1830; --bg-2:#221f3d;
+    --card:rgba(255,255,255,.05); --card-line:rgba(255,255,255,.10);
+    --text:#f4f2fb; --muted:#a9a6c4; --faint:#6f6b90;
+    --gold:#e8b96a; --cool:#7c83d6; --rose:#d68fb0;
+    --good:#8fd6a8; --low:#5a5780;
+  }
+  *{box-sizing:border-box; margin:0; padding:0}
+  html,body{height:100%}
+  body{
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+    background:radial-gradient(120% 90% at 50% 0%, #2a2750 0%, var(--bg-1) 38%, var(--bg-0) 100%);
+    color:var(--text); min-height:100dvh;
+    display:flex; align-items:center; justify-content:center; padding:24px 16px;
+  }
+  /* phone frame */
+  .phone{
+    width:100%; max-width:392px; height:812px; max-height:92dvh;
+    background:linear-gradient(180deg,var(--bg-1),var(--bg-0));
+    border:1px solid var(--card-line); border-radius:42px;
+    box-shadow:0 40px 90px rgba(0,0,0,.55), inset 0 1px 0 rgba(255,255,255,.06);
+    overflow:hidden; position:relative; display:flex; flex-direction:column;
+  }
+  .notch{position:absolute; top:10px; left:50%; transform:translateX(-50%); width:120px; height:26px; background:var(--bg-0); border-radius:0 0 16px 16px; z-index:30}
+  /* header */
+  header{padding:30px 22px 10px; display:flex; align-items:center; justify-content:space-between}
+  .brand{display:flex; align-items:center; gap:9px}
+  .brand .dot{width:11px; height:11px; border-radius:50%; background:radial-gradient(circle at 30% 30%, var(--gold), #b07d2e); box-shadow:0 0 14px rgba(232,185,106,.6)}
+  .brand .name{font-size:15px; letter-spacing:.22em; font-weight:600; text-transform:uppercase}
+  .date{font-size:12.5px; color:var(--muted)}
+  /* tone toggle */
+  .tone{margin:8px 22px 4px; background:rgba(0,0,0,.25); border:1px solid var(--card-line); border-radius:30px; padding:4px; display:flex; gap:4px}
+  .tone button{flex:1; border:0; background:transparent; color:var(--muted); font-size:12.5px; font-weight:600; padding:9px 0; border-radius:24px; cursor:pointer; transition:.25s; letter-spacing:.02em}
+  .tone button.on{background:linear-gradient(180deg,rgba(255,255,255,.13),rgba(255,255,255,.05)); color:var(--text); box-shadow:0 2px 10px rgba(0,0,0,.3)}
+  .tone .hint{flex-basis:100%; text-align:center; font-size:10.5px; color:var(--faint); padding-top:6px}
+  /* scroll body */
+  .screen{flex:1; overflow-y:auto; padding:6px 18px 14px; scrollbar-width:none}
+  .screen::-webkit-scrollbar{display:none}
+  .view{display:none; animation:fade .3s ease}
+  .view.on{display:block}
+  @keyframes fade{from{opacity:0; transform:translateY(6px)}to{opacity:1; transform:none}}
+  /* daily card */
+  .card{background:var(--card); border:1px solid var(--card-line); border-radius:24px; padding:22px; margin-top:10px; backdrop-filter:blur(8px)}
+  .moonrow{display:flex; align-items:center; gap:12px; margin-bottom:14px}
+  .moon{font-size:30px; filter:drop-shadow(0 0 12px rgba(124,131,214,.5))}
+  .headline{font-size:20px; font-weight:600; line-height:1.2}
+  .sub{font-size:12px; color:var(--faint); margin-top:2px; letter-spacing:.03em}
+  .body{font-size:14.5px; line-height:1.62; color:#ded9f3; margin-bottom:18px}
+  /* bars */
+  .bars{display:flex; flex-direction:column; gap:11px}
+  .bar{display:flex; align-items:center; gap:12px}
+  .bar .lbl{width:58px; font-size:12px; color:var(--muted)}
+  .track{flex:1; display:flex; gap:3px}
+  .seg{height:7px; flex:1; border-radius:3px; background:rgba(255,255,255,.07)}
+  .seg.f{background:linear-gradient(90deg,var(--cool),var(--gold))}
+  .bar .val{width:64px; text-align:right; font-size:11px; color:var(--faint)}
+  /* mood */
+  .mood{margin-top:18px; padding-top:16px; border-top:1px solid var(--card-line)}
+  .mood p{font-size:13px; color:var(--muted); margin-bottom:11px}
+  .faces{display:flex; gap:10px}
+  .faces button{flex:1; font-size:24px; background:rgba(255,255,255,.04); border:1px solid var(--card-line); border-radius:16px; padding:10px 0; cursor:pointer; transition:.2s; filter:grayscale(.5) opacity(.7)}
+  .faces button:hover{transform:translateY(-2px)}
+  .faces button.sel{filter:none; background:rgba(232,185,106,.16); border-color:var(--gold); transform:translateY(-2px)}
+  /* week strip */
+  .strip-title{font-size:12px; color:var(--muted); margin:24px 4px 10px; letter-spacing:.04em}
+  .strip{display:flex; gap:6px}
+  .day{flex:1; text-align:center; background:var(--card); border:1px solid var(--card-line); border-radius:14px; padding:9px 0 8px}
+  .day.now{border-color:var(--gold); box-shadow:0 0 0 1px rgba(232,185,106,.3)}
+  .day .dn{font-size:10px; color:var(--faint); text-transform:uppercase; letter-spacing:.04em}
+  .day .mp{font-size:14px; margin:4px 0}
+  .day .en{height:5px; width:60%; margin:0 auto; border-radius:3px}
+  /* calendar */
+  .cal-head{display:flex; justify-content:space-between; align-items:baseline; margin:14px 4px 12px}
+  .cal-head h2{font-size:18px; font-weight:600}
+  .cal-head span{font-size:11.5px; color:var(--faint)}
+  .grid{display:grid; grid-template-columns:repeat(7,1fr); gap:6px}
+  .gd{aspect-ratio:1; border-radius:12px; border:1px solid var(--card-line); display:flex; flex-direction:column; align-items:center; justify-content:center; gap:2px; font-size:11px; color:var(--muted); position:relative}
+  .gd .num{font-size:11px}
+  .gd .mm{font-size:9px; position:absolute; top:4px; right:5px; opacity:.8}
+  .gd.today{border-color:var(--gold)}
+  .legend{display:flex; align-items:center; gap:8px; margin:18px 4px 6px; font-size:11px; color:var(--muted)}
+  .legend .scale{flex:1; height:7px; border-radius:4px; background:linear-gradient(90deg,var(--low),var(--cool),var(--gold))}
+  .note{font-size:11.5px; color:var(--faint); line-height:1.55; margin:16px 4px 0}
+  /* mig */
+  .blueprint{background:linear-gradient(160deg,rgba(124,131,214,.16),rgba(232,185,106,.08)); border:1px solid var(--card-line); border-radius:24px; padding:24px; margin-top:12px}
+  .blueprint .eyebrow{font-size:11px; letter-spacing:.18em; text-transform:uppercase; color:var(--gold); margin-bottom:10px}
+  .blueprint h2{font-size:19px; font-weight:600; line-height:1.25; margin-bottom:12px}
+  .blueprint p{font-size:14px; line-height:1.62; color:#ded9f3}
+  .chips{display:flex; flex-wrap:wrap; gap:8px; margin-top:18px}
+  .chip{font-size:11.5px; color:var(--text); background:rgba(255,255,255,.07); border:1px solid var(--card-line); border-radius:20px; padding:6px 12px}
+  /* nav */
+  nav{display:flex; border-top:1px solid var(--card-line); background:rgba(0,0,0,.25); padding:8px 10px 14px}
+  nav button{flex:1; background:none; border:0; color:var(--faint); cursor:pointer; display:flex; flex-direction:column; align-items:center; gap:4px; font-size:10.5px; padding:6px 0}
+  nav button .ic{font-size:18px}
+  nav button.on{color:var(--gold)}
+  .disclaimer{text-align:center; font-size:10px; color:var(--faint); padding:10px 18px 0; line-height:1.5}
+</style>
+</head>
+<body>
+<div class="phone">
+  <div class="notch"></div>
+
+  <header>
+    <div class="brand"><span class="dot"></span><span class="name">Eqvanox</span></div>
+    <span class="date">Onsdag 17 juni</span>
+  </header>
+
+  <div class="tone" id="tone">
+    <button data-tone="van" class="on">Vän</button>
+    <button data-tone="astro">Astrologi</button>
+    <div class="hint">Samma motor. Bara tonen ändras.</div>
+  </div>
+
+  <div class="screen">
+
+    <!-- IDAG -->
+    <section class="view on" data-view="idag">
+      <div class="card">
+        <div class="moonrow">
+          <span class="moon">🌑</span>
+          <div>
+            <div class="headline" id="d-head">En lugn dag</div>
+            <div class="sub" id="d-sub">Nymåne, låg energi</div>
+          </div>
+        </div>
+        <p class="body" id="d-body"></p>
+        <div class="bars">
+          <div class="bar"><span class="lbl">Energi</span><div class="track" data-fill="3"></div><span class="val" id="b-energi"></span></div>
+          <div class="bar"><span class="lbl">Fokus</span><div class="track" data-fill="6"></div><span class="val" id="b-fokus"></span></div>
+          <div class="bar"><span class="lbl">Socialt</span><div class="track" data-fill="2"></div><span class="val" id="b-socialt"></span></div>
+        </div>
+        <div class="mood">
+          <p id="d-moodq">Hur känns det idag?</p>
+          <div class="faces">
+            <button>😣</button><button>😐</button><button>🙂</button><button>😄</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="strip-title">Veckans rytm</div>
+      <div class="strip" id="strip"></div>
+    </section>
+
+    <!-- KALENDER -->
+    <section class="view" data-view="kalender">
+      <div class="cal-head"><h2>Juni</h2><span>Periodens kvalitet, inte möten</span></div>
+      <div class="grid" id="grid"></div>
+      <div class="legend"><span>Lågt</span><div class="scale"></div><span>Högt</span></div>
+      <p class="note">Kalendern visar din egen energirytm som ett lager ovanpå tiden. Den
+      säger inte vad du ska göra, den visar hur perioden kan kännas så att du kan planera
+      med din rytm istället för emot den.</p>
+    </section>
+
+    <!-- MIG -->
+    <section class="view" data-view="mig">
+      <div class="blueprint">
+        <div class="eyebrow">Din blueprint</div>
+        <h2 id="m-head"></h2>
+        <p id="m-body"></p>
+        <div class="chips" id="m-chips"></div>
+      </div>
+      <p class="note">En enda sammanhållen karta, inte fem separata rapporter. Den byggs en
+      gång ur din födelseinfo och blir grunden för varje dagligt kort.</p>
+    </section>
+
+  </div>
+
+  <p class="disclaimer">Eqvanox ger perspektiv, inte spådom eller medicinska råd.</p>
+
+  <nav id="nav">
+    <button data-go="idag" class="on"><span class="ic">○</span>Idag</button>
+    <button data-go="kalender"><span class="ic">▦</span>Kalender</button>
+    <button data-go="mig"><span class="ic">◐</span>Mig</button>
+  </nav>
+</div>
+
+<script>
+  // ---- innehåll: samma siffror, två toner ----
+  const C = {
+    van:{
+      head:"En lugn dag", sub:"Nymåne, låg energi",
+      body:"Din energi ligger på sparlåga idag. Tunga uppgifter kan kännas extra motiga, bra att veta innan du sätter igång. Du kanske märker mindre lust att ta stora beslut. Notera om det stämmer för dig.",
+      bars:["lågt","högt","lågt"], moodq:"Hur känns det idag?",
+      mhead:"Du laddar inifrån och behöver din egen rytm",
+      mbody:"Du har stark fokusförmåga i lugna perioder och tappar lätt kraft när du pressar dig socialt för länge. Din styrka är uthållighet när något känns rätt, och din timing fungerar bäst när du får reagera istället för att tvinga fram.",
+      chips:["Inåtvänd laddning","Stark fokus","Uthållig","Reagerar hellre än initierar"]
+    },
+    astro:{
+      head:"Nymåne i Tvillingarna", sub:"Måne ☌ Mars, Saturn □",
+      body:"Månen är mörk och möter din Mars i tolfte huset, ett introvert fönster öppnas. Som Generator med sakral auktoritet kan det kännas naturligt att vänta på något att reagera på snarare än att initiera. Saturns kvadratur ber dig sakta ner, notera om du känner det.",
+      bars:["sakral paus","12:e huset","introvert"], moodq:"Hur resonerar detta?",
+      mhead:"Sol i Väduren, måne i Kräftan, Generator",
+      mbody:"Stigande Vågen, sakral auktoritet i Human Design. Vedisk Rohini nakshatra, kinesiskt år Metallhästen. En blåkopia byggd för att reagera på livet, inte forcera det. Tolfte huset betonat: mycket sker i det inre först.",
+      chips:["☉ Väduren","☽ Kräftan","Generator","Metallhäst","Rohini"]
+    }
+  };
+
+  let tone="van";
+
+  function fillBars(){
+    document.querySelectorAll('.track').forEach(t=>{
+      const n=+t.dataset.fill; t.innerHTML='';
+      for(let i=0;i<8;i++){const s=document.createElement('span'); s.className='seg'+(i<n?' f':''); t.appendChild(s);}
+    });
+  }
+
+  function render(){
+    const d=C[tone];
+    d_head.textContent=d.head; d_sub.textContent=d.sub; d_body.textContent=d.body;
+    d_moodq.textContent=d.moodq;
+    b_energi.textContent=d.bars[0]; b_fokus.textContent=d.bars[1]; b_socialt.textContent=d.bars[2];
+    m_head.textContent=d.mhead; m_body.textContent=d.mbody;
+    m_chips.innerHTML=d.chips.map(c=>`<span class="chip">${c}</span>`).join('');
+  }
+  // korta id-referenser
+  const d_head=document.getElementById('d-head'), d_sub=document.getElementById('d-sub'),
+    d_body=document.getElementById('d-body'), d_moodq=document.getElementById('d-moodq'),
+    b_energi=document.getElementById('b-energi'), b_fokus=document.getElementById('b-fokus'),
+    b_socialt=document.getElementById('b-socialt'), m_head=document.getElementById('m-head'),
+    m_body=document.getElementById('m-body'), m_chips=document.getElementById('m-chips');
+
+  // tontoggle
+  document.getElementById('tone').addEventListener('click',e=>{
+    const b=e.target.closest('button[data-tone]'); if(!b) return;
+    tone=b.dataset.tone;
+    document.querySelectorAll('#tone button').forEach(x=>x.classList.toggle('on',x===b));
+    render();
+  });
+
+  // navigering
+  document.getElementById('nav').addEventListener('click',e=>{
+    const b=e.target.closest('button[data-go]'); if(!b) return;
+    const v=b.dataset.go;
+    document.querySelectorAll('#nav button').forEach(x=>x.classList.toggle('on',x===b));
+    document.querySelectorAll('.view').forEach(x=>x.classList.toggle('on',x.dataset.view===v));
+    document.querySelector('.screen').scrollTop=0;
+  });
+
+  // humör
+  document.querySelectorAll('.faces button').forEach(b=>b.addEventListener('click',()=>{
+    document.querySelectorAll('.faces button').forEach(x=>x.classList.remove('sel'));
+    b.classList.add('sel');
+  }));
+
+  // veckostrip
+  const days=["må","ti","on","to","fr","lö","sö"];
+  const phase=["🌑","🌒","🌒","🌓","🌓","🌔","🌔"];
+  const wEnergy=[3,4,4,5,6,7,7];
+  function eColor(n){ // 1..8 -> färg
+    if(n<=3) return "var(--low)";
+    if(n<=5) return "var(--cool)";
+    return "var(--gold)";
+  }
+  document.getElementById('strip').innerHTML=days.map((d,i)=>{
+    const now=i===2?' now':'';
+    return `<div class="day${now}"><div class="dn">${d}</div><div class="mp">${phase[i]}</div>
+      <div class="en" style="background:${eColor(wEnergy[i])}"></div></div>`;
+  }).join('');
+
+  // kalendergrid (juni, börjar måndag)
+  const startBlank=6; // 1 juni = söndag -> 6 tomma om vecka börjar måndag
+  let cells='';
+  for(let i=0;i<startBlank;i++) cells+=`<div class="gd" style="opacity:.18"></div>`;
+  for(let day=1; day<=30; day++){
+    // deterministiskt rytmmönster
+    const e=Math.round(4.5+3.4*Math.sin((day/29.5)*6.283 - 1.1));
+    const mm = day===1?"🌑": day===8?"🌓": day===15?"🌕": day===23?"🌗": "";
+    const today=day===17?' today':'';
+    const col=eColor(Math.max(1,Math.min(8,e)));
+    cells+=`<div class="gd${today}" style="background:linear-gradient(180deg, ${col}22, transparent)">
+      <span class="mm">${mm}</span><span class="num" style="color:${day===17?'var(--gold)':''}">${day}</span></div>`;
+  }
+  document.getElementById('grid').innerHTML=cells;
+
+  fillBars(); render();
+</script>
+</body>
+</html>
