@@ -24,7 +24,22 @@ const clientIp = (req) => req.headers.get("cf-connecting-ip") || (req.headers.ge
 
 const PW = (env) => env.MARIA_PW || "1441";
 const ADMIN = "maria-admin-3f9q7x";     // hindrar bara oavsiktlig överskrivning av baslinjen; ej en hemlighet
-const K_BASE = "maria:baseline", K_REASON = "maria:reasoning", K_CHAT = "maria:chat";
+const K_BASE = "maria:baseline", K_REASON = "maria:reasoning", K_CHAT = "maria:chat", K_OV = "maria:overrides";
+
+// Delat "override-lager": besökare (t.ex. Fredrik) kan spara nya värden för ALLA utan att röra
+// baslinjen (originalet spåras alltid). Bara vitlistade fält får överskridas. Värden clampas.
+const OV_FIELDS = new Set([
+  "karlpers.totalpris", "karlpers.agarandelPct", "karlpers.maklararvode", "karlpers.anskaffning1975", "karlpers.forbattringar",
+  "grimvagen.varde", "grimvagen.lan", "grimvagen.anskaffning", "grimvagen.forbattringar", "grimvagen.maklararvodePct",
+  "vettershaga.tomt", "vettershaga.lagfartPct", "vettershaga.avlopp", "vettershaga.brunn", "vettershaga.el",
+  "vettershaga.byggsats", "vettershaga.grund", "vettershaga.montage", "vettershaga.installation", "vettershaga.malning",
+  "vettershaga.kringkostnad", "vettershaga.buffertPct",
+  "privatekonomi.fondsparande", "privatekonomi.pensionNetto", "privatekonomi.lonNetto", "privatekonomi.frejgatanHyra", "privatekonomi.driftVettershagaMan",
+  "nyahuset.lan", "nyahuset.rantaPct", "nyahuset.amorteringPct",
+]);
+const RLOV_MAX = 60, RLOV_WINDOW = 600;   // max 60 spar-anrop per IP / 10 min
+const rlovKey = (i) => `maria:rlov:${i}`;
+const getPath = (o, p) => p.split(".").reduce((a, k) => (a == null ? a : a[k]), o);
 const CHAT_CAP = 500, BODY_MAX = 1500, NAME_MAX = 40, RL_MAX = 30, RL_WINDOW = 600;
 const rlKey = (i) => `maria:rl:${i}`;
 const sanitize = (s, max) => (s || "").toString().replace(/[\x00-\x1F\x7F]/g, " ").replace(/\s+/g, " ").trim().slice(0, max);
@@ -52,10 +67,10 @@ export async function onRequestGet(context) {
     return Response.json({ error: "unauthorized" }, { status: 401 });
   }
   try {
-    const [baseline, reasoning, chat] = await Promise.all([
-      readJson(env, K_BASE, null), readJson(env, K_REASON, null), readJson(env, K_CHAT, []),
+    const [baseline, reasoning, chat, overrides] = await Promise.all([
+      readJson(env, K_BASE, null), readJson(env, K_REASON, null), readJson(env, K_CHAT, []), readJson(env, K_OV, {}),
     ]);
-    return Response.json({ baseline, reasoning, chat });
+    return Response.json({ baseline, reasoning, chat, overrides });
   } catch (e) { return Response.json({ error: String(e).slice(0, 200) }, { status: 500 }); }
 }
 
@@ -65,7 +80,41 @@ export async function onRequestPost(context) {
   if (!kvOk(env)) return Response.json({ error: "kv_not_configured" }, { status: 500 });
   let body = {}; try { body = await request.json(); } catch {}
   if ((body.pw || "") !== PW(env)) return Response.json({ error: "unauthorized" }, { status: 401 });
-  if (u.searchParams.get("kind") !== "chat") return Response.json({ error: "bad kind" }, { status: 400 });
+  const kind = u.searchParams.get("kind");
+
+  // Delat spara-lager: sätt nya värden för alla (attribuerat) eller återställ ett fält till original.
+  if (kind === "override") {
+    const ip = clientIp(request);
+    const rlov = parseInt((await kvGet(env, rlovKey(ip))) || "0", 10) || 0;
+    if (rlov >= RLOV_MAX) return Response.json({ error: "rate_limited" }, { status: 429 });
+    const baseline = await readJson(env, K_BASE, null);
+    if (!baseline) return Response.json({ error: "no_baseline" }, { status: 400 });
+    const overrides = await readJson(env, K_OV, {});
+    const by = sanitize(body.name, NAME_MAX) || "Någon";
+    const note = sanitize(body.note, 300);
+    const ts = Date.now();
+    if (body.clearPath) {
+      delete overrides[body.clearPath];                       // återställ ett fält till original
+    } else if (Array.isArray(body.changes) && body.changes.length) {
+      for (const ch of body.changes) {
+        const p = ch && ch.path;
+        if (!OV_FIELDS.has(p)) continue;                      // bara vitlistade fält
+        let v = Number(ch.value);
+        if (!isFinite(v)) continue;
+        v = Math.max(0, Math.min(v, /Pct$/.test(p) ? 100 : 1e9));
+        const base = Number(getPath(baseline, p));
+        if (v === base) delete overrides[p];                  // lika med original → ingen override
+        else overrides[p] = { v, by, ts, note: note || undefined };
+      }
+    } else {
+      return Response.json({ error: "bad_override" }, { status: 400 });
+    }
+    await kvPut(env, K_OV, JSON.stringify(overrides));
+    await kvPut(env, rlovKey(ip), String(rlov + 1), RLOV_WINDOW);
+    return Response.json({ overrides });
+  }
+
+  if (kind !== "chat") return Response.json({ error: "bad kind" }, { status: 400 });
   const name = sanitize(body.name, NAME_MAX) || "Anonym";
   const message = sanitize(body.message, BODY_MAX);
   if (!message) return Response.json({ error: "empty" }, { status: 400 });

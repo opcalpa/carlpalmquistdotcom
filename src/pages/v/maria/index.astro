@@ -66,6 +66,9 @@
     .mf-flag{display:inline-block;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.3px;border-radius:6px;padding:2px 7px;margin-left:6px;vertical-align:middle}
     .mf-schablon{background:var(--warn-tint);color:var(--warn)}
     .mf-komplettera{background:var(--bad-tint);color:var(--bad)}
+    .mf-justerad{background:var(--accent-tint);color:var(--accent);cursor:help}
+    .mf-revert{margin-left:5px;font-size:10px;font-weight:700;color:var(--accent);cursor:pointer;border-bottom:1px dashed var(--accent);vertical-align:middle}
+    .mf-revert:hover{color:var(--accent-h)}
     /* Cards + tabell */
     .mf-grid{display:grid;grid-template-columns:1fr 1fr;gap:18px}
     .mf-card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);padding:20px 22px}
@@ -142,7 +145,9 @@
     var API = "/api/maria";
     var pw = sessionStorage.getItem("maria_pw") || "";
     var baseline = null, reasoning = null, chat = [];
-    var work = null; // lokal sandlåda
+    var overrides = {};   // delat spara-lager (path -> {v, by, ts, note}); baslinjen rörs ALDRIG
+    var shared = null;    // baslinje + overrides = den delade sanningen alla ser
+    var work = null;      // lokal sandlåda (dina osparade ändringar ovanpå shared)
 
     // ---- format ----
     function kr(n){ return (Math.round(n)||0).toLocaleString("sv-SE") + " kr"; }
@@ -152,6 +157,8 @@
     function clone(o){ return JSON.parse(JSON.stringify(o)); }
     function get(o,p){ return p.split(".").reduce(function(a,k){return a==null?a:a[k];},o); }
     function set(o,p,v){ var ks=p.split("."),last=ks.pop(),c=o; ks.forEach(function(k){c=c[k]=c[k]||{};}); c[last]=v; }
+    function applyOverrides(base,ov){ var o=clone(base); Object.keys(ov||{}).forEach(function(p){ if(ov[p]&&typeof ov[p].v!=="undefined") set(o,p,ov[p].v); }); return o; }
+    function provDay(ts){ try{ return new Date(ts).toLocaleDateString("sv-SE",{day:"numeric",month:"short",year:"numeric"}); }catch(e){ return ""; } }
 
     var FLAGS={
       "karlpers.anskaffning1975":"schablon","karlpers.forbattringar":"komplettera",
@@ -201,9 +208,18 @@
     // ---- render helpers ----
     function ed(path,type){
       type=type||"kr"; var v=get(work,path); if(v==null)v=0;
+      var fmt=type==="pct"?pct:kr;
       var f=FLAGS[path];
       var badge=f==="komplettera"?'<span class="mf-flag mf-komplettera">kompletteras</span>':(f==="schablon"?'<span class="mf-flag mf-schablon">schablon</span>':"");
-      return '<span class="mf-edit" data-path="'+path+'" data-type="'+type+'" tabindex="0" title="Dubbelklicka för att ändra">'+(type==="pct"?pct(v):kr(v))+'</span>'+badge;
+      var ovBadge="";
+      var ov=overrides[path];
+      if(ov&&typeof ov.v!=="undefined"){
+        var orig=get(baseline,path); if(orig==null)orig=0;
+        var title="Original: "+fmt(orig)+" · ändrat av "+(ov.by||"någon")+(ov.ts?(" · "+provDay(ov.ts)):"")+(ov.note?("\n"+ov.note):"");
+        ovBadge='<span class="mf-flag mf-justerad" title="'+esc(title)+'">justerad</span>'
+          +'<span class="mf-revert" data-revert="'+esc(path)+'" title="Återställ till original för alla">↺</span>';
+      }
+      return '<span class="mf-edit" data-path="'+path+'" data-type="'+type+'" tabindex="0" title="Dubbelklicka för att ändra">'+fmt(v)+'</span>'+badge+ovBadge;
     }
     function row(label,val,o){ o=o||{};
       return '<tr class="'+(o.calc?"mf-calc":"")+(o.strong?" mf-strong":"")+(o.hi?" mf-hi-"+o.hi:"")+'"><td class="mf-lbl">'+label+(o.note?'<span class="mf-note">'+o.note+'</span>':"")+'</td><td class="mf-val">'+val+'</td></tr>'; }
@@ -212,6 +228,7 @@
 
     function draw(){
       var S=work, c=compute(S);
+      var unsaved=diffList().length;
       var goBadge=c.buffert>=0?'<span class="mf-pill mf-ok">Buffert '+kr(c.buffert)+'</span>':'<span class="mf-pill mf-bad">Underskott '+kr(-c.buffert)+'</span>';
       var kvarBadge=c.kvarPension<5000?'<span class="mf-pill mf-warn">Tight — '+kr(c.kvarPension)+'/mån kvar</span>':'<span class="mf-pill mf-ok">'+kr(c.kvarPension)+'/mån kvar</span>';
       var reasonHtml="";
@@ -222,14 +239,14 @@
         if(reasoning.uppdaterad){ reasonHtml+='<p class="muted" style="font-size:11.5px;margin-top:12px">Senast uppdaterad: '+esc(reasoning.uppdaterad)+'</p>'; }
         reasonHtml+='</div>';
       }
-      var chatHtml='<div class="mf-sec"><h3>💬 Familjechatt</h3><div class="muted" style="font-size:13px;margin-bottom:6px">Ändringar du gör ovan är bara din egen — dela dem här med “Föreslå mina ändringar”.</div><div class="chat-feed" id="chat-feed"></div>'
+      var chatHtml='<div class="mf-sec"><h3>💬 Familjechatt</h3><div class="muted" style="font-size:13px;margin-bottom:6px">💾 <b>Spara till alla</b> gör dina ändringar delade direkt (märks “justerad”). 📤 <b>Föreslå i chatten</b> om du hellre vill bolla först.</div><div class="chat-feed" id="chat-feed"></div>'
         +'<div class="chat-form"><input class="name" id="chat-name" placeholder="Ditt namn" maxlength="40" />'
         +'<textarea id="chat-msg" rows="2" placeholder="Skriv ett meddelande…" maxlength="1500"></textarea>'
         +'<div><button class="mf-btn primary" id="chat-send">Skicka</button></div></div></div>';
 
       document.getElementById("app").innerHTML =
       '<div class="mf-head"><span class="mf-eyebrow">🏡 Familjekalkyl</span><h2>Marias flytt</h2>'
-      +'<div class="mf-sub">Karlpers säljs → nytt sommarhus i Vettershaga, Grimvägen säljs, vinterboende hyrs (Frejgatan). Dubbelklicka valfritt belopp — det ändrar bara <b>din egen kopia</b>, originalet ligger kvar.</div></div>'
+      +'<div class="mf-sub">Karlpers säljs → nytt sommarhus i Vettershaga, Grimvägen säljs, vinterboende hyrs (Frejgatan). Dubbelklicka ett belopp för att räkna om. Ändringar är dina egna tills du <b>💾 Sparar till alla</b> — då blir de delade och märks <span class="mf-flag mf-justerad">justerad</span> (originalet spåras alltid — hovra flaggan).</div></div>'
       // Verdict-banner (viktigaste siffran först)
       +'<div class="mf-verdict">'
       +'<div class="v-item"><div class="v-label">Buffert efter bygge</div><div class="v-num '+(c.buffert>=0?"pos":"neg")+'">'+(c.buffert>=0?kr(c.buffert):"−"+kr(-c.buffert))+'</div></div>'
@@ -237,7 +254,11 @@
       +'<div class="v-item"><div class="v-label">Kvar/mån efter pension</div><div class="v-num '+(c.kvarPension<5000?"warnv":"pos")+'">'+kr(c.kvarPension)+'</div></div>'
       +'<div class="v-take">'+takeaway(c)+'</div>'
       +'</div>'
-      +'<div class="mf-toolbar"><button class="mf-btn" id="btn-reset">↺ Återställ till original</button><button class="mf-btn primary" id="btn-suggest">📤 Föreslå mina ändringar</button></div>'
+      +'<div class="mf-toolbar">'
+      +'<button class="mf-btn primary" id="btn-save"'+(unsaved?'':' disabled style="opacity:.5;cursor:default"')+'>💾 Spara till alla'+(unsaved?(' ('+unsaved+')'):'')+'</button>'
+      +'<button class="mf-btn" id="btn-suggest">📤 Föreslå i chatten</button>'
+      +'<button class="mf-btn" id="btn-reset">↺ Ångra mina osparade</button>'
+      +'</div>'
       +'<div class="mf-legend"><span><span class="mf-flag mf-schablon">schablon</span> gissning</span><span><span class="mf-flag mf-komplettera">kompletteras</span> behöver riktig uppgift</span><span>✎ dubbelklicka ett belopp</span></div>'
       +'<div class="mf-grid">'
       +'<section class="mf-card"><h3>🏡 Karlpers <span class="mf-tag">fritidshus · inget uppskov</span></h3><table class="mf-table">'
@@ -333,18 +354,52 @@
         el.addEventListener("dblclick",start);
         el.addEventListener("keydown",function(e){ if(e.key==="Enter"){e.preventDefault();start();} });
       });
-      document.getElementById("btn-reset").onclick=function(){ work=clone(baseline); localStorage.removeItem("maria_work"); draw(); };
+      document.getElementById("btn-reset").onclick=function(){ work=clone(shared); localStorage.removeItem("maria_work"); draw(); };
       document.getElementById("btn-suggest").onclick=suggest;
+      var bs=document.getElementById("btn-save"); if(bs) bs.onclick=saveToAll;
+      Array.prototype.forEach.call(document.querySelectorAll(".mf-revert"),function(el){ el.onclick=function(){ revertOverride(el.getAttribute("data-revert")); }; });
       document.getElementById("chat-send").onclick=sendChat;
       var nm=document.getElementById("chat-name"); if(nm) nm.value=localStorage.getItem("maria_name")||"";
     }
 
     function save(){ try{ localStorage.setItem("maria_work",JSON.stringify(work)); }catch(e){} }
 
+    // Osparade lokala ändringar (work vs den delade sanningen) över de sparbara fälten.
+    function diffList(){
+      var d=[];
+      FIELDS.forEach(function(f){ var a=get(shared,f[0])||0,b=get(work,f[0])||0; if(a!==b) d.push({path:f[0],label:f[1],type:f[2],from:a,to:b}); });
+      return d;
+    }
+    // Spara dina ändringar för ALLA (delat override-lager, attribuerat). Baslinjen rörs aldrig.
+    function saveToAll(){
+      var d=diffList();
+      if(!d.length){ alert("Du har inga osparade ändringar att spara."); return; }
+      var nameEl=document.getElementById("chat-name");
+      var name=((nameEl&&nameEl.value)||localStorage.getItem("maria_name")||"").trim();
+      if(!name){ name=(prompt("Ditt namn (visas som den som ändrade):")||"").trim(); if(!name)return; if(nameEl)nameEl.value=name; }
+      localStorage.setItem("maria_name",name);
+      var summary=d.map(function(x){ var fmt=x.type==="pct"?pct:kr; return "• "+x.label+": "+fmt(x.from)+" → "+fmt(x.to); }).join("\n");
+      if(!confirm("Spara dessa ändringar för ALLA i familjen?\n\n"+summary+"\n\nOriginalet sparas kvar och kan alltid återställas.")) return;
+      var note=(prompt("Valfri notering (varför? t.ex. \"offert från byggaren\"):")||"").trim();
+      api("POST","&kind=override",{pw:pw,name:name,note:note,changes:d.map(function(x){return {path:x.path,value:x.to};})}).then(function(r){
+        if(r.ok&&r.j.overrides){ overrides=r.j.overrides; shared=applyOverrides(baseline,overrides); work=clone(shared); save(); draw(); }
+        else alert("Kunde inte spara: "+((r.j&&r.j.error)||r.status));
+      });
+    }
+    // Återställ ETT fält till originalet för alla (tar bort dess override).
+    function revertOverride(path){
+      var ov=overrides[path]; if(!ov)return;
+      if(!confirm("Återställ detta fält till originalet för alla?"+(ov.by?("\n\n(Tar bort ändringen av "+ov.by+".)"):""))) return;
+      api("POST","&kind=override",{pw:pw,clearPath:path}).then(function(r){
+        if(r.ok&&r.j.overrides){ overrides=r.j.overrides; shared=applyOverrides(baseline,overrides); set(work,path,get(baseline,path)); save(); draw(); }
+        else alert("Kunde inte återställa: "+((r.j&&r.j.error)||r.status));
+      });
+    }
+
     function suggest(){
       var diffs=[];
-      FIELDS.forEach(function(f){ var a=get(baseline,f[0]),b=get(work,f[0]); if((a||0)!==(b||0)){ var fmt=f[2]==="pct"?pct:kr; diffs.push(f[1]+": "+fmt(a)+" → "+fmt(b)); } });
-      var bp=get(baseline,"nyahuset.permanent"),wp=get(work,"nyahuset.permanent");
+      FIELDS.forEach(function(f){ var a=get(shared,f[0]),b=get(work,f[0]); if((a||0)!==(b||0)){ var fmt=f[2]==="pct"?pct:kr; diffs.push(f[1]+": "+fmt(a)+" → "+fmt(b)); } });
+      var bp=get(shared,"nyahuset.permanent"),wp=get(work,"nyahuset.permanent");
       if(!!bp!==!!wp) diffs.push("Bostadstyp: "+(bp?"Permanent":"Fritidshus")+" → "+(wp?"Permanent":"Fritidshus"));
       var note=prompt(diffs.length?("Föreslå dessa ändringar i chatten?\n\n"+diffs.join("\n")+"\n\nLägg ev. till en motivering (valfritt):"):"Du har inte ändrat något ännu. Skriv ett fritt förslag istället:");
       if(note===null)return;
@@ -376,10 +431,11 @@
       return api("GET","&kind=state").then(function(r){
         if(r.status===401){ throw new Error("pw"); }
         if(!r.ok){ throw new Error(r.j.error||("HTTP "+r.status)); }
-        baseline=r.j.baseline; reasoning=r.j.reasoning; chat=r.j.chat||[];
+        baseline=r.j.baseline; reasoning=r.j.reasoning; chat=r.j.chat||[]; overrides=r.j.overrides||{};
         if(!baseline){ document.getElementById("app").innerHTML='<p class="muted">Baslinjen är inte inlagd än.</p>'; document.getElementById("app").hidden=false; document.getElementById("gate").hidden=true; return; }
+        shared=applyOverrides(baseline,overrides);
         var savedWork=null; try{ savedWork=JSON.parse(localStorage.getItem("maria_work")||"null"); }catch(e){}
-        work=savedWork||clone(baseline);
+        work=savedWork||clone(shared);
         document.getElementById("gate").hidden=true; document.getElementById("app").hidden=false;
         draw();
       });
