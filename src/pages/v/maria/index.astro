@@ -1,0 +1,361 @@
+---
+// Marias flytt-kalkyl — PRIVAT familjesida. Medvetet UTAN Layout.astro → ingen PostHog/session-recording
+// på mammas ekonomi. All känslig data hämtas lösenordsgatat från KV (/api/maria) — inget i denna källa.
+// Lokal sandlåda: var och en skruvar sin egen kopia (localStorage), original ligger kvar i KV.
+---
+<!doctype html>
+<html lang="sv">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="robots" content="noindex, nofollow" />
+  <title>Marias flytt</title>
+  <style>
+    :root{--bg:#0f1115;--panel:#161922;--panel2:#1d212c;--line:#272c38;--txt:#e6e8ee;--dim:#9aa3b2;--accent:#6c8cff;--ok:#37c184;--warn:#e6b450;--hi:#e0607a}
+    *{box-sizing:border-box}
+    body{margin:0;background:var(--bg);color:var(--txt);font:14px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Inter,sans-serif}
+    a{color:var(--accent)}
+    .wrap{max-width:1200px;margin:0 auto;padding:24px 18px 80px}
+    /* Gate */
+    #gate{max-width:360px;margin:16vh auto;text-align:center;padding:24px}
+    #gate h1{font-size:20px;margin:0 0 6px}
+    #gate p{color:var(--dim);font-size:13px;margin:0 0 16px}
+    #gate input{width:100%;background:var(--panel2);border:1px solid var(--line);border-radius:8px;color:var(--txt);font-size:18px;letter-spacing:4px;text-align:center;padding:10px}
+    #gate input:focus{outline:none;border-color:var(--accent)}
+    #gate button{margin-top:12px;width:100%;background:var(--accent);color:#fff;border:0;border-radius:8px;padding:10px;font-weight:600;cursor:pointer}
+    #gate .err{color:var(--hi);font-size:12px;min-height:16px;margin-top:8px}
+    /* Kalkyl (samma språk som pappen) */
+    .mf-head h2{margin:0 0 4px;font-size:22px}
+    .mf-sub{color:var(--dim);font-size:13px;max-width:820px}
+    .mf-toolbar{display:flex;gap:8px;flex-wrap:wrap;margin:14px 0}
+    .mf-btn{background:var(--panel2);border:1px solid var(--line);color:var(--txt);font-size:13px;font-weight:600;border-radius:8px;padding:7px 13px;cursor:pointer}
+    .mf-btn:hover{border-color:var(--accent);color:var(--accent)}
+    .mf-btn.primary{background:var(--accent);color:#fff;border-color:var(--accent)}
+    .mf-legend{display:flex;flex-wrap:wrap;gap:16px;align-items:center;font-size:12px;color:var(--dim);margin-bottom:8px}
+    .mf-flag{display:inline-block;font-size:9.5px;font-weight:700;text-transform:uppercase;letter-spacing:.3px;border-radius:6px;padding:1px 6px;margin-left:6px;vertical-align:middle}
+    .mf-schablon{background:color-mix(in srgb,var(--warn) 16%,transparent);color:var(--warn)}
+    .mf-komplettera{background:color-mix(in srgb,var(--hi) 16%,transparent);color:var(--hi)}
+    .mf-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+    .mf-card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:16px 18px}
+    .mf-card-wide,.mf-card-sum{grid-column:1/-1}
+    .mf-card h3{margin:0 0 12px;font-size:16px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+    .mf-subh{margin:16px 0 8px;font-size:12px;text-transform:uppercase;letter-spacing:.5px;color:var(--dim)}
+    .mf-tag{font-size:10.5px;font-weight:600;color:var(--dim);background:var(--panel2);border:1px solid var(--line);border-radius:999px;padding:2px 9px}
+    .mf-table{width:100%;border-collapse:collapse}
+    .mf-table td{padding:5px 0;font-size:13.5px;vertical-align:top}
+    .mf-lbl{color:var(--dim);padding-right:12px}
+    .mf-val{text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums}
+    .mf-note{display:block;font-size:11px;color:var(--dim);opacity:.8;margin-top:2px;font-style:italic}
+    .mf-calc .mf-lbl,.mf-calc .mf-val,.mf-strong .mf-lbl{color:var(--txt)}
+    .mf-strong td{font-weight:700}
+    .mf-hi-ok .mf-val{color:var(--ok)}
+    .mf-hi-warn .mf-val{color:var(--warn)}
+    .mf-hi-hi .mf-val{color:var(--hi)}
+    .mf-divider td{border-top:1px solid var(--line);padding:0;height:6px}
+    .mf-inline-res{color:var(--dim);font-size:12px;margin-left:4px}
+    .mf-edit{cursor:text;border-bottom:1px dashed color-mix(in srgb,var(--accent) 45%,transparent);padding:0 1px;border-radius:3px}
+    .mf-edit:hover{background:color-mix(in srgb,var(--accent) 10%,transparent)}
+    .mf-input{width:120px;background:var(--panel2);border:1px solid var(--accent);border-radius:6px;color:var(--txt);font-size:13px;padding:2px 6px;text-align:right;font-variant-numeric:tabular-nums}
+    .mf-input:focus{outline:none}
+    .mf-callout{margin-top:12px;font-size:12.5px;line-height:1.5;border-radius:10px;padding:9px 12px;border:1px solid var(--line)}
+    .mf-callout-warn{background:color-mix(in srgb,var(--warn) 9%,transparent);border-color:color-mix(in srgb,var(--warn) 35%,var(--line))}
+    .mf-callout-hi{background:color-mix(in srgb,var(--hi) 9%,transparent);border-color:color-mix(in srgb,var(--hi) 35%,var(--line))}
+    .mf-callout-ok{background:color-mix(in srgb,var(--ok) 9%,transparent);border-color:color-mix(in srgb,var(--ok) 35%,var(--line))}
+    .mf-pill{display:inline-block;font-weight:700;font-size:13px;border-radius:999px;padding:2px 12px}
+    .mf-ok{background:color-mix(in srgb,var(--ok) 16%,transparent);color:var(--ok)}
+    .mf-warn{background:color-mix(in srgb,var(--warn) 16%,transparent);color:var(--warn)}
+    .mf-bad{background:color-mix(in srgb,var(--hi) 16%,transparent);color:var(--hi)}
+    .mf-toggle{display:inline-flex;gap:3px;background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:3px;margin-bottom:10px}
+    .mf-tg{border:0;background:none;color:var(--dim);font-size:13px;font-weight:600;padding:6px 14px;border-radius:8px;cursor:pointer}
+    .mf-tg.on{background:var(--accent);color:#fff}
+    /* Resonemang + chatt */
+    .mf-sec{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:16px 18px;margin-top:16px}
+    .mf-sec h3{margin:0 0 10px;font-size:16px}
+    .mf-sec h4{margin:14px 0 6px;font-size:12px;text-transform:uppercase;letter-spacing:.5px;color:var(--dim)}
+    .mf-sec ul{margin:0;padding-left:18px;line-height:1.7;font-size:13.5px}
+    .mf-sec li{margin-bottom:4px}
+    .chat-feed{display:flex;flex-direction:column;gap:10px;margin:12px 0}
+    .chat-msg{background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:9px 12px}
+    .chat-msg.sugg{border-color:color-mix(in srgb,var(--accent) 45%,var(--line));background:color-mix(in srgb,var(--accent) 7%,var(--panel2))}
+    .chat-meta{font-size:11px;color:var(--dim);margin-bottom:3px}
+    .chat-meta b{color:var(--txt)}
+    .chat-body{font-size:13.5px;white-space:pre-wrap}
+    .chat-form{display:flex;flex-direction:column;gap:8px;margin-top:10px}
+    .chat-form input,.chat-form textarea{background:var(--panel2);border:1px solid var(--line);border-radius:8px;color:var(--txt);font:inherit;padding:8px 10px}
+    .chat-form input:focus,.chat-form textarea:focus{outline:none;border-color:var(--accent)}
+    .chat-form .row{display:flex;gap:8px}
+    .chat-form input.name{max-width:200px}
+    .muted{color:var(--dim)}
+    @media(max-width:820px){.mf-grid{grid-template-columns:1fr}}
+  </style>
+</head>
+<body>
+  <div id="gate">
+    <h1>🔒 Marias flytt</h1>
+    <p>Privat familjesida. Skriv koden.</p>
+    <input id="gate-pw" inputmode="numeric" autocomplete="off" placeholder="••••" />
+    <button id="gate-go">Öppna</button>
+    <div class="err" id="gate-err"></div>
+  </div>
+  <div class="wrap" id="app" hidden></div>
+
+  <script is:inline>
+  (function () {
+    var API = "/api/maria";
+    var pw = sessionStorage.getItem("maria_pw") || "";
+    var baseline = null, reasoning = null, chat = [];
+    var work = null; // lokal sandlåda
+
+    // ---- format ----
+    function kr(n){ return (Math.round(n)||0).toLocaleString("sv-SE") + " kr"; }
+    function pct(n){ return (Math.round((n||0)*100)/100).toLocaleString("sv-SE") + " %"; }
+    function parseKr(s){ var n=parseFloat(String(s).replace(/\s/g,"").replace(/[^\d.-]/g,"")); return isNaN(n)?0:Math.round(n); }
+    function parsePct(s){ var n=parseFloat(String(s).replace(/\s/g,"").replace(",",".").replace(/[^\d.-]/g,"")); return isNaN(n)?0:n; }
+    function clone(o){ return JSON.parse(JSON.stringify(o)); }
+    function get(o,p){ return p.split(".").reduce(function(a,k){return a==null?a:a[k];},o); }
+    function set(o,p,v){ var ks=p.split("."),last=ks.pop(),c=o; ks.forEach(function(k){c=c[k]=c[k]||{};}); c[last]=v; }
+
+    var FLAGS={
+      "karlpers.anskaffning1975":"schablon","karlpers.forbattringar":"komplettera",
+      "grimvagen.varde":"schablon","grimvagen.anskaffning":"komplettera","grimvagen.forbattringar":"komplettera","grimvagen.maklararvodePct":"schablon",
+      "vettershaga.brunn":"schablon","vettershaga.el":"schablon","vettershaga.grund":"schablon","vettershaga.montage":"komplettera",
+      "vettershaga.installation":"schablon","vettershaga.malning":"schablon","vettershaga.kringkostnad":"schablon","vettershaga.buffertPct":"schablon",
+      "privatekonomi.driftVettershagaMan":"schablon","nyahuset.lan":"komplettera","nyahuset.rantaPct":"schablon","nyahuset.amorteringPct":"schablon"
+    };
+    // paths för diff (Föreslå ändring)
+    var FIELDS=[
+      ["karlpers.totalpris","Karlpers totalpris","kr"],["karlpers.agarandelPct","Ägarandel","pct"],["karlpers.maklararvode","Karlpers mäklararvode","kr"],
+      ["karlpers.anskaffning1975","Karlpers anskaffning 1975","kr"],["karlpers.forbattringar","Karlpers förbättringar","kr"],
+      ["grimvagen.varde","Grimvägen värde","kr"],["grimvagen.lan","Grimvägen lån","kr"],["grimvagen.anskaffning","Grimvägen inköpspris","kr"],
+      ["grimvagen.forbattringar","Grimvägen förbättringar","kr"],["grimvagen.maklararvodePct","Grimvägen mäklararvode","pct"],
+      ["vettershaga.tomt","Tomt","kr"],["vettershaga.lagfartPct","Lagfart","pct"],["vettershaga.avlopp","Avlopp","kr"],["vettershaga.brunn","Brunn","kr"],
+      ["vettershaga.el","El","kr"],["vettershaga.byggsats","Byggsats","kr"],["vettershaga.grund","Grund","kr"],["vettershaga.montage","Montage","kr"],
+      ["vettershaga.installation","Installation","kr"],["vettershaga.malning","Målning","kr"],["vettershaga.kringkostnad","Kringkostnad","kr"],["vettershaga.buffertPct","Buffert","pct"],
+      ["privatekonomi.fondsparande","Fondsparande","kr"],["privatekonomi.pensionNetto","Pension/mån","kr"],["privatekonomi.lonNetto","Lön/mån","kr"],
+      ["privatekonomi.frejgatanHyra","Hyra Frejgatan","kr"],["privatekonomi.driftVettershagaMan","Drift Vettershaga","kr"],
+      ["nyahuset.lan","Lån på nya huset","kr"],["nyahuset.rantaPct","Ränta","pct"],["nyahuset.amorteringPct","Amortering","pct"]
+    ];
+
+    // ---- compute (samma motor som pappen) ----
+    function compute(S){
+      var K=S.karlpers,G=S.grimvagen,V=S.vettershaga,P=S.privatekonomi,N=S.nyahuset||{};
+      var andel=(K.agarandelPct||0)/100;
+      var kSalj=K.totalpris*andel,kMaklare=K.maklararvode*andel,kAnskaff=K.anskaffning1975*andel,kForb=K.forbattringar*andel;
+      var kVinst=Math.max(0,kSalj-kMaklare-kAnskaff-kForb),kSkatt=kVinst*0.22,kNetto=kSalj-kMaklare-kSkatt;
+      var gMaklare=G.varde*(G.maklararvodePct||0)/100;
+      var gVinst=Math.max(0,G.varde-G.anskaffning-G.forbattringar-gMaklare),gSkatt=gVinst*0.22,gNetto=G.varde-G.lan-gMaklare-gSkatt;
+      var vLagfart=V.tomt*(V.lagfartPct||0)/100;
+      var vDelsum=V.tomt+vLagfart+V.avlopp+V.brunn+V.el+V.byggsats+V.grund+V.montage+V.installation+V.malning+V.kringkostnad;
+      var vBuffert=vDelsum*(V.buffertPct||0)/100,vTotal=vDelsum+vBuffert;
+      var uppskov=N.permanent?gSkatt:0,gNettoEff=gNetto+uppskov;
+      var kapital=kNetto+gNettoEff+P.fondsparande;
+      var L=N.lan||0,ranteMan=L*(N.rantaPct||0)/100/12,ranteEfterAvdrag=ranteMan*0.7,amortMan=L*(N.amorteringPct||0)/100/12,lanKostnadMan=ranteEfterAvdrag+amortMan;
+      var tillgangligt=kapital+L,buffert=tillgangligt-vTotal;
+      var utgifterMan=P.frejgatanHyra+P.driftVettershagaMan+lanKostnadMan;
+      var kvarJobbar=(P.pensionNetto+P.lonNetto)-utgifterMan,kvarPension=P.pensionNetto-utgifterMan;
+      return {andel:andel,kSalj:kSalj,kMaklare:kMaklare,kAnskaff:kAnskaff,kForb:kForb,kVinst:kVinst,kSkatt:kSkatt,kNetto:kNetto,gMaklare:gMaklare,gVinst:gVinst,gSkatt:gSkatt,gNetto:gNetto,uppskov:uppskov,gNettoEff:gNettoEff,vLagfart:vLagfart,vDelsum:vDelsum,vBuffert:vBuffert,vTotal:vTotal,permanent:!!N.permanent,L:L,ranteEfterAvdrag:ranteEfterAvdrag,amortMan:amortMan,lanKostnadMan:lanKostnadMan,kapital:kapital,buffert:buffert,kvarJobbar:kvarJobbar,kvarPension:kvarPension};
+    }
+
+    // ---- render helpers ----
+    function ed(path,type){
+      type=type||"kr"; var v=get(work,path); if(v==null)v=0;
+      var f=FLAGS[path];
+      var badge=f==="komplettera"?'<span class="mf-flag mf-komplettera">kompletteras</span>':(f==="schablon"?'<span class="mf-flag mf-schablon">schablon</span>':"");
+      return '<span class="mf-edit" data-path="'+path+'" data-type="'+type+'" tabindex="0" title="Dubbelklicka för att ändra">'+(type==="pct"?pct(v):kr(v))+'</span>'+badge;
+    }
+    function row(label,val,o){ o=o||{};
+      return '<tr class="'+(o.calc?"mf-calc":"")+(o.strong?" mf-strong":"")+(o.hi?" mf-hi-"+o.hi:"")+'"><td class="mf-lbl">'+label+(o.note?'<span class="mf-note">'+o.note+'</span>':"")+'</td><td class="mf-val">'+val+'</td></tr>'; }
+    function esc(s){ return String(s).replace(/[&<>"]/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c];}); }
+    function fmtDate(ts){ var d=new Date(ts); return d.toLocaleDateString("sv-SE")+" "+d.toLocaleTimeString("sv-SE",{hour:"2-digit",minute:"2-digit"}); }
+
+    function draw(){
+      var S=work, c=compute(S);
+      var goBadge=c.buffert>=0?'<span class="mf-pill mf-ok">Buffert '+kr(c.buffert)+'</span>':'<span class="mf-pill mf-bad">Underskott '+kr(-c.buffert)+'</span>';
+      var kvarBadge=c.kvarPension<5000?'<span class="mf-pill mf-warn">Tight — '+kr(c.kvarPension)+'/mån kvar</span>':'<span class="mf-pill mf-ok">'+kr(c.kvarPension)+'/mån kvar</span>';
+      var reasonHtml="";
+      if(reasoning){
+        reasonHtml='<div class="mf-sec"><h3>🧭 Resonemang &amp; öppna frågor</h3>';
+        if(reasoning.insikter&&reasoning.insikter.length){ reasonHtml+='<h4>Insikter</h4><ul>'+reasoning.insikter.map(function(x){return "<li>"+x+"</li>";}).join("")+'</ul>'; }
+        if(reasoning.oppnaFragor&&reasoning.oppnaFragor.length){ reasonHtml+='<h4>Öppna frågor att komplettera</h4><ul>'+reasoning.oppnaFragor.map(function(x){return "<li>"+x+"</li>";}).join("")+'</ul>'; }
+        if(reasoning.uppdaterad){ reasonHtml+='<p class="muted" style="font-size:11px;margin-top:10px">Senast uppdaterad: '+esc(reasoning.uppdaterad)+'</p>'; }
+        reasonHtml+='</div>';
+      }
+      var chatHtml='<div class="mf-sec"><h3>💬 Familjechatt</h3><div class="muted" style="font-size:12px;margin-bottom:6px">Ändringar du gör ovan är bara din egen — dela dem här med “Föreslå mina ändringar”.</div><div class="chat-feed" id="chat-feed"></div>'
+        +'<div class="chat-form"><input class="name" id="chat-name" placeholder="Ditt namn" maxlength="40" />'
+        +'<textarea id="chat-msg" rows="2" placeholder="Skriv ett meddelande…" maxlength="1500"></textarea>'
+        +'<div class="row"><button class="mf-btn primary" id="chat-send">Skicka</button></div></div></div>';
+
+      document.getElementById("app").innerHTML =
+      '<div class="mf-head"><h2>🏡 Marias flytt — kalkyl</h2>'
+      +'<div class="mf-sub">Karlpers säljs → nytt sommarhus i Vettershaga, Grimvägen säljs, vinterboende hyrs (Frejgatan). Dubbelklicka valfritt belopp — det ändrar bara <b>din egen kopia</b>. Originalet ligger kvar.</div></div>'
+      +'<div class="mf-toolbar"><button class="mf-btn" id="btn-reset">↺ Återställ till original</button><button class="mf-btn primary" id="btn-suggest">📤 Föreslå mina ändringar (→ chatt)</button></div>'
+      +'<div class="mf-legend"><span><span class="mf-flag mf-schablon">schablon</span> gissning</span><span><span class="mf-flag mf-komplettera">kompletteras</span> behöver riktig uppgift</span><span>✎ dubbelklicka ett belopp</span></div>'
+      +'<div class="mf-grid">'
+      // Karlpers
+      +'<section class="mf-card"><h3>🏡 Karlpers — försäljning &amp; vinstskatt <span class="mf-tag">fritidshus · inget uppskov</span></h3><table class="mf-table">'
+      +row("Totalpris (båda systrarna)",ed("karlpers.totalpris"))
+      +row("Marias ägarandel",ed("karlpers.agarandelPct","pct"))
+      +row("Mäklararvode (totalt)",ed("karlpers.maklararvode"))
+      +row("Anskaffning 1975 (totalt)",ed("karlpers.anskaffning1975"))
+      +row("Förbättringsutgifter (totalt)",ed("karlpers.forbattringar"))
+      +'<tr class="mf-divider"><td colspan="2"></td></tr>'
+      +row("= Kapitalvinst (Marias andel)",kr(c.kVinst),{calc:true,strong:true})
+      +row("Vinstskatt (22 %)",kr(c.kSkatt),{calc:true,hi:"warn",strong:true})
+      +row("Netto kontant till Maria",kr(c.kNetto),{calc:true,hi:"ok",strong:true})
+      +'</table><div class="mf-callout mf-callout-warn">⏰ Skatten ('+kr(c.kSkatt)+') betalas i slutskatten <b>våren 2027</b> — reservera den.</div></section>'
+      // Grimvägen
+      +'<section class="mf-card"><h3>🏢 Grimvägen — försäljning &amp; vinstskatt <span class="mf-tag">bostadsrätt</span></h3><table class="mf-table">'
+      +row("Marknadsvärde",ed("grimvagen.varde"))
+      +row("Kvarvarande lån",ed("grimvagen.lan"))
+      +row("Inköpspris (när Maria köpte)",ed("grimvagen.anskaffning"))
+      +row("Förbättringar / kapitaltillskott",ed("grimvagen.forbattringar"))
+      +row("Mäklararvode",ed("grimvagen.maklararvodePct","pct"))
+      +'<tr class="mf-divider"><td colspan="2"></td></tr>'
+      +row("Kapitalvinst",kr(c.gVinst),{calc:true,strong:true})
+      +row("Vinstskatt (22 %)",kr(c.gSkatt),{calc:true,hi:"warn",strong:true})
+      +row("Netto (efter lån + skatt)",kr(c.gNetto),{calc:true,hi:"ok",strong:true})
+      +'</table><div class="mf-callout mf-callout-hi">📌 Störst osäkerhet: <b>inköpspriset</b>. Står det 0 är skatten maximal — fyll i verkliga priset.</div></section>'
+      // Vettershaga
+      +'<section class="mf-card mf-card-wide"><h3>🔨 Vettershaga — byggbudget <span class="mf-tag">villabyggsats ≠ färdigt hus</span></h3><table class="mf-table">'
+      +row("Tomt",ed("vettershaga.tomt"))
+      +row("Lagfart (stämpelskatt)",ed("vettershaga.lagfartPct","pct")+' <span class="mf-inline-res">= '+kr(c.vLagfart)+'</span>')
+      +row("Enskilt avlopp (WC/spolvatten)",ed("vettershaga.avlopp"))
+      +row("Borrad brunn",ed("vettershaga.brunn"))
+      +row("El-framdragning (~50 m)",ed("vettershaga.el"))
+      +row("Villabyggsats Ametisten",ed("vettershaga.byggsats"),{note:"material inkl. vitvaror/värme/kök/bad — ej grund, montage, målning"})
+      +row("Grund / platta på mark",ed("vettershaga.grund"))
+      +row("Montage/resning",ed("vettershaga.montage"),{note:"största osäkerheten — begär offert"})
+      +row("VVS/el-installation (arbete)",ed("vettershaga.installation"))
+      +row("Slutmålning/finish",ed("vettershaga.malning"))
+      +row("Bygglov, karta, KA, besiktning",ed("vettershaga.kringkostnad"))
+      +'<tr class="mf-divider"><td colspan="2"></td></tr>'
+      +row("Delsumma",kr(c.vDelsum),{calc:true})
+      +row("Buffert",ed("vettershaga.buffertPct","pct")+' <span class="mf-inline-res">= '+kr(c.vBuffert)+'</span>')
+      +row("= TOTALT inflyttningsklart",kr(c.vTotal),{calc:true,hi:"hi",strong:true})
+      +'</table></section>'
+      // Lån & scenario
+      +'<section class="mf-card mf-card-wide"><h3>🏦 Lån &amp; scenario <span class="mf-tag">permanentbostad vs fritidshus</span></h3>'
+      +'<div class="mf-toggle"><button class="mf-tg'+(!c.permanent?" on":"")+'" data-perm="0">🏖 Fritidshus</button><button class="mf-tg'+(c.permanent?" on":"")+'" data-perm="1">🏠 Permanentbostad</button></div>'
+      +'<div class="mf-callout '+(c.permanent?"mf-callout-ok":"mf-callout-warn")+'">'
+      +(c.permanent?('🏠 Som permanentbostad kan Grimvägens vinstskatt <b>skjutas upp (uppskov, räntefritt)</b> → '+kr(c.uppskov)+' stannar i kassan nu. <b>Kräver att hon faktiskt bor mest i Vettershaga (folkbokförd där)</b> — annars skatterisk, inte genväg.')
+        :('🏖 Som fritidshus betalas Grimvägens vinstskatt ('+kr(c.gSkatt)+') direkt, och banken lånar snålare (~75 % mot 85 %).'))
+      +'</div><table class="mf-table">'
+      +row("Lån på nya huset",ed("nyahuset.lan"))
+      +row("Ränta",ed("nyahuset.rantaPct","pct"))
+      +row("Amortering",ed("nyahuset.amorteringPct","pct"))
+      +'<tr class="mf-divider"><td colspan="2"></td></tr>'
+      +row("Ränta/mån (efter 30 % avdrag)",kr(c.ranteEfterAvdrag),{calc:true})
+      +row("Amortering/mån",kr(c.amortMan),{calc:true})
+      +row("= Lånekostnad/mån",kr(c.lanKostnadMan),{calc:true,strong:true})
+      +'</table><div class="mf-callout mf-callout-hi">💡 Att låna istället för kontant höjer bufferten med lånebeloppet men kostar '+kr(c.lanKostnadMan)+'/mån. Vid 74 år + '+kr(S.privatekonomi.pensionNetto)+'/mån avgör bankens lånelöfte hur stort lån som går.</div></section>'
+      // Summering
+      +'<section class="mf-card mf-card-sum"><h3>💰 Summering — går det ihop?</h3><table class="mf-table">'
+      +row("Karlpers, netto",kr(c.kNetto),{calc:true})
+      +row("Grimvägen, netto"+(c.permanent?" (m. uppskov)":""),kr(c.gNettoEff),{calc:true})
+      +row("Fondsparande",ed("privatekonomi.fondsparande"))
+      +row("= Tillgängligt kapital",kr(c.kapital),{calc:true,strong:true})
+      +row("+ Lån på nya huset","+"+kr(c.L),{calc:true})
+      +row("− Nytt hus i Vettershaga","−"+kr(c.vTotal),{calc:true})
+      +row("= Buffert kvar efter bygge",goBadge,{calc:true,strong:true,hi:c.buffert>=0?"ok":"hi"})
+      +'</table><h4 class="mf-subh">Månadskassaflöde</h4><table class="mf-table">'
+      +row("Pension (netto/mån)",ed("privatekonomi.pensionNetto"))
+      +row("Lön medan hon jobbar 50 %",ed("privatekonomi.lonNetto"))
+      +row("− Hyra Frejgatan","−"+ed("privatekonomi.frejgatanHyra"))
+      +row("− Drift Vettershaga","−"+ed("privatekonomi.driftVettershagaMan"))
+      +row("− Lånekostnad","−"+kr(c.lanKostnadMan),{calc:true})
+      +'<tr class="mf-divider"><td colspan="2"></td></tr>'
+      +row("Kvar/mån medan hon jobbar",kr(c.kvarJobbar),{calc:true})
+      +row("Kvar/mån efter pension",kvarBadge,{calc:true,strong:true,hi:c.kvarPension<5000?"warn":"ok"})
+      +'</table><div class="mf-callout mf-callout-warn">⚠️ Efter pension lämnar '+kr(S.privatekonomi.pensionNetto)+'/mån minus boende + lån <b>'+kr(c.kvarPension)+'/mån</b> till mat och liv.</div></section>'
+      +'</div>'
+      +reasonHtml+chatHtml;
+
+      wire();
+      renderChat();
+    }
+
+    function wire(){
+      // toggle
+      Array.prototype.forEach.call(document.querySelectorAll(".mf-tg"),function(b){ b.onclick=function(){ set(work,"nyahuset.permanent",b.getAttribute("data-perm")==="1"); save(); draw(); }; });
+      // dblclick-edit
+      Array.prototype.forEach.call(document.querySelectorAll(".mf-edit"),function(el){
+        function start(){
+          if(el.querySelector("input"))return;
+          var path=el.getAttribute("data-path"),type=el.getAttribute("data-type"),raw=get(work,path); if(raw==null)raw=0;
+          el.innerHTML='<input class="mf-input" value="'+raw+'" inputmode="decimal">';
+          var inp=el.querySelector("input"); inp.focus(); inp.select(); var done=false;
+          function commit(){ if(done)return; done=true; var val=type==="pct"?parsePct(inp.value):parseKr(inp.value); set(work,path,val); save(); draw(); }
+          inp.addEventListener("blur",commit);
+          inp.addEventListener("keydown",function(e){ if(e.key==="Enter"){e.preventDefault();inp.blur();} else if(e.key==="Escape"){done=true;draw();} });
+        }
+        el.addEventListener("dblclick",start);
+        el.addEventListener("keydown",function(e){ if(e.key==="Enter"){e.preventDefault();start();} });
+      });
+      document.getElementById("btn-reset").onclick=function(){ work=clone(baseline); localStorage.removeItem("maria_work"); draw(); };
+      document.getElementById("btn-suggest").onclick=suggest;
+      document.getElementById("chat-send").onclick=sendChat;
+      var nm=document.getElementById("chat-name"); if(nm) nm.value=localStorage.getItem("maria_name")||"";
+    }
+
+    function save(){ try{ localStorage.setItem("maria_work",JSON.stringify(work)); }catch(e){} }
+
+    function suggest(){
+      // diffa work mot baseline
+      var diffs=[];
+      FIELDS.forEach(function(f){ var a=get(baseline,f[0]),b=get(work,f[0]); if((a||0)!==(b||0)){ var fmt=f[2]==="pct"?pct:kr; diffs.push(f[1]+": "+fmt(a)+" → "+fmt(b)); } });
+      var bp=get(baseline,"nyahuset.permanent"),wp=get(work,"nyahuset.permanent");
+      if(!!bp!==!!wp) diffs.push("Bostadstyp: "+(bp?"Permanent":"Fritidshus")+" → "+(wp?"Permanent":"Fritidshus"));
+      var note=prompt(diffs.length?("Föreslå dessa ändringar i chatten?\n\n"+diffs.join("\n")+"\n\nLägg ev. till en motivering (valfritt):"):"Du har inte ändrat något ännu. Skriv ett fritt förslag istället:");
+      if(note===null)return;
+      var msg="💡 Förslag:"+(diffs.length?("\n"+diffs.join("\n")):"")+(note?("\n\n"+note):"");
+      postChat(msg,true);
+    }
+
+    function api(method,qs,body){
+      return fetch(API+"?pw="+encodeURIComponent(pw)+(qs||""),{method:method,headers:body?{"Content-Type":"application/json"}:undefined,body:body?JSON.stringify(body):undefined}).then(function(r){return r.json().then(function(j){return {ok:r.ok,status:r.status,j:j};});});
+    }
+    function postChat(message,isSuggestion){
+      var name=(document.getElementById("chat-name")||{}).value||localStorage.getItem("maria_name")||"Anonym";
+      localStorage.setItem("maria_name",name);
+      api("POST","&kind=chat",{pw:pw,name:name,message:message,suggestion:!!isSuggestion}).then(function(r){ if(r.ok&&r.j.chat){chat=r.j.chat;renderChat();} else alert("Kunde inte skicka: "+(r.j.error||r.status)); });
+    }
+    function sendChat(){
+      var ta=document.getElementById("chat-msg"); var m=(ta.value||"").trim(); if(!m)return; ta.value=""; postChat(m,false);
+    }
+    function renderChat(){
+      var feed=document.getElementById("chat-feed"); if(!feed)return;
+      if(!chat.length){ feed.innerHTML='<div class="muted" style="font-size:13px">Inga meddelanden än. Skriv det första!</div>'; return; }
+      feed.innerHTML=chat.slice().reverse().map(function(m){
+        return '<div class="chat-msg'+(m.suggestion?" sugg":"")+'"><div class="chat-meta"><b>'+esc(m.name)+'</b> · '+fmtDate(m.ts)+'</div><div class="chat-body">'+esc(m.message)+'</div></div>';
+      }).join("");
+    }
+
+    // ---- gate + hydrate ----
+    function hydrate(){
+      return api("GET","&kind=state").then(function(r){
+        if(r.status===401){ throw new Error("pw"); }
+        if(!r.ok){ throw new Error(r.j.error||("HTTP "+r.status)); }
+        baseline=r.j.baseline; reasoning=r.j.reasoning; chat=r.j.chat||[];
+        if(!baseline){ document.getElementById("app").innerHTML='<p class="muted">Baslinjen är inte inlagd än.</p>'; document.getElementById("app").hidden=false; document.getElementById("gate").hidden=true; return; }
+        var savedWork=null; try{ savedWork=JSON.parse(localStorage.getItem("maria_work")||"null"); }catch(e){}
+        work=savedWork||clone(baseline);
+        document.getElementById("gate").hidden=true; document.getElementById("app").hidden=false;
+        draw();
+      });
+    }
+    function tryOpen(code){
+      pw=code; sessionStorage.setItem("maria_pw",pw);
+      hydrate().catch(function(e){
+        sessionStorage.removeItem("maria_pw"); pw="";
+        document.getElementById("gate-err").textContent=(e.message==="pw")?"Fel kod.":("Fel: "+e.message);
+      });
+    }
+    document.getElementById("gate-go").onclick=function(){ tryOpen(document.getElementById("gate-pw").value.trim()); };
+    document.getElementById("gate-pw").addEventListener("keydown",function(e){ if(e.key==="Enter") document.getElementById("gate-go").click(); });
+    // auto om pw redan i sessionen
+    if(pw){ hydrate().catch(function(){ sessionStorage.removeItem("maria_pw"); pw=""; document.getElementById("gate-pw").focus(); }); }
+    else { document.getElementById("gate-pw").focus(); }
+  })();
+  </script>
+</body>
+</html>

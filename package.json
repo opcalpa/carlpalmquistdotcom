@@ -10,8 +10,8 @@
     "build": "astro build",
     "preview": "astro preview",
     "astro": "astro",
-    "pages": "wrangler pages dev ./dist --port 8788",
-    "local": "astro build && wrangler pages dev ./dist --port 8788"
+    "pages": "wrangler pages dev ./dist --port 8788 --compatibility-date=2026-06-16",
+    "local": "astro build && wrangler pages dev ./dist --port 8788 --compatibility-date=2026-06-16"
   },
   "dependencies": {
     "@tailwindcss/vite": "^4.2.4",
