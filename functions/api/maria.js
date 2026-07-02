@@ -38,11 +38,17 @@ export async function onRequestGet(context) {
   const u = new URL(request.url);
   const ip = clientIp(request);
   if (!kvOk(env)) return Response.json({ error: "kv_not_configured" }, { status: 500 });
-  // Lås ute brute-force på den korta koden.
-  const fails = parseInt((await kvGet(env, failKey(ip)).catch(() => null)) || "0", 10) || 0;
-  if (fails >= FAIL_MAX) return Response.json({ error: "rate_limited" }, { status: 429 });
+  // Brute-force-broms bara på publika carlpalmquist.com (som Forge-rate-limiten); dev/preview obegränsat.
+  const isPublic = /(^|\.)carlpalmquist\.com$/i.test(u.hostname);
+  if (isPublic) {
+    const fails = parseInt((await kvGet(env, failKey(ip)).catch(() => null)) || "0", 10) || 0;
+    if (fails >= FAIL_MAX) return Response.json({ error: "rate_limited" }, { status: 429 });
+  }
   if ((u.searchParams.get("pw") || "") !== PW(env)) {
-    await kvPut(env, failKey(ip), String(fails + 1), FAIL_WINDOW).catch(() => {});
+    if (isPublic) {
+      const fails = parseInt((await kvGet(env, failKey(ip)).catch(() => null)) || "0", 10) || 0;
+      await kvPut(env, failKey(ip), String(fails + 1), FAIL_WINDOW).catch(() => {});
+    }
     return Response.json({ error: "unauthorized" }, { status: 401 });
   }
   try {
