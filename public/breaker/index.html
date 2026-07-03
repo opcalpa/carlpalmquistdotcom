@@ -1,0 +1,501 @@
+<!doctype html>
+<html lang="sv">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Breaker — gamifierat lärande för brand- & employer-event</title>
+<meta name="robots" content="noindex" />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,600;12..96,700&family=Figtree:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #f5f6f8;
+    --surface: #ffffff;
+    --ink: #0f1420;
+    --ink-2: #5a6172;
+    --line: #e7e9ee;
+    --brand: #6d5efc;
+    --brand-ink: #ffffff;
+    --brand-soft: color-mix(in srgb, var(--brand) 12%, #ffffff);
+    --brand-line: color-mix(in srgb, var(--brand) 32%, #ffffff);
+    --good: #12b76a;
+    --bad: #f04438;
+    --good-soft: color-mix(in srgb, var(--good) 12%, #ffffff);
+    --bad-soft: color-mix(in srgb, var(--bad) 12%, #ffffff);
+    --shadow: 0 1px 2px rgba(16,20,32,.04), 0 8px 24px rgba(16,20,32,.06);
+    --shadow-lg: 0 2px 4px rgba(16,20,32,.04), 0 18px 44px rgba(16,20,32,.10);
+    --r-card: 20px; --r-ctrl: 12px;
+    --display: "Bricolage Grotesque", ui-sans-serif, system-ui, sans-serif;
+    --body: "Figtree", ui-sans-serif, system-ui, -apple-system, sans-serif;
+    font-synthesis: none;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; }
+  body {
+    background:
+      radial-gradient(900px 460px at 50% -18%, color-mix(in srgb, var(--brand) 9%, var(--bg)), var(--bg) 70%),
+      var(--bg);
+    color: var(--ink);
+    font-family: var(--body);
+    font-size: 15px; line-height: 1.5;
+    -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility;
+  }
+  #app { min-height: 100%; display: flex; flex-direction: column; }
+  .wrap { width: 100%; max-width: 820px; margin: 0 auto; padding: 24px 20px 64px; flex: 1; }
+  a { color: var(--brand); text-decoration: none; }
+  h1,h2,h3 { font-family: var(--display); letter-spacing: -.01em; margin: 0; }
+
+  @keyframes rise { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+  @keyframes pop { 0%{ transform: scale(1);} 40%{ transform: scale(1.05);} 100%{ transform: scale(1);} }
+  @keyframes shake { 0%,100%{ transform: translateX(0);} 25%{ transform: translateX(-4px);} 75%{ transform: translateX(4px);} }
+  .reveal { animation: rise .32s cubic-bezier(.2,.7,.2,1) both; }
+
+  /* Top bar */
+  .topbar { display: flex; align-items: center; gap: 10px; padding: 12px 20px; border-bottom: 1px solid var(--line); background: color-mix(in srgb, var(--surface) 80%, transparent); backdrop-filter: blur(10px); position: sticky; top: 0; z-index: 10; }
+  .topbar .dot { width: 9px; height: 9px; border-radius: 50%; background: var(--brand); box-shadow: 0 0 0 4px var(--brand-soft); }
+  .topbar b { font-size: 14px; font-family: var(--display); font-weight: 700; }
+  .topbar .role { font-size: 12px; font-weight: 600; color: var(--brand); background: var(--brand-soft); padding: 4px 10px; border-radius: 999px; }
+  .topbar .spacer { flex: 1; }
+  .topbar button, .topbar a.btnlink { font: inherit; font-size: 12px; font-weight: 600; color: var(--ink-2); background: var(--surface); border: 1px solid var(--line); border-radius: 9px; padding: 6px 10px; cursor: pointer; transition: .15s; }
+  .topbar button:hover, .topbar a.btnlink:hover { color: var(--ink); border-color: var(--brand-line); }
+
+  /* Landing */
+  .hero { text-align: center; padding: 40px 0 8px; }
+  .brandlogo { display: inline-flex; align-items: center; gap: 9px; font-family: var(--display); font-weight: 700; font-size: 22px; letter-spacing: -.02em; margin-bottom: 22px; }
+  .brandlogo-dot { width: 20px; height: 20px; border-radius: 7px; background: linear-gradient(135deg, var(--brand), color-mix(in srgb, var(--brand) 55%, #22d3ee)); box-shadow: 0 4px 14px color-mix(in srgb, var(--brand) 40%, transparent); position: relative; }
+  .brandlogo-dot::after { content: "⚡"; position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: 11px; }
+  .wordmark { font-family: var(--display); letter-spacing: -.01em; }
+  .hero .kicker { display:inline-block; color: var(--brand); font-weight: 600; letter-spacing: .08em; text-transform: uppercase; font-size: 12px; background: var(--brand-soft); padding: 5px 12px; border-radius: 999px; }
+  .hero h1 { font-size: clamp(30px, 5.4vw, 44px); margin: 16px 0 10px; line-height: 1.03; font-weight: 700; }
+  .hero p { color: var(--ink-2); max-width: 520px; margin: 0 auto; font-size: 16px; }
+  .roles { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-top: 30px; }
+  @media (max-width: 680px){ .roles { grid-template-columns: 1fr; } }
+  .rolecard { position: relative; text-align: left; background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-card); padding: 22px; cursor: pointer; transition: .16s cubic-bezier(.2,.7,.2,1); box-shadow: var(--shadow); font-family: var(--body); color: inherit; }
+  .rolecard:hover { border-color: var(--brand-line); transform: translateY(-3px); box-shadow: var(--shadow-lg); }
+  .rolecard:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }
+  .rolecard .go { position: absolute; top: 24px; right: 22px; color: var(--brand); font-weight: 700; opacity: 0; transform: translateX(-5px); transition: .16s cubic-bezier(.2,.7,.2,1); }
+  .rolecard:hover .go { opacity: 1; transform: none; }
+  .rolecard .ico { display: inline-flex; align-items: center; justify-content: center; width: 46px; height: 46px; border-radius: 13px; background: var(--brand-soft); font-size: 24px; }
+  .rolecard h3 { margin: 14px 0 5px; font-size: 19px; font-weight: 600; }
+  .rolecard p { margin: 0; color: var(--ink-2); font-size: 13.5px; }
+  .tip { margin: 26px auto 0; max-width: 620px; text-align: center; color: var(--ink-2); font-size: 13.5px; background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 14px 18px; box-shadow: var(--shadow); }
+  .tip b { color: var(--ink); }
+
+  /* Panels */
+  .panel { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-card); padding: 22px; margin-bottom: 14px; box-shadow: var(--shadow); }
+  .panel h2 { font-size: 18px; font-weight: 600; margin: 0 0 4px; }
+  .panel .sub { color: var(--ink-2); font-size: 13.5px; margin-bottom: 16px; }
+  .field { margin-bottom: 16px; }
+  .field label { display: block; font-size: 12px; font-weight: 600; color: var(--ink-2); margin-bottom: 7px; }
+  input[type=text], select { width: 100%; font: inherit; font-size: 14px; color: var(--ink); background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-ctrl); padding: 11px 13px; transition: .15s; }
+  input[type=text]:focus, select:focus { outline: none; border-color: var(--brand); box-shadow: 0 0 0 3px var(--brand-soft); }
+  input[type=color] { width: 44px; height: 36px; padding: 0; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); cursor: pointer; }
+  .row { display: flex; gap: 10px; align-items: center; }
+  .seg { display: inline-flex; border: 1px solid var(--line); border-radius: var(--r-ctrl); overflow: hidden; background: var(--surface); }
+  .seg button { font: inherit; font-size: 13px; font-weight: 600; padding: 9px 16px; background: transparent; color: var(--ink-2); border: 0; cursor: pointer; transition: .15s; }
+  .seg button.on { background: var(--brand); color: var(--brand-ink); }
+
+  .btn { font: inherit; font-size: 14px; font-weight: 600; padding: 11px 17px; border-radius: var(--r-ctrl); border: 0; cursor: pointer; background: var(--brand); color: var(--brand-ink); transition: .15s cubic-bezier(.2,.7,.2,1); box-shadow: 0 2px 8px color-mix(in srgb, var(--brand) 30%, transparent); }
+  .btn:hover:not(:disabled) { transform: translateY(-1px); box-shadow: 0 6px 18px color-mix(in srgb, var(--brand) 34%, transparent); }
+  .btn:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }
+  .btn:disabled { opacity: .45; cursor: not-allowed; box-shadow: none; }
+  .btn.ghost { background: var(--surface); color: var(--ink); border: 1px solid var(--line); box-shadow: none; }
+  .btn.ghost:hover:not(:disabled) { border-color: var(--brand-line); }
+  .btn.block { width: 100%; }
+  .btn.lg { padding: 14px 20px; font-size: 15px; }
+
+  .qedit { border: 1px solid var(--line); border-radius: 14px; padding: 14px; margin-bottom: 10px; background: var(--bg); }
+  .qedit .qhead { display: flex; gap: 8px; align-items: center; margin-bottom: 10px; }
+  .qedit .qhead input { flex: 1; }
+  .opts { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  @media (max-width: 560px){ .opts { grid-template-columns: 1fr; } }
+  .opt { display: flex; gap: 8px; align-items: center; }
+  .opt input[type=text] { flex: 1; background: var(--surface); }
+  .opt .mark { width: 28px; height: 28px; border-radius: 8px; border: 1px solid var(--line); background: var(--surface); color: var(--ink-2); cursor: pointer; flex: 0 0 auto; font-size: 13px; transition: .15s; }
+  .opt .mark.on { background: var(--good); border-color: var(--good); color: #fff; }
+  .minibtn { font: inherit; font-size: 12px; font-weight: 600; white-space: nowrap; background: var(--surface); border: 1px solid var(--line); color: var(--ink-2); border-radius: 9px; padding: 7px 11px; cursor: pointer; transition: .15s; }
+  .opt.correct input[type=text] { border-color: var(--good); background: var(--good-soft); }
+  .minibtn:hover { color: var(--ink); border-color: var(--brand-line); }
+
+  /* Live */
+  .center { text-align: center; }
+  .badge { display: inline-block; font-size: 12px; font-weight: 600; color: var(--brand); background: var(--brand-soft); border-radius: 999px; padding: 5px 13px; }
+  .big { font-family: var(--display); font-size: 28px; font-weight: 700; margin: 12px 0; letter-spacing: -.02em; }
+  .qbox h2 { font-size: 22px; line-height: 1.25; }
+  .answers { display: grid; gap: 10px; margin-top: 18px; }
+  .ans { text-align: left; font: inherit; font-size: 15px; font-weight: 500; padding: 15px 16px; border-radius: 14px; border: 1px solid var(--line); background: var(--surface); color: var(--ink); cursor: pointer; transition: .14s cubic-bezier(.2,.7,.2,1); display: flex; align-items: center; }
+  .ans:hover:not(:disabled) { border-color: var(--brand-line); transform: translateY(-1px); box-shadow: var(--shadow); }
+  .ans:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }
+  .ans .lab { display: inline-flex; width: 26px; height: 26px; border-radius: 8px; background: var(--brand-soft); color: var(--brand); align-items: center; justify-content: center; font-size: 13px; font-weight: 700; margin-right: 12px; flex: 0 0 auto; }
+  .ans:disabled { cursor: default; }
+  .ans.picked { animation: pop .28s ease; }
+  .ans.correct { border-color: var(--good); background: var(--good-soft); }
+  .ans.correct .lab { background: var(--good); color: #fff; }
+  .ans.wrong { border-color: var(--bad); background: var(--bad-soft); }
+  .ans.wrong .lab { background: var(--bad); color: #fff; }
+  .ans.wrong.picked { animation: shake .3s ease; }
+
+  .stat { display: flex; gap: 12px; flex-wrap: wrap; }
+  .stat .card { flex: 1; min-width: 110px; background: var(--bg); border: 1px solid var(--line); border-radius: 14px; padding: 16px; text-align: center; }
+  .stat .card .n { font-family: var(--display); font-size: 28px; font-weight: 700; }
+  .stat .card .l { font-size: 12px; color: var(--ink-2); }
+
+  .list { display: flex; flex-direction: column; gap: 8px; }
+  .lrow { display: flex; align-items: center; gap: 12px; background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 12px 15px; transition: .2s; }
+  .lrow .rank { width: 26px; text-align: center; font-family: var(--display); font-weight: 700; color: var(--ink-2); }
+  .lrow .who { flex: 1; font-weight: 500; }
+  .lrow .who small { color: var(--ink-2); font-weight: 400; }
+  .lrow .pts { font-family: var(--display); font-weight: 700; }
+  .lrow.me { border-color: var(--brand); box-shadow: 0 0 0 1px var(--brand) inset; }
+  .lrow.top1 { background: color-mix(in srgb, #fbbf24 10%, var(--surface)); border-color: color-mix(in srgb, #fbbf24 40%, var(--line)); }
+  .lrow.top1 .rank { color: #d9930b; }
+
+  .pills { display: flex; flex-wrap: wrap; gap: 8px; }
+  .pill { font-size: 13px; font-weight: 500; background: var(--bg); border: 1px solid var(--line); border-radius: 999px; padding: 6px 13px; }
+  .bar { height: 8px; background: var(--brand-soft); border-radius: 999px; overflow: hidden; margin-top: 6px; }
+  .bar > span { display: block; height: 100%; background: var(--brand); border-radius: 999px; transition: width .5s cubic-bezier(.2,.7,.2,1); }
+  .foot { text-align: center; color: var(--ink-2); font-size: 12px; padding: 22px; border-top: 1px solid var(--line); }
+  .empty { color: var(--ink-2); font-size: 13.5px; padding: 8px 0; }
+  @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
+</style>
+</head>
+<body>
+<div id="app"></div>
+<script>
+(function () {
+  "use strict";
+  var CH = "breaker-demo-v1";
+  var KEY = "breaker-demo-state-v1";
+  var bc = ("BroadcastChannel" in window) ? new BroadcastChannel(CH) : null;
+
+  // ---- Default seed: a realistic company kickoff L&D breakout ----
+  function seed() {
+    return {
+      config: {
+        eventName: "Nordvia Retail — Kickoff 2026",
+        brandColor: "#6d5efc",
+        mode: "team", // "team" | "individ"
+        teams: ["Blå", "Grön", "Orange"],
+        questions: [
+          { id: "q1", q: "Vad är kärnan i vår nya strategi 'Kund Först 2026'?",
+            options: ["Öppna flest butiker", "Sätta kundens upplevelse före allt annat", "Sänka priserna mest", "Byta logotyp"], correct: 1 },
+          { id: "q2", q: "Vilket är vårt nya ledord för hur vi bemöter varandra internt?",
+            options: ["One Team", "Solo Speed", "Top Down", "Silo First"], correct: 0 },
+          { id: "q3", q: "Hur ofta mäter vi nu kundnöjdhet (NPS)?",
+            options: ["En gång per år", "Varje kvartal", "Varje vecka", "Aldrig"], correct: 2 },
+          { id: "q4", q: "Vad är målet med vår hållbarhetssatsning 'Grön Hylla'?",
+            options: ["Färre produkter", "Hälften av sortimentet hållbarhetsmärkt 2026", "Ta bort papperskvitton", "Stänga lager"], correct: 1 },
+          { id: "q5", q: "Vem äger kundupplevelsen enligt nya strategin?",
+            options: ["Bara kundtjänst", "Bara ledningen", "Alla medarbetare", "Ett externt bolag"], correct: 2 }
+        ]
+      },
+      live: { phase: "lobby", currentQ: -1, participants: {} },
+      rev: 1
+    };
+  }
+
+  function load() {
+    try { var s = JSON.parse(localStorage.getItem(KEY)); if (s && s.config) return s; } catch (e) {}
+    var s = seed(); localStorage.setItem(KEY, JSON.stringify(s)); return s;
+  }
+  function save(s, silent) {
+    localStorage.setItem(KEY, JSON.stringify(s));
+    if (!silent && bc) bc.postMessage({ rev: s.rev });
+  }
+  function mutate(fn) {
+    var s = load(); fn(s); s.rev = (s.rev || 0) + 1; save(s); render();
+  }
+
+  // ---- This tab's identity ----
+  function myId() {
+    var id = sessionStorage.getItem("breaker-guest-id");
+    if (!id) { id = "g" + Math.random().toString(36).slice(2, 8); sessionStorage.setItem("breaker-guest-id", id); }
+    return id;
+  }
+
+  // ---- Routing (role via URL) ----
+  function role() { return new URLSearchParams(location.search).get("role") || ""; }
+  function goRole(r) { location.href = location.pathname + "?role=" + r; }
+
+  // ---- Theming ----
+  function applyBrand(c) {
+    document.documentElement.style.setProperty("--brand", c);
+    var h = c.replace("#", ""); var r = parseInt(h.substr(0,2),16), g = parseInt(h.substr(2,2),16), b = parseInt(h.substr(4,2),16);
+    var lum = (0.299*r + 0.587*g + 0.114*b);
+    document.documentElement.style.setProperty("--brand-ink", lum > 150 ? "#0f1420" : "#ffffff");
+  }
+
+  function esc(s) { return String(s == null ? "" : s).replace(/[&<>"]/g, function (c) { return ({ "&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;" })[c]; }); }
+
+  // ---- Scoring helpers ----
+  function leaderboard(s) {
+    var ps = Object.keys(s.live.participants).map(function (id) { return s.live.participants[id]; });
+    if (s.config.mode === "team") {
+      var teams = {};
+      s.config.teams.forEach(function (t) { teams[t] = { name: t, score: 0, members: 0 }; });
+      ps.forEach(function (p) { if (teams[p.team]) { teams[p.team].score += p.score; teams[p.team].members++; } });
+      return Object.keys(teams).map(function (t) { return teams[t]; }).sort(function (a,b){ return b.score - a.score; });
+    }
+    return ps.slice().sort(function (a,b){ return b.score - a.score; });
+  }
+
+  // =================== RENDER ===================
+  var app = document.getElementById("app");
+  function render() {
+    var s = load();
+    applyBrand(s.config.brandColor);
+    var r = role();
+    if (r === "admin") return renderAdmin(s);
+    if (r === "host") return renderHost(s);
+    if (r === "guest") return renderGuest(s);
+    return renderLanding();
+  }
+
+  function topbar(label) {
+    var others = [["admin","Admin"],["host","Host"],["guest","Guest"]].filter(function (o){ return o[0] !== role(); });
+    return '<div class="topbar"><span class="dot"></span><b class="wordmark">Breaker</b>'
+      + '<span class="role">' + label + '</span><span class="spacer"></span>'
+      + others.map(function (o){ return '<a class="btnlink" target="_blank" href="' + location.pathname + '?role=' + o[0] + '">↗ ' + o[1] + '</a>'; }).join("")
+      + '<button data-act="reset">Återställ</button>'
+      + '<a class="btnlink" href="' + location.pathname + '">Byt roll</a></div>';
+  }
+
+  // ---- Landing ----
+  function renderLanding() {
+    app.innerHTML = ''
+      + '<div class="wrap reveal"><div class="hero">'
+      + '<div class="brandlogo"><span class="brandlogo-dot"></span>Breaker</div>'
+      + '<div class="kicker">För brand- &amp; employer-event</div>'
+      + '<h1>Gör varje breakout till ett spel de minns</h1>'
+      + '<p>Breaker gör passiv publik till aktiva deltagare — gamifierat lärande i webbläsaren, '
+      + 'helt i ert brand. Välj en roll och testa; allt speglas live mellan flikarna.</p>'
+      + '<div class="roles">'
+      + rolecard("admin","🎛️","Admin","Riggar upplevelsen före eventet: innehåll, branding och team- eller individläge.")
+      + rolecard("host","🎤","Host","Kör passet live på scen: startar frågor och ser leaderboarden fyllas i realtid.")
+      + rolecard("guest","📱","Guest","Deltagaren: går med via länk, svarar på utmaningar och ser sin placering.")
+      + '</div>'
+      + '<div class="tip">💡 <b>Tips:</b> öppna <b>Admin</b>, <b>Host</b> och <b>Guest</b> i tre flikar. '
+      + 'Ändra en inställning i Admin → se den slå igenom hos Guest. Svara som Guest → se Hostens leaderboard uppdateras.</div>'
+      + '</div></div>'
+      + '<div class="foot">Demo · ingen inloggning, ingen data lämnar din webbläsare. Byggd av Carl Palmquist.</div>';
+    bindLanding();
+  }
+  function rolecard(r, ico, title, desc) {
+    return '<button class="rolecard" data-role="' + r + '"><span class="ico">' + ico + '</span><span class="go">→</span>'
+      + '<h3>' + title + '</h3><p>' + desc + '</p></button>';
+  }
+  function bindLanding() {
+    Array.prototype.forEach.call(app.querySelectorAll(".rolecard"), function (el) {
+      el.onclick = function () { goRole(el.dataset.role); };
+    });
+  }
+
+  // ---- Admin ----
+  function renderAdmin(s) {
+    var c = s.config;
+    var teamRows = c.teams.map(function (t, i) {
+      return '<div class="row" style="margin-bottom:8px"><input type="text" data-team="' + i + '" value="' + esc(t) + '">'
+        + '<button class="minibtn" data-delteam="' + i + '">Ta bort</button></div>';
+    }).join("");
+    var qHtml = c.questions.map(function (q, qi) {
+      var opts = q.options.map(function (o, oi) {
+        return '<div class="opt' + (q.correct === oi ? " correct" : "") + '"><button class="mark ' + (q.correct === oi ? "on" : "") + '" data-correct="' + qi + '-' + oi + '" title="Markera som rätt svar">✓</button>'
+          + '<input type="text" data-opt="' + qi + '-' + oi + '" value="' + esc(o) + '"></div>';
+      }).join("");
+      return '<div class="qedit"><div class="qhead"><span class="badge">Fråga ' + (qi + 1) + '</span>'
+        + '<input type="text" data-q="' + qi + '" value="' + esc(q.q) + '">'
+        + '<button class="minibtn" data-delq="' + qi + '">✕</button></div>'
+        + '<div class="opts">' + opts + '</div></div>';
+    }).join("");
+
+    app.innerHTML = topbar("🎛️ Admin") + '<div class="wrap reveal">'
+      + '<div class="panel"><h2>Event & branding</h2><div class="sub">Ändringar speglas direkt hos Guest och Host.</div>'
+      + '<div class="field"><label>Eventnamn</label><input type="text" id="evname" value="' + esc(c.eventName) + '"></div>'
+      + '<div class="row" style="gap:28px;flex-wrap:wrap">'
+      + '<div class="field" style="margin:0"><label>Brandfärg</label><div class="row"><input type="color" id="brand" value="' + esc(c.brandColor) + '"><span class="sub" style="margin:0">Temar hela upplevelsen</span></div></div>'
+      + '<div class="field" style="margin:0"><label>Läge</label><div class="seg"><button data-mode="team" class="' + (c.mode === "team" ? "on" : "") + '">Team</button><button data-mode="individ" class="' + (c.mode === "individ" ? "on" : "") + '">Individ</button></div></div>'
+      + '</div>'
+      + (c.mode === "team" ? '<div class="field"><label>Team</label>' + teamRows + '<button class="minibtn" id="addteam">+ Lägg till team</button></div>' : '')
+      + '</div>'
+      + '<div class="panel"><h2>Utmaningar</h2><div class="sub">Frågorna som gamifierar budskapet. Klicka ✓ för rätt svar.</div>'
+      + qHtml
+      + '<button class="minibtn" id="addq">+ Lägg till fråga</button></div>'
+      + '<div class="panel center"><div class="sub" style="margin:0">Deltagare anslutna just nu: <b>' + Object.keys(s.live.participants).length + '</b> · Status: <b>' + phaseLabel(s.live.phase) + '</b></div>'
+      + '<div style="margin-top:12px"><a class="btn ghost" target="_blank" href="' + location.pathname + '?role=host">Öppna Host-vyn ↗</a></div></div>'
+      + '</div><div class="foot">Admin speglar direkt till Guest & Host via din webbläsare.</div>';
+
+    bindTop();
+    q("#evname").oninput = function () { mutateNoRender(function (st){ st.config.eventName = q("#evname").value; }); };
+    q("#brand").oninput = function () { mutate(function (st){ st.config.brandColor = q("#brand").value; }); };
+    Array.prototype.forEach.call(app.querySelectorAll("[data-mode]"), function (el){ el.onclick = function (){ mutate(function (st){ st.config.mode = el.dataset.mode; }); }; });
+    if (q("#addteam")) q("#addteam").onclick = function (){ mutate(function (st){ st.config.teams.push("Team " + (st.config.teams.length + 1)); }); };
+    Array.prototype.forEach.call(app.querySelectorAll("[data-team]"), function (el){ el.oninput = function (){ mutateNoRender(function (st){ st.config.teams[+el.dataset.team] = el.value; }); }; });
+    Array.prototype.forEach.call(app.querySelectorAll("[data-delteam]"), function (el){ el.onclick = function (){ mutate(function (st){ st.config.teams.splice(+el.dataset.delteam, 1); }); }; });
+    q("#addq").onclick = function (){ mutate(function (st){ st.config.questions.push({ id: "q" + Date.now(), q: "Ny fråga", options: ["Alternativ 1","Alternativ 2","Alternativ 3","Alternativ 4"], correct: 0 }); }); };
+    Array.prototype.forEach.call(app.querySelectorAll("[data-q]"), function (el){ el.oninput = function (){ mutateNoRender(function (st){ st.config.questions[+el.dataset.q].q = el.value; }); }; });
+    Array.prototype.forEach.call(app.querySelectorAll("[data-delq]"), function (el){ el.onclick = function (){ mutate(function (st){ st.config.questions.splice(+el.dataset.delq, 1); }); }; });
+    Array.prototype.forEach.call(app.querySelectorAll("[data-opt]"), function (el){ el.oninput = function (){ var p = el.dataset.opt.split("-"); mutateNoRender(function (st){ st.config.questions[+p[0]].options[+p[1]] = el.value; }); }; });
+    Array.prototype.forEach.call(app.querySelectorAll("[data-correct]"), function (el){ el.onclick = function (){ var p = el.dataset.correct.split("-"); mutate(function (st){ st.config.questions[+p[0]].correct = +p[1]; }); }; });
+  }
+  function mutateNoRender(fn) { var s = load(); fn(s); s.rev = (s.rev || 0) + 1; save(s); }
+
+  // ---- Host ----
+  function renderHost(s) {
+    var live = s.live, c = s.config;
+    var pcount = Object.keys(live.participants).length;
+    var body;
+    if (live.phase === "lobby") {
+      var names = Object.keys(live.participants).map(function (id){ var p = live.participants[id]; return '<span class="pill">' + esc(p.name) + (c.mode === "team" ? ' · ' + esc(p.team) : '') + '</span>'; }).join("");
+      body = '<div class="panel center"><div class="badge">Lobby</div>'
+        + '<div class="big">Väntar på deltagare…</div>'
+        + '<div class="stat" style="margin:18px 0"><div class="card"><div class="n">' + pcount + '</div><div class="l">anslutna</div></div>'
+        + '<div class="card"><div class="n">' + c.questions.length + '</div><div class="l">frågor</div></div></div>'
+        + '<div class="pills">' + (names || '<span class="empty">Ingen har anslutit än. Öppna Guest-vyn i en flik.</span>') + '</div>'
+        + '<div style="margin-top:20px"><button class="btn lg" data-act="start" ' + (pcount === 0 ? "disabled" : "") + '>Starta eventet →</button></div></div>';
+    } else if (live.phase === "question") {
+      var q0 = c.questions[live.currentQ];
+      var answered = Object.keys(live.participants).filter(function (id){ var a = live.participants[id].answers || {}; return a[q0.id]; });
+      var dist = q0.options.map(function (_, oi){ return answered.filter(function (id){ return live.participants[id].answers[q0.id].choice === oi; }).length; });
+      var maxd = Math.max(1, Math.max.apply(null, dist));
+      var optHtml = q0.options.map(function (o, oi){
+        return '<div style="margin-bottom:12px"><div class="row" style="justify-content:space-between"><span style="font-weight:500">' + (q0.correct === oi ? "✅ " : "") + esc(o) + '</span><small style="color:var(--ink-2)">' + dist[oi] + '</small></div>'
+          + '<div class="bar"><span style="width:' + Math.round(dist[oi] / maxd * 100) + '%"></span></div></div>';
+      }).join("");
+      body = '<div class="panel"><div class="row" style="justify-content:space-between"><div class="badge">Fråga ' + (live.currentQ + 1) + ' / ' + c.questions.length + '</div>'
+        + '<small style="color:var(--ink-2)">' + answered.length + ' / ' + pcount + ' har svarat</small></div>'
+        + '<h2 style="margin:14px 0 16px;font-size:20px">' + esc(q0.q) + '</h2>' + optHtml
+        + '<div class="row" style="gap:10px;margin-top:16px">'
+        + '<button class="btn" data-act="lead">Visa leaderboard</button>'
+        + (live.currentQ < c.questions.length - 1 ? '<button class="btn ghost" data-act="next">Nästa fråga →</button>' : '<button class="btn ghost" data-act="end">Avsluta →</button>')
+        + '</div></div>';
+    } else if (live.phase === "leaderboard" || live.phase === "ended") {
+      body = '<div class="panel"><div class="badge">' + (live.phase === "ended" ? "Resultat" : "Leaderboard") + '</div>'
+        + '<h2 style="margin:12px 0 14px">' + (live.phase === "ended" ? "Slutställning 🏆" : "Ställning just nu") + '</h2>'
+        + leaderboardHtml(s, null)
+        + '<div class="row" style="gap:10px;margin-top:16px">'
+        + (live.phase === "leaderboard" && live.currentQ < c.questions.length - 1 ? '<button class="btn" data-act="next">Nästa fråga →</button>' : '')
+        + (live.phase === "leaderboard" ? '<button class="btn ghost" data-act="end">Avsluta →</button>' : '<button class="btn ghost" data-act="restart">Kör igen</button>')
+        + '</div></div>';
+    }
+    app.innerHTML = topbar("🎤 Host") + '<div class="wrap reveal">'
+      + '<div class="panel" style="display:flex;align-items:center;gap:12px"><span style="width:12px;height:12px;border-radius:50%;background:var(--brand);box-shadow:0 0 0 5px var(--brand-soft)"></span>'
+      + '<div><div style="font-weight:600;font-family:var(--display)">' + esc(c.eventName) + '</div><div class="sub" style="margin:0">' + (c.mode === "team" ? "Lagläge" : "Individläge") + ' · Host-vy</div></div></div>'
+      + body + '</div><div class="foot">Host uppdateras i realtid när Guests går med och svarar.</div>';
+    bindTop();
+  }
+
+  function leaderboardHtml(s, meId) {
+    var rows = leaderboard(s);
+    if (!rows.length) return '<div class="empty">Inga deltagare än.</div>';
+    return '<div class="list">' + rows.map(function (row, i) {
+      var me = s.config.mode !== "team" && meId && row.id === meId;
+      var sub = s.config.mode === "team" ? '<small>' + row.members + ' medlemmar</small>' : (row.team ? '<small>' + esc(row.team) + '</small>' : '');
+      return '<div class="lrow ' + (i === 0 ? "top1 " : "") + (me ? "me" : "") + '"><div class="rank">' + (i + 1) + '</div>'
+        + '<div class="who">' + esc(row.name) + (sub ? ' &nbsp;' + sub : '') + '</div><div class="pts">' + row.score + ' p</div></div>';
+    }).join("") + '</div>';
+  }
+
+  // ---- Guest ----
+  function renderGuest(s) {
+    var live = s.live, c = s.config;
+    var me = live.participants[myId()];
+    if (!me) {
+      var teamOpts = c.teams.map(function (t){ return '<option value="' + esc(t) + '">' + esc(t) + '</option>'; }).join("");
+      app.innerHTML = topbar("📱 Guest") + '<div class="wrap reveal"><div class="panel center">'
+        + '<div class="badge">' + esc(c.eventName) + '</div>'
+        + '<div class="big">Välkommen! 👋</div>'
+        + '<div class="sub">Gå med för att vara med och tävla i utmaningarna.</div>'
+        + '<div style="max-width:340px;margin:0 auto;text-align:left">'
+        + '<div class="field"><label>Ditt namn</label><input type="text" id="gname" placeholder="T.ex. Alex"></div>'
+        + (c.mode === "team" ? '<div class="field"><label>Välj team</label><select id="gteam">' + teamOpts + '</select></div>' : '')
+        + '<button class="btn block lg" id="join">Gå med</button></div>'
+        + '</div></div><div class="foot">Din branding och dina frågor kommer från Admin-vyn.</div>';
+      bindTop();
+      q("#join").onclick = function () {
+        var name = (q("#gname").value || "").trim(); if (!name) { q("#gname").focus(); return; }
+        var team = c.mode === "team" ? q("#gteam").value : null;
+        mutate(function (st){ st.live.participants[myId()] = { id: myId(), name: name, team: team, score: 0, answers: {} }; });
+      };
+      return;
+    }
+    var body;
+    if (live.phase === "lobby") {
+      body = '<div class="panel center"><div class="badge">Ansluten</div><div class="big">Hej ' + esc(me.name) + '! 🎉</div>'
+        + '<div class="sub">' + (c.mode === "team" ? "Du spelar för lag <b>" + esc(me.team) + "</b>. " : "") + 'Väntar på att värden startar…</div>'
+        + '<div style="font-size:38px;margin-top:12px">⏳</div></div>';
+    } else if (live.phase === "question") {
+      var q0 = c.questions[live.currentQ];
+      var ans = (me.answers || {})[q0.id];
+      var opts = q0.options.map(function (o, oi) {
+        var cls = "ans";
+        if (ans) { cls += " "; if (oi === q0.correct) cls += "correct"; else if (oi === ans.choice) cls += "wrong"; if (oi === ans.choice) cls += " picked"; }
+        return '<button class="' + cls + '" data-pick="' + oi + '" ' + (ans ? "disabled" : "") + '><span class="lab">' + "ABCD"[oi] + '</span>' + esc(o) + '</button>';
+      }).join("");
+      var feedback = ans ? (ans.correct ? '<div class="center" style="color:var(--good);font-weight:700;padding:14px 0;font-family:var(--display)">✅ Rätt! +' + ans.points + ' p</div>' : '<div class="center" style="color:var(--bad);font-weight:700;padding:14px 0;font-family:var(--display)">❌ Inte den här gången</div>') : '';
+      body = '<div class="panel qbox"><div class="badge">Fråga ' + (live.currentQ + 1) + ' / ' + c.questions.length + '</div>'
+        + '<h2 style="margin:14px 0 4px">' + esc(q0.q) + '</h2>'
+        + '<div class="answers">' + opts + '</div>' + feedback
+        + (ans ? '<div class="center sub" style="margin-top:6px">Väntar på nästa fråga…</div>' : '') + '</div>';
+    } else if (live.phase === "leaderboard" || live.phase === "ended") {
+      var myRank = "";
+      if (c.mode !== "team") {
+        var rows = leaderboard(s); var idx = rows.findIndex(function (r){ return r.id === myId(); });
+        if (idx >= 0) myRank = '<div class="center"><div class="badge">Din placering</div><div class="big">#' + (idx + 1) + ' · ' + rows[idx].score + ' p</div></div>';
+      } else {
+        myRank = '<div class="center"><div class="badge">Ditt lag</div><div class="big">' + esc(me.team) + ' · ' + me.score + ' p</div><div class="sub" style="margin:0">din insats till laget</div></div>';
+      }
+      body = '<div class="panel">' + myRank + '<h2 style="margin:16px 0 12px">' + (live.phase === "ended" ? "Slutställning 🏆" : "Ställning") + '</h2>'
+        + leaderboardHtml(s, myId())
+        + (live.phase === "ended" ? '<div class="center sub" style="margin-top:14px">Tack för att du var med, ' + esc(me.name) + '! 🙌</div>' : '<div class="center sub" style="margin-top:12px">Väntar på värden…</div>') + '</div>';
+    }
+    app.innerHTML = topbar("📱 Guest") + '<div class="wrap reveal">'
+      + '<div class="panel" style="padding:13px 16px;display:flex;align-items:center;gap:10px;margin-bottom:14px"><span style="width:9px;height:9px;border-radius:50%;background:var(--brand);box-shadow:0 0 0 4px var(--brand-soft)"></span>'
+      + '<b style="font-size:14px;font-family:var(--display)">' + esc(c.eventName) + '</b><span style="flex:1"></span><small style="color:var(--ink-2)">' + esc(me.name) + (c.mode === "team" ? " · " + esc(me.team) : "") + '</small></div>'
+      + body + '</div><div class="foot">Det du svarar syns direkt i Hostens leaderboard.</div>';
+    bindTop();
+    Array.prototype.forEach.call(app.querySelectorAll("[data-pick]"), function (el) {
+      el.onclick = function () {
+        var choice = +el.dataset.pick;
+        mutate(function (st) {
+          var q0 = st.config.questions[st.live.currentQ];
+          var p = st.live.participants[myId()]; if (!p || (p.answers && p.answers[q0.id])) return;
+          var correct = choice === q0.correct;
+          var points = correct ? 100 : 0;
+          p.answers = p.answers || {}; p.answers[q0.id] = { choice: choice, correct: correct, points: points };
+          p.score += points;
+        });
+      };
+    });
+  }
+
+  function phaseLabel(p) { return ({ lobby: "Lobby", question: "Pågår", leaderboard: "Leaderboard", ended: "Avslutat" })[p] || p; }
+
+  // ---- Host actions & reset (shared) ----
+  function bindTop() {
+    var rb = app.querySelector('[data-act="reset"]'); if (rb) rb.onclick = function () {
+      if (confirm("Återställ hela demon till start?")) { localStorage.removeItem(KEY); if (bc) bc.postMessage({ rev: 0 }); render(); }
+    };
+    var map = {
+      start: function (st){ st.live.phase = "question"; st.live.currentQ = 0; },
+      next: function (st){ st.live.currentQ = Math.min(st.config.questions.length - 1, st.live.currentQ + 1); st.live.phase = "question"; },
+      lead: function (st){ st.live.phase = "leaderboard"; },
+      end: function (st){ st.live.phase = "ended"; },
+      restart: function (st){ st.live.phase = "lobby"; st.live.currentQ = -1; Object.keys(st.live.participants).forEach(function (id){ st.live.participants[id].score = 0; st.live.participants[id].answers = {}; }); }
+    };
+    Object.keys(map).forEach(function (act) {
+      var el = app.querySelector('[data-act="' + act + '"]'); if (el) el.onclick = function () { mutate(map[act]); };
+    });
+  }
+
+  function q(sel) { return app.querySelector(sel); }
+
+  // ---- Live sync across tabs ----
+  if (bc) bc.onmessage = function () { render(); };
+  window.addEventListener("storage", function (e) { if (e.key === KEY) render(); });
+
+  render();
+})();
+</script>
+</body>
+</html>
