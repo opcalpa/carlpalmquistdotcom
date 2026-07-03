@@ -88,8 +88,8 @@
   .panel .sub { color: var(--ink-2); font-size: 13.5px; margin-bottom: 16px; }
   .field { margin-bottom: 16px; }
   .field label { display: block; font-size: 12px; font-weight: 600; color: var(--ink-2); margin-bottom: 7px; }
-  input[type=text], select { width: 100%; font: inherit; font-size: 14px; color: var(--ink); background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-ctrl); padding: 11px 13px; transition: .15s; }
-  input[type=text]:focus, select:focus { outline: none; border-color: var(--brand); box-shadow: 0 0 0 3px var(--brand-soft); }
+  input[type=text], input[type=number], select { width: 100%; font: inherit; font-size: 14px; color: var(--ink); background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-ctrl); padding: 11px 13px; transition: .15s; }
+  input:focus, select:focus { outline: none; border-color: var(--brand); box-shadow: 0 0 0 3px var(--brand-soft); }
   input[type=color] { width: 44px; height: 36px; padding: 0; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); cursor: pointer; }
   .row { display: flex; gap: 10px; align-items: center; }
   .seg { display: inline-flex; border: 1px solid var(--line); border-radius: var(--r-ctrl); overflow: hidden; background: var(--surface); }
@@ -106,35 +106,46 @@
   .btn.lg { padding: 14px 20px; font-size: 15px; }
 
   .qedit { border: 1px solid var(--line); border-radius: 14px; padding: 14px; margin-bottom: 10px; background: var(--bg); }
-  .qedit .qhead { display: flex; gap: 8px; align-items: center; margin-bottom: 10px; }
-  .qedit .qhead input { flex: 1; }
+  .qedit .qhead { display: flex; gap: 8px; align-items: center; margin-bottom: 10px; flex-wrap: wrap; }
+  .qedit .qhead input[type=text] { flex: 1; min-width: 180px; }
+  .qtype-sel { width: auto; flex: 0 0 auto; font-size: 12px; padding: 8px 10px; }
   .opts { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
   @media (max-width: 560px){ .opts { grid-template-columns: 1fr; } }
   .opt { display: flex; gap: 8px; align-items: center; }
   .opt input[type=text] { flex: 1; background: var(--surface); }
   .opt .mark { width: 28px; height: 28px; border-radius: 8px; border: 1px solid var(--line); background: var(--surface); color: var(--ink-2); cursor: pointer; flex: 0 0 auto; font-size: 13px; transition: .15s; }
   .opt .mark.on { background: var(--good); border-color: var(--good); color: #fff; }
-  .minibtn { font: inherit; font-size: 12px; font-weight: 600; white-space: nowrap; background: var(--surface); border: 1px solid var(--line); color: var(--ink-2); border-radius: 9px; padding: 7px 11px; cursor: pointer; transition: .15s; }
   .opt.correct input[type=text] { border-color: var(--good); background: var(--good-soft); }
+  .minibtn { font: inherit; font-size: 12px; font-weight: 600; white-space: nowrap; background: var(--surface); border: 1px solid var(--line); color: var(--ink-2); border-radius: 9px; padding: 7px 11px; cursor: pointer; transition: .15s; }
   .minibtn:hover { color: var(--ink); border-color: var(--brand-line); }
+  .mrow { display: flex; gap: 8px; align-items: center; margin-bottom: 8px; }
+  .mrow input, .mrow select { flex: 1; }
+  .mrow .ml { flex: 1; font-weight: 600; }
 
   /* Live */
   .center { text-align: center; }
   .badge { display: inline-block; font-size: 12px; font-weight: 600; color: var(--brand); background: var(--brand-soft); border-radius: 999px; padding: 5px 13px; }
+  .qkind { display: inline-block; margin-left: 6px; font-size: 11px; font-weight: 600; color: var(--ink-2); background: var(--bg); border: 1px solid var(--line); border-radius: 999px; padding: 4px 10px; }
   .big { font-family: var(--display); font-size: 28px; font-weight: 700; margin: 12px 0; letter-spacing: -.02em; }
   .qbox h2 { font-size: 22px; line-height: 1.25; }
   .answers { display: grid; gap: 10px; margin-top: 18px; }
+  .tfgrid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 18px; }
   .ans { text-align: left; font: inherit; font-size: 15px; font-weight: 500; padding: 15px 16px; border-radius: 14px; border: 1px solid var(--line); background: var(--surface); color: var(--ink); cursor: pointer; transition: .14s cubic-bezier(.2,.7,.2,1); display: flex; align-items: center; }
   .ans:hover:not(:disabled) { border-color: var(--brand-line); transform: translateY(-1px); box-shadow: var(--shadow); }
   .ans:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }
   .ans .lab { display: inline-flex; width: 26px; height: 26px; border-radius: 8px; background: var(--brand-soft); color: var(--brand); align-items: center; justify-content: center; font-size: 13px; font-weight: 700; margin-right: 12px; flex: 0 0 auto; }
   .ans:disabled { cursor: default; }
+  .ans.tf { justify-content: center; font-size: 18px; font-weight: 700; padding: 24px; }
   .ans.picked { animation: pop .28s ease; }
+  .ans.mychoice { border-color: var(--brand); background: var(--brand-soft); }
   .ans.correct { border-color: var(--good); background: var(--good-soft); }
   .ans.correct .lab { background: var(--good); color: #fff; }
   .ans.wrong { border-color: var(--bad); background: var(--bad-soft); }
   .ans.wrong .lab { background: var(--bad); color: #fff; }
   .ans.wrong.picked { animation: shake .3s ease; }
+  .numin { text-align: center; font-size: 22px; font-family: var(--display); font-weight: 700; }
+  .fb { text-align: center; font-weight: 700; padding: 14px 0; font-family: var(--display); }
+  .fb.good { color: var(--good); } .fb.bad { color: var(--bad); } .fb.neutral { color: var(--brand); }
 
   .stat { display: flex; gap: 12px; flex-wrap: wrap; }
   .stat .card { flex: 1; min-width: 110px; background: var(--bg); border: 1px solid var(--line); border-radius: 14px; padding: 16px; text-align: center; }
@@ -155,6 +166,8 @@
   .pill { font-size: 13px; font-weight: 500; background: var(--bg); border: 1px solid var(--line); border-radius: 999px; padding: 6px 13px; }
   .bar { height: 8px; background: var(--brand-soft); border-radius: 999px; overflow: hidden; margin-top: 6px; }
   .bar > span { display: block; height: 100%; background: var(--brand); border-radius: 999px; transition: width .5s cubic-bezier(.2,.7,.2,1); }
+  .wcloud { display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center; justify-content: center; padding: 22px 8px; min-height: 80px; }
+  .wcword { font-family: var(--display); font-weight: 700; line-height: 1; color: var(--brand); }
   .foot { text-align: center; color: var(--ink-2); font-size: 12px; padding: 22px; border-top: 1px solid var(--line); }
   .empty { color: var(--ink-2); font-size: 13.5px; padding: 8px 0; }
   @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
@@ -165,29 +178,51 @@
 <script>
 (function () {
   "use strict";
-  var CH = "breaker-demo-v1";
-  var KEY = "breaker-demo-state-v1";
+  var CH = "breaker-demo-v2";
+  var KEY = "breaker-demo-state-v2";
   var bc = ("BroadcastChannel" in window) ? new BroadcastChannel(CH) : null;
 
-  // ---- Default seed: a realistic company kickoff L&D breakout ----
+  // Frågetyper. mc=flerval, tf=sant/falskt, poll=åsikt (ingen rätt),
+  // numeric=gissa siffran (närmast), match=para ihop, wordcloud=ordmoln.
+  var QTYPES = [
+    { k: "mc", label: "Flerval" },
+    { k: "tf", label: "Sant/Falskt" },
+    { k: "poll", label: "Poll (ingen rätt)" },
+    { k: "numeric", label: "Gissa siffran" },
+    { k: "match", label: "Para ihop" },
+    { k: "wordcloud", label: "Ordmoln" },
+  ];
+  var KIND_LABEL = { mc: "Flerval", tf: "Sant/Falskt", poll: "Poll", numeric: "Gissa siffran", match: "Para ihop", wordcloud: "Ordmoln" };
+  function qtype(q) { return q.type || "mc"; }
+  function optionsOf(q) { return qtype(q) === "tf" ? ["Sant", "Falskt"] : (q.options || []); }
+  function initType(q, t) {
+    q.type = t;
+    if (t === "mc") { if (!(q.options && q.options.length >= 2)) q.options = ["Alternativ 1", "Alternativ 2", "Alternativ 3", "Alternativ 4"]; if (typeof q.correct !== "number") q.correct = 0; }
+    else if (t === "tf") { q.correct = q.correct === 1 ? 1 : 0; }
+    else if (t === "poll") { if (!(q.options && q.options.length >= 2)) q.options = ["Alternativ 1", "Alternativ 2", "Alternativ 3"]; }
+    else if (t === "numeric") { if (typeof q.answer !== "number") q.answer = 0; }
+    else if (t === "match") { if (!(q.pairs && q.pairs.length)) q.pairs = [{ left: "", right: "" }, { left: "", right: "" }, { left: "", right: "" }]; }
+  }
+  function numOK(guess, answer) { return Math.abs(guess - answer) <= Math.max(1, Math.abs(answer) * 0.1); }
+
+  // ---- Default seed: a realistic company kickoff L&D breakout, one of each type ----
   function seed() {
     return {
       config: {
         eventName: "Nordvia Retail — Kickoff 2026",
         brandColor: "#6d5efc",
-        mode: "team", // "team" | "individ"
+        mode: "team",
         teams: ["Blå", "Grön", "Orange"],
         questions: [
-          { id: "q1", q: "Vad är kärnan i vår nya strategi 'Kund Först 2026'?",
+          { id: "q1", type: "mc", q: "Vad är kärnan i vår nya strategi 'Kund Först 2026'?",
             options: ["Öppna flest butiker", "Sätta kundens upplevelse före allt annat", "Sänka priserna mest", "Byta logotyp"], correct: 1 },
-          { id: "q2", q: "Vilket är vårt nya ledord för hur vi bemöter varandra internt?",
-            options: ["One Team", "Solo Speed", "Top Down", "Silo First"], correct: 0 },
-          { id: "q3", q: "Hur ofta mäter vi nu kundnöjdhet (NPS)?",
-            options: ["En gång per år", "Varje kvartal", "Varje vecka", "Aldrig"], correct: 2 },
-          { id: "q4", q: "Vad är målet med vår hållbarhetssatsning 'Grön Hylla'?",
-            options: ["Färre produkter", "Hälften av sortimentet hållbarhetsmärkt 2026", "Ta bort papperskvitton", "Stänga lager"], correct: 1 },
-          { id: "q5", q: "Vem äger kundupplevelsen enligt nya strategin?",
-            options: ["Bara kundtjänst", "Bara ledningen", "Alla medarbetare", "Ett externt bolag"], correct: 2 }
+          { id: "q2", type: "tf", q: "Vi mäter numera kundnöjdhet (NPS) varje vecka.", correct: 0 },
+          { id: "q3", type: "poll", q: "Vilket av våra värdeord känns viktigast för DIG?",
+            options: ["Mod", "Omtanke", "Enkelhet", "Nyfikenhet"] },
+          { id: "q4", type: "numeric", q: "Hur många nya hållbara butiker öppnar vi 2026?", answer: 12 },
+          { id: "q5", type: "match", q: "Para ihop värdeordet med vad det betyder hos oss",
+            pairs: [{ left: "Mod", right: "Vi vågar utmana" }, { left: "Omtanke", right: "Vi sätter kunden främst" }, { left: "Enkelhet", right: "Vi tar bort krångel" }] },
+          { id: "q6", type: "wordcloud", q: "Beskriv vår kultur i ETT ord" }
         ]
       },
       live: { phase: "lobby", currentQ: -1, participants: {} },
@@ -199,36 +234,26 @@
     try { var s = JSON.parse(localStorage.getItem(KEY)); if (s && s.config) return s; } catch (e) {}
     var s = seed(); localStorage.setItem(KEY, JSON.stringify(s)); return s;
   }
-  function save(s, silent) {
-    localStorage.setItem(KEY, JSON.stringify(s));
-    if (!silent && bc) bc.postMessage({ rev: s.rev });
-  }
-  function mutate(fn) {
-    var s = load(); fn(s); s.rev = (s.rev || 0) + 1; save(s); render();
-  }
+  function save(s, silent) { localStorage.setItem(KEY, JSON.stringify(s)); if (!silent && bc) bc.postMessage({ rev: s.rev }); }
+  function mutate(fn) { var s = load(); fn(s); s.rev = (s.rev || 0) + 1; save(s); render(); }
+  function mutateNoRender(fn) { var s = load(); fn(s); s.rev = (s.rev || 0) + 1; save(s); }
 
-  // ---- This tab's identity ----
   function myId() {
     var id = sessionStorage.getItem("breaker-guest-id");
     if (!id) { id = "g" + Math.random().toString(36).slice(2, 8); sessionStorage.setItem("breaker-guest-id", id); }
     return id;
   }
-
-  // ---- Routing (role via URL) ----
   function role() { return new URLSearchParams(location.search).get("role") || ""; }
   function goRole(r) { location.href = location.pathname + "?role=" + r; }
 
-  // ---- Theming ----
   function applyBrand(c) {
     document.documentElement.style.setProperty("--brand", c);
     var h = c.replace("#", ""); var r = parseInt(h.substr(0,2),16), g = parseInt(h.substr(2,2),16), b = parseInt(h.substr(4,2),16);
     var lum = (0.299*r + 0.587*g + 0.114*b);
     document.documentElement.style.setProperty("--brand-ink", lum > 150 ? "#0f1420" : "#ffffff");
   }
-
   function esc(s) { return String(s == null ? "" : s).replace(/[&<>"]/g, function (c) { return ({ "&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;" })[c]; }); }
 
-  // ---- Scoring helpers ----
   function leaderboard(s) {
     var ps = Object.keys(s.live.participants).map(function (id) { return s.live.participants[id]; });
     if (s.config.mode === "team") {
@@ -286,28 +311,56 @@
       + '<h3>' + title + '</h3><p>' + desc + '</p></button>';
   }
   function bindLanding() {
-    Array.prototype.forEach.call(app.querySelectorAll(".rolecard"), function (el) {
-      el.onclick = function () { goRole(el.dataset.role); };
-    });
+    Array.prototype.forEach.call(app.querySelectorAll(".rolecard"), function (el) { el.onclick = function () { goRole(el.dataset.role); }; });
   }
 
   // ---- Admin ----
+  function adminQEditor(q, qi) {
+    var t = qtype(q);
+    var typeSel = '<select class="qtype-sel" data-qtype="' + qi + '">' + QTYPES.map(function (o){ return '<option value="' + o.k + '"' + (t === o.k ? " selected" : "") + '>' + o.label + '</option>'; }).join("") + '</select>';
+    var head = '<div class="qhead"><span class="badge">Fråga ' + (qi + 1) + '</span>' + typeSel
+      + '<input type="text" data-q="' + qi + '" value="' + esc(q.q) + '">'
+      + '<button class="minibtn" data-delq="' + qi + '">✕</button></div>';
+    var body = "";
+    if (t === "mc" || t === "poll") {
+      var withCorrect = t === "mc";
+      var opts = (q.options || []).map(function (o, oi) {
+        return '<div class="opt' + (withCorrect && q.correct === oi ? " correct" : "") + '">'
+          + (withCorrect ? '<button class="mark ' + (q.correct === oi ? "on" : "") + '" data-correct="' + qi + '-' + oi + '" title="Rätt svar">✓</button>' : '')
+          + '<input type="text" data-opt="' + qi + '-' + oi + '" value="' + esc(o) + '">'
+          + (q.options.length > 2 ? '<button class="minibtn" data-optdel="' + qi + '-' + oi + '" title="Ta bort">✕</button>' : '')
+          + '</div>';
+      }).join("");
+      body = '<div class="opts">' + opts + '</div><button class="minibtn" data-optadd="' + qi + '" style="margin-top:8px">+ alternativ</button>'
+        + (withCorrect ? '' : '<div class="sub" style="margin:8px 0 0">Poll = ingen rätt/fel. Alla som svarar får poäng.</div>');
+    } else if (t === "tf") {
+      body = '<div class="seg" style="margin-top:2px"><button data-tf="' + qi + '-0" class="' + (q.correct !== 1 ? "on" : "") + '">Sant</button>'
+        + '<button data-tf="' + qi + '-1" class="' + (q.correct === 1 ? "on" : "") + '">Falskt</button></div>'
+        + '<div class="sub" style="margin:8px 0 0">Markera vilket som är rätt.</div>';
+    } else if (t === "numeric") {
+      body = '<div class="field" style="margin:0"><label>Rätt svar (siffra) — närmast vinner, ±10% ger poäng</label>'
+        + '<input type="number" data-num="' + qi + '" value="' + (typeof q.answer === "number" ? q.answer : 0) + '" style="max-width:200px"></div>';
+    } else if (t === "match") {
+      var rows = (q.pairs || []).map(function (p, pi) {
+        return '<div class="mrow"><input type="text" data-mleft="' + qi + '-' + pi + '" placeholder="Vänster" value="' + esc(p.left) + '">'
+          + '<span style="color:var(--ink-2)">↔</span>'
+          + '<input type="text" data-mright="' + qi + '-' + pi + '" placeholder="Höger" value="' + esc(p.right) + '">'
+          + (q.pairs.length > 2 ? '<button class="minibtn" data-mdel="' + qi + '-' + pi + '">✕</button>' : '') + '</div>';
+      }).join("");
+      body = rows + '<button class="minibtn" data-madd="' + qi + '">+ par</button>';
+    } else if (t === "wordcloud") {
+      body = '<div class="sub" style="margin:0">Deltagarna skriver ETT ord. Inget rätt svar — orden bildar ett live ordmoln hos Host.</div>';
+    }
+    return '<div class="qedit">' + head + body + '</div>';
+  }
+
   function renderAdmin(s) {
     var c = s.config;
     var teamRows = c.teams.map(function (t, i) {
       return '<div class="row" style="margin-bottom:8px"><input type="text" data-team="' + i + '" value="' + esc(t) + '">'
         + '<button class="minibtn" data-delteam="' + i + '">Ta bort</button></div>';
     }).join("");
-    var qHtml = c.questions.map(function (q, qi) {
-      var opts = q.options.map(function (o, oi) {
-        return '<div class="opt' + (q.correct === oi ? " correct" : "") + '"><button class="mark ' + (q.correct === oi ? "on" : "") + '" data-correct="' + qi + '-' + oi + '" title="Markera som rätt svar">✓</button>'
-          + '<input type="text" data-opt="' + qi + '-' + oi + '" value="' + esc(o) + '"></div>';
-      }).join("");
-      return '<div class="qedit"><div class="qhead"><span class="badge">Fråga ' + (qi + 1) + '</span>'
-        + '<input type="text" data-q="' + qi + '" value="' + esc(q.q) + '">'
-        + '<button class="minibtn" data-delq="' + qi + '">✕</button></div>'
-        + '<div class="opts">' + opts + '</div></div>';
-    }).join("");
+    var qHtml = c.questions.map(function (q, qi) { return adminQEditor(q, qi); }).join("");
 
     app.innerHTML = topbar("🎛️ Admin") + '<div class="wrap reveal">'
       + '<div class="panel"><h2>Event & branding</h2><div class="sub">Ändringar speglas direkt hos Guest och Host.</div>'
@@ -318,7 +371,7 @@
       + '</div>'
       + (c.mode === "team" ? '<div class="field"><label>Team</label>' + teamRows + '<button class="minibtn" id="addteam">+ Lägg till team</button></div>' : '')
       + '</div>'
-      + '<div class="panel"><h2>Utmaningar</h2><div class="sub">Frågorna som gamifierar budskapet. Klicka ✓ för rätt svar.</div>'
+      + '<div class="panel"><h2>Utmaningar</h2><div class="sub">Välj frågetyp per fråga i listan. Flerval &amp; Sant/Falskt poängsätts på rätt svar; Poll &amp; Ordmoln ger deltagarpoäng; Gissa siffran &amp; Para ihop poängsätts på träffsäkerhet.</div>'
       + qHtml
       + '<button class="minibtn" id="addq">+ Lägg till fråga</button></div>'
       + '<div class="panel center"><div class="sub" style="margin:0">Deltagare anslutna just nu: <b>' + Object.keys(s.live.participants).length + '</b> · Status: <b>' + phaseLabel(s.live.phase) + '</b></div>'
@@ -328,48 +381,83 @@
     bindTop();
     q("#evname").oninput = function () { mutateNoRender(function (st){ st.config.eventName = q("#evname").value; }); };
     q("#brand").oninput = function () { mutate(function (st){ st.config.brandColor = q("#brand").value; }); };
-    Array.prototype.forEach.call(app.querySelectorAll("[data-mode]"), function (el){ el.onclick = function (){ mutate(function (st){ st.config.mode = el.dataset.mode; }); }; });
+    each("[data-mode]", function (el){ el.onclick = function (){ mutate(function (st){ st.config.mode = el.dataset.mode; }); }; });
     if (q("#addteam")) q("#addteam").onclick = function (){ mutate(function (st){ st.config.teams.push("Team " + (st.config.teams.length + 1)); }); };
-    Array.prototype.forEach.call(app.querySelectorAll("[data-team]"), function (el){ el.oninput = function (){ mutateNoRender(function (st){ st.config.teams[+el.dataset.team] = el.value; }); }; });
-    Array.prototype.forEach.call(app.querySelectorAll("[data-delteam]"), function (el){ el.onclick = function (){ mutate(function (st){ st.config.teams.splice(+el.dataset.delteam, 1); }); }; });
-    q("#addq").onclick = function (){ mutate(function (st){ st.config.questions.push({ id: "q" + Date.now(), q: "Ny fråga", options: ["Alternativ 1","Alternativ 2","Alternativ 3","Alternativ 4"], correct: 0 }); }); };
-    Array.prototype.forEach.call(app.querySelectorAll("[data-q]"), function (el){ el.oninput = function (){ mutateNoRender(function (st){ st.config.questions[+el.dataset.q].q = el.value; }); }; });
-    Array.prototype.forEach.call(app.querySelectorAll("[data-delq]"), function (el){ el.onclick = function (){ mutate(function (st){ st.config.questions.splice(+el.dataset.delq, 1); }); }; });
-    Array.prototype.forEach.call(app.querySelectorAll("[data-opt]"), function (el){ el.oninput = function (){ var p = el.dataset.opt.split("-"); mutateNoRender(function (st){ st.config.questions[+p[0]].options[+p[1]] = el.value; }); }; });
-    Array.prototype.forEach.call(app.querySelectorAll("[data-correct]"), function (el){ el.onclick = function (){ var p = el.dataset.correct.split("-"); mutate(function (st){ st.config.questions[+p[0]].correct = +p[1]; }); }; });
+    each("[data-team]", function (el){ el.oninput = function (){ mutateNoRender(function (st){ st.config.teams[+el.dataset.team] = el.value; }); }; });
+    each("[data-delteam]", function (el){ el.onclick = function (){ mutate(function (st){ st.config.teams.splice(+el.dataset.delteam, 1); }); }; });
+    q("#addq").onclick = function (){ mutate(function (st){ var nq = { id: "q" + Date.now(), q: "Ny fråga" }; initType(nq, "mc"); st.config.questions.push(nq); }); };
+    each("[data-qtype]", function (el){ el.onchange = function (){ mutate(function (st){ initType(st.config.questions[+el.dataset.qtype], el.value); }); }; });
+    each("[data-q]", function (el){ el.oninput = function (){ mutateNoRender(function (st){ st.config.questions[+el.dataset.q].q = el.value; }); }; });
+    each("[data-delq]", function (el){ el.onclick = function (){ mutate(function (st){ st.config.questions.splice(+el.dataset.delq, 1); }); }; });
+    each("[data-opt]", function (el){ el.oninput = function (){ var p = el.dataset.opt.split("-"); mutateNoRender(function (st){ st.config.questions[+p[0]].options[+p[1]] = el.value; }); }; });
+    each("[data-correct]", function (el){ el.onclick = function (){ var p = el.dataset.correct.split("-"); mutate(function (st){ st.config.questions[+p[0]].correct = +p[1]; }); }; });
+    each("[data-optdel]", function (el){ el.onclick = function (){ var p = el.dataset.optdel.split("-"); mutate(function (st){ st.config.questions[+p[0]].options.splice(+p[1], 1); }); }; });
+    each("[data-optadd]", function (el){ el.onclick = function (){ mutate(function (st){ var qq = st.config.questions[+el.dataset.optadd]; qq.options.push("Alternativ " + (qq.options.length + 1)); }); }; });
+    each("[data-tf]", function (el){ el.onclick = function (){ var p = el.dataset.tf.split("-"); mutate(function (st){ st.config.questions[+p[0]].correct = +p[1]; }); }; });
+    each("[data-num]", function (el){ el.oninput = function (){ mutateNoRender(function (st){ st.config.questions[+el.dataset.num].answer = parseFloat(el.value) || 0; }); }; });
+    each("[data-mleft]", function (el){ el.oninput = function (){ var p = el.dataset.mleft.split("-"); mutateNoRender(function (st){ st.config.questions[+p[0]].pairs[+p[1]].left = el.value; }); }; });
+    each("[data-mright]", function (el){ el.oninput = function (){ var p = el.dataset.mright.split("-"); mutateNoRender(function (st){ st.config.questions[+p[0]].pairs[+p[1]].right = el.value; }); }; });
+    each("[data-mdel]", function (el){ el.onclick = function (){ var p = el.dataset.mdel.split("-"); mutate(function (st){ st.config.questions[+p[0]].pairs.splice(+p[1], 1); }); }; });
+    each("[data-madd]", function (el){ el.onclick = function (){ mutate(function (st){ st.config.questions[+el.dataset.madd].pairs.push({ left: "", right: "" }); }); }; });
   }
-  function mutateNoRender(fn) { var s = load(); fn(s); s.rev = (s.rev || 0) + 1; save(s); }
 
   // ---- Host ----
+  function distBars(opts, counts, correctIdx) {
+    var maxd = Math.max(1, Math.max.apply(null, counts.concat([0])));
+    return opts.map(function (o, oi) {
+      return '<div style="margin-bottom:12px"><div class="row" style="justify-content:space-between"><span style="font-weight:500">' + (oi === correctIdx ? "✅ " : "") + esc(o) + '</span><small style="color:var(--ink-2)">' + counts[oi] + '</small></div>'
+        + '<div class="bar"><span style="width:' + Math.round(counts[oi] / maxd * 100) + '%"></span></div></div>';
+    }).join("");
+  }
+  function hostQuestionBody(s, q0, live) {
+    var parts = live.participants;
+    var answeredIds = Object.keys(parts).filter(function (id){ var a = parts[id].answers || {}; return a[q0.id]; });
+    var t = qtype(q0);
+    var inner = "";
+    if (t === "mc" || t === "tf" || t === "poll") {
+      var opts = optionsOf(q0);
+      var counts = opts.map(function (_, oi){ return answeredIds.filter(function (id){ return parts[id].answers[q0.id].choice === oi; }).length; });
+      var correctIdx = (t === "poll") ? -1 : q0.correct;
+      inner = distBars(opts, counts, correctIdx);
+    } else if (t === "numeric") {
+      var closest = null;
+      answeredIds.forEach(function (id){ var v = parts[id].answers[q0.id].value; var d = Math.abs(v - q0.answer); if (closest === null || d < closest.d) closest = { name: parts[id].name, v: v, d: d }; });
+      inner = '<div class="center" style="padding:8px 0"><div class="sub" style="margin:0">Rätt svar</div><div class="big" style="margin:6px 0">' + esc(q0.answer) + '</div>'
+        + (closest ? '<div class="pill">Närmast: ' + esc(closest.name) + ' (' + esc(closest.v) + ')</div>' : '<div class="empty">Inga gissningar än.</div>') + '</div>';
+    } else if (t === "match") {
+      inner = '<div class="list">' + (q0.pairs || []).map(function (p){ return '<div class="lrow"><div class="who">' + esc(p.left) + '</div><div style="color:var(--ink-2)">↔</div><div class="who" style="text-align:right">' + esc(p.right) + '</div></div>'; }).join("") + '</div>'
+        + '<div class="sub" style="margin:10px 0 0">Rätt ihopkoppling. Deltagarna poängsätts på antal rätt.</div>';
+    } else if (t === "wordcloud") {
+      var freq = {};
+      answeredIds.forEach(function (id){ var w = (parts[id].answers[q0.id].text || "").trim().toLowerCase(); if (!w) return; freq[w] = (freq[w] || 0) + 1; });
+      var words = Object.keys(freq);
+      var maxf = words.reduce(function (m, w){ return Math.max(m, freq[w]); }, 1);
+      inner = words.length
+        ? '<div class="wcloud">' + words.map(function (w){ var sz = 15 + (freq[w] / maxf) * 26; var op = 0.5 + (freq[w] / maxf) * 0.5; return '<span class="wcword" style="font-size:' + sz.toFixed(0) + 'px;opacity:' + op.toFixed(2) + '">' + esc(w) + '</span>'; }).join("") + '</div>'
+        : '<div class="empty center" style="padding:24px 0">Ordmolnet växer när deltagarna svarar…</div>';
+    }
+    return '<div class="panel"><div class="row" style="justify-content:space-between;flex-wrap:wrap;gap:8px"><div><span class="badge">Fråga ' + (live.currentQ + 1) + ' / ' + s.config.questions.length + '</span><span class="qkind">' + KIND_LABEL[t] + '</span></div>'
+      + '<small style="color:var(--ink-2)">' + answeredIds.length + ' / ' + Object.keys(parts).length + ' har svarat</small></div>'
+      + '<h2 style="margin:14px 0 16px;font-size:20px">' + esc(q0.q) + '</h2>' + inner
+      + '<div class="row" style="gap:10px;margin-top:16px"><button class="btn" data-act="lead">Visa leaderboard</button>'
+      + (live.currentQ < s.config.questions.length - 1 ? '<button class="btn ghost" data-act="next">Nästa fråga →</button>' : '<button class="btn ghost" data-act="end">Avsluta →</button>')
+      + '</div></div>';
+  }
+
   function renderHost(s) {
     var live = s.live, c = s.config;
     var pcount = Object.keys(live.participants).length;
     var body;
     if (live.phase === "lobby") {
       var names = Object.keys(live.participants).map(function (id){ var p = live.participants[id]; return '<span class="pill">' + esc(p.name) + (c.mode === "team" ? ' · ' + esc(p.team) : '') + '</span>'; }).join("");
-      body = '<div class="panel center"><div class="badge">Lobby</div>'
-        + '<div class="big">Väntar på deltagare…</div>'
+      body = '<div class="panel center"><div class="badge">Lobby</div><div class="big">Väntar på deltagare…</div>'
         + '<div class="stat" style="margin:18px 0"><div class="card"><div class="n">' + pcount + '</div><div class="l">anslutna</div></div>'
         + '<div class="card"><div class="n">' + c.questions.length + '</div><div class="l">frågor</div></div></div>'
         + '<div class="pills">' + (names || '<span class="empty">Ingen har anslutit än. Öppna Guest-vyn i en flik.</span>') + '</div>'
         + '<div style="margin-top:20px"><button class="btn lg" data-act="start" ' + (pcount === 0 ? "disabled" : "") + '>Starta eventet →</button></div></div>';
     } else if (live.phase === "question") {
-      var q0 = c.questions[live.currentQ];
-      var answered = Object.keys(live.participants).filter(function (id){ var a = live.participants[id].answers || {}; return a[q0.id]; });
-      var dist = q0.options.map(function (_, oi){ return answered.filter(function (id){ return live.participants[id].answers[q0.id].choice === oi; }).length; });
-      var maxd = Math.max(1, Math.max.apply(null, dist));
-      var optHtml = q0.options.map(function (o, oi){
-        return '<div style="margin-bottom:12px"><div class="row" style="justify-content:space-between"><span style="font-weight:500">' + (q0.correct === oi ? "✅ " : "") + esc(o) + '</span><small style="color:var(--ink-2)">' + dist[oi] + '</small></div>'
-          + '<div class="bar"><span style="width:' + Math.round(dist[oi] / maxd * 100) + '%"></span></div></div>';
-      }).join("");
-      body = '<div class="panel"><div class="row" style="justify-content:space-between"><div class="badge">Fråga ' + (live.currentQ + 1) + ' / ' + c.questions.length + '</div>'
-        + '<small style="color:var(--ink-2)">' + answered.length + ' / ' + pcount + ' har svarat</small></div>'
-        + '<h2 style="margin:14px 0 16px;font-size:20px">' + esc(q0.q) + '</h2>' + optHtml
-        + '<div class="row" style="gap:10px;margin-top:16px">'
-        + '<button class="btn" data-act="lead">Visa leaderboard</button>'
-        + (live.currentQ < c.questions.length - 1 ? '<button class="btn ghost" data-act="next">Nästa fråga →</button>' : '<button class="btn ghost" data-act="end">Avsluta →</button>')
-        + '</div></div>';
-    } else if (live.phase === "leaderboard" || live.phase === "ended") {
+      body = hostQuestionBody(s, c.questions[live.currentQ], live);
+    } else {
       body = '<div class="panel"><div class="badge">' + (live.phase === "ended" ? "Resultat" : "Leaderboard") + '</div>'
         + '<h2 style="margin:12px 0 14px">' + (live.phase === "ended" ? "Slutställning 🏆" : "Ställning just nu") + '</h2>'
         + leaderboardHtml(s, null)
@@ -397,14 +485,70 @@
   }
 
   // ---- Guest ----
+  function guestQuestionBody(q0, ans) {
+    var t = qtype(q0);
+    var body = "";
+    if (t === "mc" || t === "poll") {
+      body = '<div class="answers">' + optionsOf(q0).map(function (o, oi) {
+        var cls = "ans";
+        if (ans) { if (t === "poll") { if (oi === ans.choice) cls += " mychoice picked"; } else { if (oi === q0.correct) cls += " correct"; else if (oi === ans.choice) cls += " wrong"; if (oi === ans.choice) cls += " picked"; } }
+        return '<button class="' + cls + '" data-optpick="' + oi + '" ' + (ans ? "disabled" : "") + '><span class="lab">' + ("ABCDEFGH"[oi] || (oi + 1)) + '</span>' + esc(o) + '</button>';
+      }).join("") + '</div>';
+    } else if (t === "tf") {
+      body = '<div class="tfgrid">' + optionsOf(q0).map(function (o, oi) {
+        var cls = "ans tf";
+        if (ans) { if (oi === q0.correct) cls += " correct"; else if (oi === ans.choice) cls += " wrong"; if (oi === ans.choice) cls += " picked"; }
+        return '<button class="' + cls + '" data-optpick="' + oi + '" ' + (ans ? "disabled" : "") + '>' + esc(o) + '</button>';
+      }).join("") + '</div>';
+    } else if (t === "numeric") {
+      if (ans) {
+        body = '<div class="center" style="padding:14px 0"><div class="sub" style="margin:0">Din gissning</div><div class="big" style="margin:6px 0">' + esc(ans.value) + '</div>'
+          + '<div class="pill">Rätt svar: ' + esc(q0.answer) + '</div></div>';
+      } else {
+        body = '<div style="margin-top:18px"><input type="number" id="numGuess" class="numin" placeholder="Din siffra"><button class="btn block lg" id="numSubmit" style="margin-top:10px">Svara</button></div>';
+      }
+    } else if (t === "match") {
+      var rightsDisplay = (q0.pairs || []).map(function (p){ return p.right; }).slice().sort();
+      if (ans) {
+        body = '<div class="list" style="margin-top:16px">' + (q0.pairs || []).map(function (p, pi) {
+          var chosen = ans.map[pi] || ""; var ok = chosen === p.right;
+          return '<div class="lrow" style="border-color:' + (ok ? "var(--good)" : "var(--bad)") + '"><div class="who">' + esc(p.left) + '</div><div style="text-align:right"><div>' + (ok ? "✅ " : "❌ ") + esc(chosen || "—") + '</div>' + (ok ? "" : '<small style="color:var(--ink-2)">rätt: ' + esc(p.right) + '</small>') + '</div></div>';
+        }).join("") + '</div>';
+      } else {
+        body = '<div style="margin-top:16px">' + (q0.pairs || []).map(function (p, pi) {
+          return '<div class="mrow"><span class="ml">' + esc(p.left) + '</span><select data-msel="' + pi + '"><option value="">välj…</option>' + rightsDisplay.map(function (r){ return '<option value="' + esc(r) + '">' + esc(r) + '</option>'; }).join("") + '</select></div>';
+        }).join("") + '<button class="btn block lg" id="matchSubmit" style="margin-top:8px">Svara</button></div>';
+      }
+    } else if (t === "wordcloud") {
+      if (ans) {
+        body = '<div class="fb neutral">✨ Ditt ord ”' + esc(ans.text) + '” är med i molnet</div>';
+      } else {
+        body = '<div style="margin-top:18px"><input type="text" id="wcWord" maxlength="24" placeholder="Ett ord…" style="text-align:center"><button class="btn block lg" id="wcSubmit" style="margin-top:10px">Skicka</button></div>';
+      }
+    }
+    // Feedback line for scored types
+    var fb = "";
+    if (ans) {
+      if (t === "mc" || t === "tf") fb = ans.correct ? '<div class="fb good">✅ Rätt! +' + ans.points + ' p</div>' : '<div class="fb bad">❌ Inte den här gången</div>';
+      else if (t === "poll") fb = '<div class="fb neutral">✅ Din röst är räknad · +' + ans.points + ' p</div>';
+      else if (t === "numeric") fb = ans.correct ? '<div class="fb good">✅ Nära nog! +' + ans.points + ' p</div>' : '<div class="fb bad">Inte tillräckligt nära · +0 p</div>';
+      else if (t === "match") fb = '<div class="fb ' + (ans.correctCount === ans.total ? "good" : "neutral") + '">' + ans.correctCount + '/' + ans.total + ' rätt · +' + ans.points + ' p</div>';
+      else if (t === "wordcloud") fb = '<div class="fb neutral" style="padding-top:4px">+' + ans.points + ' p</div>';
+    }
+    return '<div class="panel qbox"><span class="badge">Fråga ' + (curIdx() + 1) + ' / ' + qCount() + '</span><span class="qkind">' + KIND_LABEL[t] + '</span>'
+      + '<h2 style="margin:14px 0 4px">' + esc(q0.q) + '</h2>' + body + fb
+      + (ans ? '<div class="center sub" style="margin-top:6px">Väntar på nästa fråga…</div>' : '') + '</div>';
+  }
+  function curIdx() { return load().live.currentQ; }
+  function qCount() { return load().config.questions.length; }
+
   function renderGuest(s) {
     var live = s.live, c = s.config;
     var me = live.participants[myId()];
     if (!me) {
       var teamOpts = c.teams.map(function (t){ return '<option value="' + esc(t) + '">' + esc(t) + '</option>'; }).join("");
       app.innerHTML = topbar("📱 Guest") + '<div class="wrap reveal"><div class="panel center">'
-        + '<div class="badge">' + esc(c.eventName) + '</div>'
-        + '<div class="big">Välkommen! 👋</div>'
+        + '<div class="badge">' + esc(c.eventName) + '</div><div class="big">Välkommen! 👋</div>'
         + '<div class="sub">Gå med för att vara med och tävla i utmaningarna.</div>'
         + '<div style="max-width:340px;margin:0 auto;text-align:left">'
         + '<div class="field"><label>Ditt namn</label><input type="text" id="gname" placeholder="T.ex. Alex"></div>'
@@ -426,18 +570,8 @@
         + '<div style="font-size:38px;margin-top:12px">⏳</div></div>';
     } else if (live.phase === "question") {
       var q0 = c.questions[live.currentQ];
-      var ans = (me.answers || {})[q0.id];
-      var opts = q0.options.map(function (o, oi) {
-        var cls = "ans";
-        if (ans) { cls += " "; if (oi === q0.correct) cls += "correct"; else if (oi === ans.choice) cls += "wrong"; if (oi === ans.choice) cls += " picked"; }
-        return '<button class="' + cls + '" data-pick="' + oi + '" ' + (ans ? "disabled" : "") + '><span class="lab">' + "ABCD"[oi] + '</span>' + esc(o) + '</button>';
-      }).join("");
-      var feedback = ans ? (ans.correct ? '<div class="center" style="color:var(--good);font-weight:700;padding:14px 0;font-family:var(--display)">✅ Rätt! +' + ans.points + ' p</div>' : '<div class="center" style="color:var(--bad);font-weight:700;padding:14px 0;font-family:var(--display)">❌ Inte den här gången</div>') : '';
-      body = '<div class="panel qbox"><div class="badge">Fråga ' + (live.currentQ + 1) + ' / ' + c.questions.length + '</div>'
-        + '<h2 style="margin:14px 0 4px">' + esc(q0.q) + '</h2>'
-        + '<div class="answers">' + opts + '</div>' + feedback
-        + (ans ? '<div class="center sub" style="margin-top:6px">Väntar på nästa fråga…</div>' : '') + '</div>';
-    } else if (live.phase === "leaderboard" || live.phase === "ended") {
+      body = guestQuestionBody(q0, (me.answers || {})[q0.id]);
+    } else {
       var myRank = "";
       if (c.mode !== "team") {
         var rows = leaderboard(s); var idx = rows.findIndex(function (r){ return r.id === myId(); });
@@ -454,24 +588,52 @@
       + '<b style="font-size:14px;font-family:var(--display)">' + esc(c.eventName) + '</b><span style="flex:1"></span><small style="color:var(--ink-2)">' + esc(me.name) + (c.mode === "team" ? " · " + esc(me.team) : "") + '</small></div>'
       + body + '</div><div class="foot">Det du svarar syns direkt i Hostens leaderboard.</div>';
     bindTop();
-    Array.prototype.forEach.call(app.querySelectorAll("[data-pick]"), function (el) {
+    wireGuestAnswer();
+  }
+
+  // Store an answer for the current question + award points, once.
+  function storeAnswer(builder) {
+    mutate(function (st) {
+      var q0 = st.config.questions[st.live.currentQ];
+      var p = st.live.participants[myId()]; if (!p) return;
+      p.answers = p.answers || {}; if (p.answers[q0.id]) return;
+      var res = builder(q0); if (!res) return;
+      p.answers[q0.id] = res.ans; p.score += res.ans.points || 0;
+    });
+  }
+  function wireGuestAnswer() {
+    each("[data-optpick]", function (el) {
       el.onclick = function () {
-        var choice = +el.dataset.pick;
-        mutate(function (st) {
-          var q0 = st.config.questions[st.live.currentQ];
-          var p = st.live.participants[myId()]; if (!p || (p.answers && p.answers[q0.id])) return;
+        var choice = +el.dataset.optpick;
+        storeAnswer(function (q0) {
+          var t = qtype(q0);
+          if (t === "poll") return { ans: { choice: choice, points: 50 } };
           var correct = choice === q0.correct;
-          var points = correct ? 100 : 0;
-          p.answers = p.answers || {}; p.answers[q0.id] = { choice: choice, correct: correct, points: points };
-          p.score += points;
+          return { ans: { choice: choice, correct: correct, points: correct ? 100 : 0 } };
         });
       };
     });
+    if (q("#numSubmit")) q("#numSubmit").onclick = function () {
+      var raw = q("#numGuess").value; if (raw === "" || raw == null) { q("#numGuess").focus(); return; }
+      var v = parseFloat(raw);
+      storeAnswer(function (q0) { var ok = numOK(v, q0.answer); return { ans: { value: v, correct: ok, points: ok ? 100 : 0 } }; });
+    };
+    if (q("#matchSubmit")) q("#matchSubmit").onclick = function () {
+      var map = {}; each("[data-msel]", function (sel){ map[+sel.dataset.msel] = sel.value; });
+      storeAnswer(function (q0) {
+        var total = q0.pairs.length, cc = 0;
+        q0.pairs.forEach(function (p, i){ if (map[i] === p.right) cc++; });
+        return { ans: { map: map, correctCount: cc, total: total, points: Math.round(cc / total * 100) } };
+      });
+    };
+    if (q("#wcSubmit")) q("#wcSubmit").onclick = function () {
+      var w = (q("#wcWord").value || "").trim(); if (!w) { q("#wcWord").focus(); return; }
+      storeAnswer(function () { return { ans: { text: w, points: 50 } }; });
+    };
   }
 
   function phaseLabel(p) { return ({ lobby: "Lobby", question: "Pågår", leaderboard: "Leaderboard", ended: "Avslutat" })[p] || p; }
 
-  // ---- Host actions & reset (shared) ----
   function bindTop() {
     var rb = app.querySelector('[data-act="reset"]'); if (rb) rb.onclick = function () {
       if (confirm("Återställ hela demon till start?")) { localStorage.removeItem(KEY); if (bc) bc.postMessage({ rev: 0 }); render(); }
@@ -483,17 +645,14 @@
       end: function (st){ st.live.phase = "ended"; },
       restart: function (st){ st.live.phase = "lobby"; st.live.currentQ = -1; Object.keys(st.live.participants).forEach(function (id){ st.live.participants[id].score = 0; st.live.participants[id].answers = {}; }); }
     };
-    Object.keys(map).forEach(function (act) {
-      var el = app.querySelector('[data-act="' + act + '"]'); if (el) el.onclick = function () { mutate(map[act]); };
-    });
+    Object.keys(map).forEach(function (act) { var el = app.querySelector('[data-act="' + act + '"]'); if (el) el.onclick = function () { mutate(map[act]); }; });
   }
 
   function q(sel) { return app.querySelector(sel); }
+  function each(sel, fn) { Array.prototype.forEach.call(app.querySelectorAll(sel), fn); }
 
-  // ---- Live sync across tabs ----
   if (bc) bc.onmessage = function () { render(); };
   window.addEventListener("storage", function (e) { if (e.key === KEY) render(); });
-
   render();
 })();
 </script>
