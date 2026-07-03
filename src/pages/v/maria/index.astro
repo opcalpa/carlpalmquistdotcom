@@ -124,6 +124,15 @@
     .chat-form input:focus,.chat-form textarea:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-tint)}
     .chat-form input.name{max-width:220px}
     .muted{color:var(--dim)}
+    /* Ändringslogg-feed */
+    .mf-log{display:flex;flex-direction:column;gap:2px}
+    .mf-log-item{border-left:2px solid var(--line2);padding:7px 0 7px 13px}
+    .mf-log-item.revert{border-left-color:color-mix(in srgb,var(--warn) 45%,var(--line2))}
+    .mf-log-main{font-size:13.5px;color:var(--ink2);line-height:1.5}
+    .mf-log-main b{color:var(--ink)}
+    .mf-log-arrow{font-variant-numeric:tabular-nums;color:var(--ink)}
+    .mf-log-meta{font-size:11.5px;color:var(--faint);margin-top:1px}
+    .mf-log-note{color:var(--dim);font-style:italic}
     @media(max-width:820px){.mf-grid{grid-template-columns:1fr}}
   </style>
 </head>
@@ -148,6 +157,7 @@
     var overrides = {};   // delat spara-lager (path -> {v, by, ts, note}); baslinjen rörs ALDRIG
     var shared = null;    // baslinje + overrides = den delade sanningen alla ser
     var work = null;      // lokal sandlåda (dina osparade ändringar ovanpå shared)
+    var changelog = [];   // publik ändringslogg (alla sparade ändringar, äldst först)
 
     // ---- format ----
     function kr(n){ return (Math.round(n)||0).toLocaleString("sv-SE") + " kr"; }
@@ -179,6 +189,9 @@
       ["privatekonomi.frejgatanHyra","Hyra Frejgatan","kr"],["privatekonomi.driftVettershagaMan","Drift Vettershaga","kr"],
       ["nyahuset.lan","Lån på nya huset","kr"],["nyahuset.rantaPct","Ränta","pct"],["nyahuset.amorteringPct","Amortering","pct"]
     ];
+    var FIELD_LABEL={}, FIELD_TYPE={};
+    FIELDS.forEach(function(f){ FIELD_LABEL[f[0]]=f[1]; FIELD_TYPE[f[0]]=f[2]; });
+    function fmtVal(path,n){ return (FIELD_TYPE[path]==="pct"?pct:kr)(n); }
 
     // ---- compute (samma motor som pappen) ----
     function compute(S){
@@ -243,6 +256,21 @@
         +'<div class="chat-form"><input class="name" id="chat-name" placeholder="Ditt namn" maxlength="40" />'
         +'<textarea id="chat-msg" rows="2" placeholder="Skriv ett meddelande…" maxlength="1500"></textarea>'
         +'<div><button class="mf-btn primary" id="chat-send">Skicka</button></div></div></div>';
+
+      // Publik ändringslogg (feed längst ned): alla sparade ändringar + återställningar, av vem.
+      var logHtml='<div class="mf-sec"><h3>📝 Ändringslogg <span class="mf-tag">alla sparade ändringar</span></h3>';
+      if(!changelog.length){ logHtml+='<div class="muted" style="font-size:14px">Inga sparade ändringar än. Ändringar som sparas med 💾 Spara till alla hamnar här.</div>'; }
+      else{
+        logHtml+='<div class="mf-log">'+changelog.slice().reverse().map(function(e){
+          var lbl=FIELD_LABEL[e.path]||e.path, from=fmtVal(e.path,e.from), to=fmtVal(e.path,e.to);
+          var main=e.action==="revert"
+            ? '<b>'+esc(e.by||"Någon")+'</b> återställde <b>'+esc(lbl)+'</b> till originalet <span class="mf-log-arrow">('+from+' → '+to+')</span>'
+            : '<b>'+esc(e.by||"Någon")+'</b> ändrade <b>'+esc(lbl)+'</b>: <span class="mf-log-arrow">'+from+' → '+to+'</span>';
+          return '<div class="mf-log-item'+(e.action==="revert"?" revert":"")+'"><div class="mf-log-main">'+main+'</div>'
+            +'<div class="mf-log-meta">'+fmtDate(e.ts)+(e.note?(' · <span class="mf-log-note">'+esc(e.note)+'</span>'):'')+'</div></div>';
+        }).join('')+'</div>';
+      }
+      logHtml+='</div>';
 
       document.getElementById("app").innerHTML =
       '<div class="mf-head"><span class="mf-eyebrow">🏡 Familjekalkyl</span><h2>Marias flytt</h2>'
@@ -333,7 +361,7 @@
       +row("Kvar/mån efter pension",kvarBadge,{calc:true,strong:true,hi:c.kvarPension<5000?"warn":"ok"})
       +'</table><div class="mf-callout mf-callout-warn">⚠️ Efter pension lämnar '+kr(S.privatekonomi.pensionNetto)+'/mån minus boende + lån <b>'+kr(c.kvarPension)+'/mån</b> till mat och liv.</div></section>'
       +'</div>'
-      +reasonHtml+chatHtml;
+      +reasonHtml+chatHtml+logHtml;
 
       wire();
       renderChat();
@@ -382,7 +410,7 @@
       if(!confirm("Spara dessa ändringar för ALLA i familjen?\n\n"+summary+"\n\nOriginalet sparas kvar och kan alltid återställas.")) return;
       var note=(prompt("Valfri notering (varför? t.ex. \"offert från byggaren\"):")||"").trim();
       api("POST","&kind=override",{pw:pw,name:name,note:note,changes:d.map(function(x){return {path:x.path,value:x.to};})}).then(function(r){
-        if(r.ok&&r.j.overrides){ overrides=r.j.overrides; shared=applyOverrides(baseline,overrides); work=clone(shared); save(); draw(); }
+        if(r.ok&&r.j.overrides){ overrides=r.j.overrides; if(r.j.changelog)changelog=r.j.changelog; shared=applyOverrides(baseline,overrides); work=clone(shared); save(); draw(); }
         else alert("Kunde inte spara: "+((r.j&&r.j.error)||r.status));
       });
     }
@@ -390,8 +418,10 @@
     function revertOverride(path){
       var ov=overrides[path]; if(!ov)return;
       if(!confirm("Återställ detta fält till originalet för alla?"+(ov.by?("\n\n(Tar bort ändringen av "+ov.by+".)"):""))) return;
-      api("POST","&kind=override",{pw:pw,clearPath:path}).then(function(r){
-        if(r.ok&&r.j.overrides){ overrides=r.j.overrides; shared=applyOverrides(baseline,overrides); set(work,path,get(baseline,path)); save(); draw(); }
+      var nameEl=document.getElementById("chat-name");
+      var name=((nameEl&&nameEl.value)||localStorage.getItem("maria_name")||"").trim();
+      api("POST","&kind=override",{pw:pw,name:name,clearPath:path}).then(function(r){
+        if(r.ok&&r.j.overrides){ overrides=r.j.overrides; if(r.j.changelog)changelog=r.j.changelog; shared=applyOverrides(baseline,overrides); set(work,path,get(baseline,path)); save(); draw(); }
         else alert("Kunde inte återställa: "+((r.j&&r.j.error)||r.status));
       });
     }
@@ -431,7 +461,7 @@
       return api("GET","&kind=state").then(function(r){
         if(r.status===401){ throw new Error("pw"); }
         if(!r.ok){ throw new Error(r.j.error||("HTTP "+r.status)); }
-        baseline=r.j.baseline; reasoning=r.j.reasoning; chat=r.j.chat||[]; overrides=r.j.overrides||{};
+        baseline=r.j.baseline; reasoning=r.j.reasoning; chat=r.j.chat||[]; overrides=r.j.overrides||{}; changelog=r.j.changelog||[];
         if(!baseline){ document.getElementById("app").innerHTML='<p class="muted">Baslinjen är inte inlagd än.</p>'; document.getElementById("app").hidden=false; document.getElementById("gate").hidden=true; return; }
         shared=applyOverrides(baseline,overrides);
         var savedWork=null; try{ savedWork=JSON.parse(localStorage.getItem("maria_work")||"null"); }catch(e){}

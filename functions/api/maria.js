@@ -24,7 +24,8 @@ const clientIp = (req) => req.headers.get("cf-connecting-ip") || (req.headers.ge
 
 const PW = (env) => env.MARIA_PW || "1441";
 const ADMIN = "maria-admin-3f9q7x";     // hindrar bara oavsiktlig överskrivning av baslinjen; ej en hemlighet
-const K_BASE = "maria:baseline", K_REASON = "maria:reasoning", K_CHAT = "maria:chat", K_OV = "maria:overrides";
+const K_BASE = "maria:baseline", K_REASON = "maria:reasoning", K_CHAT = "maria:chat", K_OV = "maria:overrides", K_LOG = "maria:changelog";
+const LOG_CAP = 300;   // append-only publik ändringslogg (vem ändrade vad, när) — visas som feed på sidan
 
 // Delat "override-lager": besökare (t.ex. Fredrik) kan spara nya värden för ALLA utan att röra
 // baslinjen (originalet spåras alltid). Bara vitlistade fält får överskridas. Värden clampas.
@@ -67,10 +68,10 @@ export async function onRequestGet(context) {
     return Response.json({ error: "unauthorized" }, { status: 401 });
   }
   try {
-    const [baseline, reasoning, chat, overrides] = await Promise.all([
-      readJson(env, K_BASE, null), readJson(env, K_REASON, null), readJson(env, K_CHAT, []), readJson(env, K_OV, {}),
+    const [baseline, reasoning, chat, overrides, changelog] = await Promise.all([
+      readJson(env, K_BASE, null), readJson(env, K_REASON, null), readJson(env, K_CHAT, []), readJson(env, K_OV, {}), readJson(env, K_LOG, []),
     ]);
-    return Response.json({ baseline, reasoning, chat, overrides });
+    return Response.json({ baseline, reasoning, chat, overrides, changelog });
   } catch (e) { return Response.json({ error: String(e).slice(0, 200) }, { status: 500 }); }
 }
 
@@ -90,11 +91,18 @@ export async function onRequestPost(context) {
     const baseline = await readJson(env, K_BASE, null);
     if (!baseline) return Response.json({ error: "no_baseline" }, { status: 400 });
     const overrides = await readJson(env, K_OV, {});
+    let changelog = await readJson(env, K_LOG, []);
     const by = sanitize(body.name, NAME_MAX) || "Någon";
     const note = sanitize(body.note, 300);
     const ts = Date.now();
-    if (body.clearPath) {
-      delete overrides[body.clearPath];                       // återställ ett fält till original
+    const events = [];
+    const mkId = () => "e" + Date.now().toString(36) + Math.random().toString(36).slice(2, 5);
+    if (body.clearPath) {                                     // återställ ett fält till original
+      const p = body.clearPath;
+      if (overrides[p]) {
+        events.push({ id: mkId(), path: p, from: Number(overrides[p].v), to: Number(getPath(baseline, p)), by, ts, note: note || undefined, action: "revert" });
+        delete overrides[p];
+      }
     } else if (Array.isArray(body.changes) && body.changes.length) {
       for (const ch of body.changes) {
         const p = ch && ch.path;
@@ -103,15 +111,22 @@ export async function onRequestPost(context) {
         if (!isFinite(v)) continue;
         v = Math.max(0, Math.min(v, /Pct$/.test(p) ? 100 : 1e9));
         const base = Number(getPath(baseline, p));
-        if (v === base) delete overrides[p];                  // lika med original → ingen override
-        else overrides[p] = { v, by, ts, note: note || undefined };
+        const prev = overrides[p] ? Number(overrides[p].v) : base;
+        if (v === prev) continue;                             // ingen faktisk ändring
+        if (v === base) { delete overrides[p]; events.push({ id: mkId(), path: p, from: prev, to: v, by, ts, note: note || undefined, action: "revert" }); }
+        else { overrides[p] = { v, by, ts, note: note || undefined }; events.push({ id: mkId(), path: p, from: prev, to: v, by, ts, note: note || undefined, action: "set" }); }
       }
     } else {
       return Response.json({ error: "bad_override" }, { status: 400 });
     }
+    if (events.length) {
+      changelog = changelog.concat(events);
+      if (changelog.length > LOG_CAP) changelog.splice(0, changelog.length - LOG_CAP);
+      await kvPut(env, K_LOG, JSON.stringify(changelog));
+    }
     await kvPut(env, K_OV, JSON.stringify(overrides));
     await kvPut(env, rlovKey(ip), String(rlov + 1), RLOV_WINDOW);
-    return Response.json({ overrides });
+    return Response.json({ overrides, changelog });
   }
 
   if (kind !== "chat") return Response.json({ error: "bad kind" }, { status: 400 });
@@ -140,6 +155,8 @@ export async function onRequestPut(context) {
     if (body.data) await kvPut(env, K_BASE, JSON.stringify(body.data));
     if (body.reasoning) await kvPut(env, K_REASON, JSON.stringify(body.reasoning));
     if (body.resetChat) await kvPut(env, K_CHAT, "[]");
+    if (body.resetLog) await kvPut(env, K_LOG, "[]");           // töm publik ändringslogg
+    if (body.resetOverrides) await kvPut(env, K_OV, "{}");      // nollställ alla sparade override-värden
     return Response.json({ ok: true });
   } catch (e) { return Response.json({ error: String(e).slice(0, 200) }, { status: 500 }); }
 }
