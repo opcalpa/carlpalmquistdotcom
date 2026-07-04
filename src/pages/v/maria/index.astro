@@ -70,7 +70,8 @@
     .mf-revert{margin-left:5px;font-size:10px;font-weight:700;color:var(--accent);cursor:pointer;border-bottom:1px dashed var(--accent);vertical-align:middle}
     .mf-revert:hover{color:var(--accent-h)}
     /* Cards + tabell */
-    .mf-grid{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+    .mf-grid{display:grid;grid-template-columns:1fr 1fr;gap:18px;min-width:0}
+    .mf-grid>*{min-width:0}
     .mf-card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);padding:20px 22px}
     .mf-card-wide,.mf-card-sum{grid-column:1/-1}
     .mf-card h3{margin:0 0 14px;font-size:16.5px;font-weight:700;color:var(--ink);display:flex;align-items:center;gap:9px;flex-wrap:wrap}
