@@ -188,7 +188,14 @@
       .v-take{padding:12px 0 0;font-size:13px}
       .mf-toolbar{gap:8px}
       .mf-toolbar .mf-btn{flex:1 1 auto;text-align:center;padding:11px 12px}
+      /* Label/värde-rader som flex (robust över Safari/Chrome — värdet försvinner aldrig) */
+      .mf-table,.mf-table tbody{display:block}
+      .mf-table tr{display:flex;justify-content:space-between;align-items:baseline;gap:10px}
+      .mf-table tr.mf-divider,.mf-table tr.mf-subrow{display:block}
+      .mf-table tr.mf-divider td,.mf-table tr.mf-subrow td{display:block}
       .mf-table td{font-size:13.5px;padding:7px 0}
+      .mf-table .mf-lbl{flex:1 1 auto;min-width:0;padding-right:0}
+      .mf-table .mf-val{flex:0 0 auto;text-align:right}
       .mf-edit,.alt-fill,.alt-q{touch-action:manipulation;display:inline-block;padding:2px 4px}
       .alt-note{font-size:12px}
       .mf-alt .alt-strip{grid-template-columns:1fr 1fr;gap:9px}
