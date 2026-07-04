@@ -167,6 +167,31 @@
     .cmp-table tbody tr:hover{background:var(--soft)}
     .cmp-sub{display:block;font-size:11px;color:var(--faint);font-weight:400}
     .cmp-table td.pos{color:var(--ok);font-weight:700}.cmp-table td.neg{color:var(--bad);font-weight:700}.cmp-table td.warnv{color:var(--warn);font-weight:700}
+    /* Bildgalleri-badge + vad ingår/tillkommer */
+    .alt-img{position:relative}
+    .alt-zoom{position:absolute;right:6px;bottom:6px;display:inline-flex;align-items:center;gap:3px;background:rgba(12,15,20,.62);color:#fff;border:0;border-radius:8px;font-size:11px;font-weight:600;padding:3px 7px;cursor:zoom-in;backdrop-filter:blur(2px);letter-spacing:.2px}
+    .alt-zoom:hover{background:rgba(12,15,20,.82)}
+    .alt-cover{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:0 0 14px}
+    .alt-cov-col{border:1px solid var(--line);border-radius:11px;padding:11px 13px}
+    .alt-cov-in{background:var(--ok-tint);border-color:color-mix(in srgb,var(--ok) 22%,var(--line))}
+    .alt-cov-ex{background:var(--warn-tint);border-color:color-mix(in srgb,var(--warn) 22%,var(--line))}
+    .alt-cov-h{font-size:11.5px;font-weight:700;text-transform:uppercase;letter-spacing:.3px;margin-bottom:6px}
+    .alt-cov-in .alt-cov-h{color:var(--ok)}.alt-cov-ex .alt-cov-h{color:var(--warn)}
+    .alt-cover ul{margin:0;padding-left:16px}
+    .alt-cover li{font-size:12.5px;line-height:1.5;color:var(--ink2);margin-bottom:3px}
+    /* Lightbox */
+    .mf-lb{position:fixed;inset:0;z-index:1000;background:rgba(8,10,14,.95);display:none;flex-direction:column}
+    .mf-lb.open{display:flex}
+    .mf-lb-top{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;color:#fff;flex:0 0 auto}
+    .mf-lb-count{font-size:13px;opacity:.8;font-variant-numeric:tabular-nums}
+    .mf-lb-close{background:none;border:0;color:#fff;font-size:30px;line-height:1;cursor:pointer;padding:0 6px}
+    .mf-lb-stage{flex:1 1 auto;position:relative;overflow:hidden;display:flex;align-items:center;justify-content:center;touch-action:none}
+    .mf-lb-img{max-width:100%;max-height:100%;object-fit:contain;transition:transform .18s ease;transform-origin:center center;user-select:none;-webkit-user-drag:none;cursor:zoom-in}
+    .mf-lb-img.zoom{transition:none;cursor:zoom-out}
+    .mf-lb-nav{position:absolute;top:50%;transform:translateY(-50%);background:rgba(255,255,255,.13);border:0;color:#fff;font-size:26px;width:46px;height:46px;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center}
+    .mf-lb-prev{left:12px}.mf-lb-next{right:12px}
+    .mf-lb-cap{color:#fff;text-align:center;font-size:12px;opacity:.65;padding:10px 16px 20px;flex:0 0 auto}
+    @media(pointer:coarse){.mf-lb-nav{display:none}}
     /* Fällbara sektioner */
     .mf-collhead{cursor:pointer;user-select:none}
     .mf-collhead:hover{color:var(--accent)}
@@ -198,6 +223,7 @@
       .mf-table .mf-val{flex:0 0 auto;text-align:right}
       .mf-edit,.alt-fill,.alt-q{touch-action:manipulation;display:inline-block;padding:2px 4px}
       .alt-note{font-size:12px}
+      .alt-cover{grid-template-columns:1fr;gap:8px}
       .mf-alt .alt-strip{grid-template-columns:1fr 1fr;gap:9px}
       .alt-img{height:84px}
       .alt-body{padding:9px 11px}
@@ -288,28 +314,46 @@
     var ALTERNATIVES=[
       {id:"ametisten",name:"Ametisten",sup:"Fiskarhedenvillan",kvm:130,plan:"2-plan",lev:"Byggsats",
        url:"https://fiskarhedenvillan.se/valj-ditt-hus/husmodeller/ametisten/",img:"/maria-hus/ametisten.jpg",
-       note:"Nuvarande plan. Byggsats = material; grund, montage och finish är egna poster. Redigerbar & delad (spara till alla).",lines:null},
+       imgs:["/maria-hus/ametisten.jpg","/maria-hus/ametisten-2.jpg","/maria-hus/ametisten-3.jpg"],
+       note:"Nuvarande plan. Byggsats = material; grund, montage och finish är egna poster. Redigerbar & delad (spara till alla).",
+       incl:["Materialsats: stomme, fasad, yttertak, fönster","Kök, badrum, vitvaror, värmesystem"],
+       excl:["Grund/platta","Montage & resning","VVS/el-installation (arbete)","Målning & finish","Bygglov, KA, besiktning","Tomt + anslutningar"],lines:null},
       {id:"sommar80",name:"Tidlös Sommar 80",sup:"Sommarnöjen",kvm:80,plan:"1-plan + loft",lev:"Nyckelfärdigt + Fast pris",
        url:"https://sommarnojen.se/hus/tidlos-sommar-70/",img:"/maria-hus/sommarnojen.jpg",
+       imgs:["/maria-hus/sommarnojen.jpg","/maria-hus/sommarnojen-2.jpg","/maria-hus/sommarnojen-3.jpg"],
        note:"Arkitektritad volymmodul på plintar, skjutbara treglas. Fast pris bundlar grund→myndighet, 10 år ABS 18 + färdigställandeskydd.",
+       incl:["Hus nyckelfärdigt monterat (kök, bad, golv, målning, invändig el+VVS)","Fast pris: grund (plintar), montage, el/VA-inkoppling","Bygglov, KA, besiktning, färdigställandeskydd","Permanentklassning (tillgänglighet, värmepump, energiberäkning)","10 års ansvar (ABS 18)"],
+       excl:["Tomt","Anslutningsavgifter el/vatten/avlopp","Ev. enskilt avlopp + borrad brunn","Bergsprängning/pålning vid svår mark"],
        lines:[{l:"Hus nyckelfärdigt (Tidlös 80)",v:2610000},{l:"Permanentklassning",v:150000},
               {l:"Fast pris: grund, montage, el/VA-inkoppling, KA, besiktning, färdigställandeskydd",v:640000}]},
       {id:"sommar100",name:"Tidlös Sommar 100",sup:"Sommarnöjen",kvm:100,plan:"1-plan + loft",lev:"Nyckelfärdigt + Fast pris",
        url:"https://sommarnojen.se/hus/tidlos-sommar-100/",img:"/maria-hus/sommarnojen.jpg",
+       imgs:["/maria-hus/sommarnojen.jpg","/maria-hus/sommarnojen-2.jpg","/maria-hus/sommarnojen-3.jpg"],
        note:"Som Sommar 80 men 100 kvm. Fler kvm, samma trygghet (fast pris + 10 år ABS 18).",
+       incl:["Hus nyckelfärdigt monterat (kök, bad, golv, målning, invändig el+VVS)","Fast pris: grund (plintar), montage, el/VA-inkoppling","Bygglov, KA, besiktning, färdigställandeskydd","Permanentklassning (tillgänglighet, värmepump, energiberäkning)","10 års ansvar (ABS 18)"],
+       excl:["Tomt","Anslutningsavgifter el/vatten/avlopp","Ev. enskilt avlopp + borrad brunn","Bergsprängning/pålning vid svår mark"],
        lines:[{l:"Hus nyckelfärdigt (Tidlös 100)",v:3330000},{l:"Permanentklassning",v:150000},
               {l:"Fast pris: grund, montage, el/VA-inkoppling, KA, besiktning, färdigställandeskydd",v:700000}]},
       {id:"husverket80",name:"Klassisk K3.80",sup:"Husverket",kvm:80,plan:"1-plan",lev:"Modul + entreprenadpaket",
        url:"https://husverket.se/fritidshus-80kvm/",img:"/maria-hus/husverket.jpg",
+       imgs:["/maria-hus/husverket.jpg","/maria-hus/husverket-2.jpg","/maria-hus/husverket-3.jpg"],
        note:"Billig modul i permanentstandard. 'Stora entreprenadpaketet – Fast pris' (grund, VA/el, inkoppling, slutbesiktning, försäkring) sätts efter platsbesök.",
+       incl:["Hus modul i permanentstandard (åretrunt)","'Stora entreprenadpaketet' (fast pris): grund, VA/el-infra, inkoppling","Slutbesiktning + färdigställande-/nybyggnadsförsäkring"],
+       excl:["Tomt","Anslutningsavgifter","Fast pris-siffran sätts efter platsbesök"],
        lines:[{l:"Hus modul (Klassisk K3.80)",v:822900},{l:"Stora entreprenadpaketet – Fast pris",v:null,note:"grund, VA/el, inkoppling, besiktning, försäkring — offereras efter platsbesök"}]},
       {id:"gimmeshelter",name:"H80",sup:"Gimme Shelter",kvm:80,plan:"1-plan",lev:"Nyckelfärdigt (plintar)",
        url:"https://gimme-shelter.se/",img:"/maria-hus/gimmeshelter.jpg",
+       imgs:["/maria-hus/gimmeshelter.jpg","/maria-hus/gimmeshelter-2.jpg","/maria-hus/gimmeshelter-3.jpg"],
        note:"Arkitektritad volymmodul, skjutbara treglas ner till golv. Smak-tvilling till Sommarnöjen. Pris vid förfrågan.",
+       incl:["Hus nyckelfärdigt monterat på plintar","Vinterisolerat för åretruntboende"],
+       excl:["Mark/grund-omfattning oklar — begär offert","Tomt + anslutningar","Pris vid förfrågan (inga öppna priser)"],
        lines:[{l:"Hus nyckelfärdigt (H80, plintar)",v:null,note:"pris vid förfrågan"}]},
       {id:"brutnatur",name:"Brut Natur",sup:"Brut Natur",kvm:80,plan:"1-plan",lev:"Nyckelfärdigt (KL-trä)",
        url:"https://brutnatur.se/fritidshus-norrtalje/",img:"/maria-hus/brutnatur.jpg",
+       imgs:["/maria-hus/brutnatur.jpg","/maria-hus/brutnatur-2.jpg","/maria-hus/brutnatur-3.jpg"],
        note:"Arkitektritat i KL-trä + natursten + bränd panel (Shou Sugi Ban). Marknadsför Norrtälje. Pris vid förfrågan.",
+       incl:["Hus nyckelfärdigt i KL-trä (natursten, bränd panel)","Marknadsför Norrtälje/Roslagen"],
+       excl:["Mark/grund-omfattning oklar — begär offert","Tomt + anslutningar","Pris vid förfrågan (inga öppna priser)"],
        lines:[{l:"Hus nyckelfärdigt (CLT)",v:null,note:"pris vid förfrågan"}]}
     ];
     var selectedAlt=localStorage.getItem("maria_alt")||"ametisten";
@@ -325,6 +369,36 @@
       return {tomt:V.tomt,lagfartPct:V.lagfartPct,avlopp:V.avlopp,brunn:V.brunn,el:V.el,buffertPct:V.buffertPct,
               byggsats:houseSum(alt).sum,grund:0,montage:0,installation:0,malning:0,kringkostnad:0}; }
     function computeAlt(alt){ var S=clone(work); S.vettershaga=effV(alt); return compute(S); }
+
+    // ---- Bildgalleri / lightbox (swipa + zooma) ----
+    var _lbImgs=[],_lbI=0,_lbScale=1,_lbX=0,_lbY=0;
+    function lbApplyT(){ var im=document.getElementById("mf-lb-img"); if(im) im.style.transform="translate("+_lbX+"px,"+_lbY+"px) scale("+_lbScale+")"; }
+    function lbClampPan(){ var st=document.getElementById("mf-lb-stage"); if(!st)return; var mx=st.clientWidth*(_lbScale-1)/2, my=st.clientHeight*(_lbScale-1)/2; _lbX=Math.max(-mx,Math.min(mx,_lbX)); _lbY=Math.max(-my,Math.min(my,_lbY)); }
+    function lbZoom(on){ _lbScale=on?2.4:1; _lbX=0; _lbY=0; var im=document.getElementById("mf-lb-img"); if(im)im.classList.toggle("zoom",on); lbApplyT(); }
+    function lbRender(){ var im=document.getElementById("mf-lb-img"),c=document.getElementById("mf-lb-count"); if(!im)return; _lbScale=1;_lbX=0;_lbY=0; im.classList.remove("zoom"); im.src=_lbImgs[_lbI]||""; lbApplyT(); if(c)c.textContent=(_lbI+1)+" / "+_lbImgs.length; }
+    function lbNav(d){ if(!_lbImgs.length)return; _lbI=(_lbI+d+_lbImgs.length)%_lbImgs.length; lbRender(); }
+    function lbClose(){ var lb=document.getElementById("mf-lb"); if(lb)lb.classList.remove("open"); document.body.style.overflow=""; }
+    function openLightbox(imgs,i){ imgs=(imgs&&imgs.length)?imgs:[]; if(!imgs.length)return; _lbImgs=imgs; _lbI=i||0; ensureLightbox(); document.getElementById("mf-lb").classList.add("open"); document.body.style.overflow="hidden"; lbRender(); }
+    function ensureLightbox(){
+      if(document.getElementById("mf-lb"))return;
+      var lb=document.createElement("div"); lb.className="mf-lb"; lb.id="mf-lb";
+      lb.innerHTML='<div class="mf-lb-top"><span class="mf-lb-count" id="mf-lb-count"></span><button class="mf-lb-close" id="mf-lb-close" aria-label="Stäng">×</button></div>'
+        +'<div class="mf-lb-stage" id="mf-lb-stage"><button class="mf-lb-nav mf-lb-prev" id="mf-lb-prev" aria-label="Föregående">‹</button>'
+        +'<img class="mf-lb-img" id="mf-lb-img" alt="Husbild">'
+        +'<button class="mf-lb-nav mf-lb-next" id="mf-lb-next" aria-label="Nästa">›</button></div>'
+        +'<div class="mf-lb-cap">Tryck på bilden för att zooma · svep för att bläddra</div>';
+      document.body.appendChild(lb);
+      lb.querySelector("#mf-lb-close").onclick=lbClose;
+      lb.querySelector("#mf-lb-prev").onclick=function(e){ e.stopPropagation(); lbNav(-1); };
+      lb.querySelector("#mf-lb-next").onclick=function(e){ e.stopPropagation(); lbNav(1); };
+      lb.addEventListener("click",function(e){ if(e.target===lb) lbClose(); });
+      var st=lb.querySelector("#mf-lb-stage"), sx=0,sy=0,px=0,py=0,moved=0,lastdx=0;
+      st.addEventListener("touchstart",function(e){ var t=e.touches[0]; sx=t.clientX; sy=t.clientY; px=_lbX; py=_lbY; moved=0; lastdx=0; },{passive:true});
+      st.addEventListener("touchmove",function(e){ var t=e.touches[0]; var dx=t.clientX-sx, dy=t.clientY-sy; lastdx=dx; moved=Math.max(moved,Math.abs(dx)+Math.abs(dy)); if(_lbScale>1){ _lbX=px+dx; _lbY=py+dy; lbClampPan(); lbApplyT(); e.preventDefault(); } },{passive:false});
+      st.addEventListener("touchend",function(){ if(moved<10){ lbZoom(_lbScale===1); } else if(_lbScale===1 && Math.abs(lastdx)>45){ lbNav(lastdx<0?1:-1); } });
+      st.addEventListener("click",function(e){ if(e.target.id==="mf-lb-img" && !("ontouchstart" in window)) lbZoom(_lbScale===1); });
+      document.addEventListener("keydown",function(e){ var o=document.getElementById("mf-lb"); if(!o||!o.classList.contains("open"))return; if(e.key==="Escape")lbClose(); else if(e.key==="ArrowLeft")lbNav(-1); else if(e.key==="ArrowRight")lbNav(1); });
+    }
 
     // ---- compute (samma motor som pappen) ----
     function compute(S){
@@ -414,7 +488,7 @@
           var ac=computeAlt(a),ah=houseSum(a);
           var sub=ah.unknown?(ah.unknown+' post'+(ah.unknown>1?'er':'')+' ej offererad'+(ah.unknown>1?'e':'')):'inflyttningsklart';
           return '<button class="alt-card'+(a.id===selectedAlt?' on':'')+'" data-alt="'+a.id+'">'
-            +'<span class="alt-img" style="background-image:url('+a.img+')"></span>'
+            +'<span class="alt-img" style="background-image:url('+a.img+')"><span class="alt-zoom" data-gallery="'+a.id+'" title="Öppna bildgalleri">⤢ '+(a.imgs?a.imgs.length:1)+'</span></span>'
             +'<span class="alt-body"><span class="alt-sup">'+esc(a.sup)+'</span><span class="alt-name">'+esc(a.name)+'</span>'
             +'<span class="alt-tags">'+a.kvm+' kvm · '+esc(a.plan)+'</span>'
             +'<span class="alt-price'+(ah.unknown?' q':'')+'">'+(ah.unknown?'≥ ':'')+kr(ac.vTotal)+'</span><span class="alt-sub">'+sub+'</span></span></button>';
@@ -442,7 +516,12 @@
         ? row("= TOTALT inflyttningsklart",'≥ '+kr(c.vTotal)+' <span class="mf-flag mf-komplettera">ofullständig · '+hs.unknown+' saknas</span>',{calc:true,strong:true})
         : row("= TOTALT inflyttningsklart",kr(c.vTotal),{calc:true,hi:"hi",strong:true});
       var vettershagaHtml='<section class="mf-card mf-card-wide"><h3>🔨 Vettershaga — byggbudget <span class="mf-tag">'+esc(alt.sup+' · '+alt.name)+'</span> <a class="alt-link" href="'+alt.url+'" target="_blank" rel="noopener">↗ leverantör</a></h3>'
-        +'<div class="alt-note">'+esc(alt.note)+'</div><table class="mf-table">'
+        +'<div class="alt-note">'+esc(alt.note)+'</div>'
+        +((alt.incl||alt.excl)?('<div class="alt-cover">'
+          +'<div class="alt-cov-col alt-cov-in"><div class="alt-cov-h">✅ Ingår i priset</div><ul>'+(alt.incl||[]).map(function(x){return "<li>"+esc(x)+"</li>";}).join("")+'</ul></div>'
+          +'<div class="alt-cov-col alt-cov-ex"><div class="alt-cov-h">➕ Tillkommer</div><ul>'+(alt.excl||[]).map(function(x){return "<li>"+esc(x)+"</li>";}).join("")+'</ul></div>'
+          +'</div>'):"")
+        +'<table class="mf-table">'
         +'<tr class="mf-subrow"><td colspan="2">Tomt &amp; anslutning — samma för alla alternativ</td></tr>'
         +row("Tomt",ed("vettershaga.tomt"))
         +row("Lagfart (stämpelskatt)",ed("vettershaga.lagfartPct","pct")+' <span class="mf-inline-res">= '+kr(c.vLagfart)+'</span>')
@@ -557,6 +636,8 @@
       Array.prototype.forEach.call(document.querySelectorAll(".mf-tg"),function(b){ b.onclick=function(){ set(work,"nyahuset.permanent",b.getAttribute("data-perm")==="1"); save(); draw(); }; });
       // Husalternativ-val (switcher-kort + jämför-radrader)
       Array.prototype.forEach.call(document.querySelectorAll("[data-alt]"),function(b){ b.onclick=function(){ selectedAlt=b.getAttribute("data-alt"); try{localStorage.setItem("maria_alt",selectedAlt);}catch(e){} draw(); }; });
+      // Bildgalleri-badge → öppna lightbox (utan att välja huset)
+      Array.prototype.forEach.call(document.querySelectorAll("[data-gallery]"),function(el){ el.onclick=function(e){ e.stopPropagation(); e.preventDefault(); openLightbox(altById(el.getAttribute("data-gallery")).imgs,0); }; });
       // Lokal komplettering av alternativens hus-poster (offert fylls i)
       Array.prototype.forEach.call(document.querySelectorAll("[data-altedit]"),function(el){
         function start(){
