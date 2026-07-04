@@ -135,11 +135,11 @@
     .mf-log-meta{font-size:11.5px;color:var(--faint);margin-top:1px}
     .mf-log-note{color:var(--dim);font-style:italic}
     /* Husalternativ-switcher */
-    .mf-alt .alt-strip{display:grid;grid-template-columns:repeat(auto-fill,minmax(178px,1fr));gap:11px;margin-top:4px}
-    .alt-card{display:flex;flex-direction:column;text-align:left;background:var(--field);border:1px solid var(--line2);border-radius:12px;padding:0;overflow:hidden;cursor:pointer;transition:border-color .12s,box-shadow .12s;font:inherit}
+    .mf-alt .alt-strip{display:flex;gap:12px;overflow-x:auto;scroll-snap-type:x mandatory;-webkit-overflow-scrolling:touch;padding:4px 2px 10px;margin-top:4px;scrollbar-width:thin}
+    .alt-card{flex:0 0 220px;scroll-snap-align:start;display:flex;flex-direction:column;text-align:left;background:var(--field);border:1px solid var(--line2);border-radius:12px;padding:0;overflow:hidden;cursor:pointer;transition:border-color .12s,box-shadow .12s;font:inherit}
     .alt-card:hover{border-color:var(--accent)}
     .alt-card.on{border-color:var(--accent);box-shadow:0 0 0 2px var(--accent-tint)}
-    .alt-img{display:block;height:98px;background-size:cover;background-position:center;background-color:var(--soft)}
+    .alt-img{display:block;height:150px;background-size:cover;background-position:center;background-color:var(--soft)}
     .alt-body{padding:10px 13px;display:flex;flex-direction:column;gap:1px}
     .alt-sup{font-size:10.5px;font-weight:700;color:var(--accent);text-transform:uppercase;letter-spacing:.4px}
     .alt-name{font-size:14.5px;font-weight:700;color:var(--ink);letter-spacing:-.01em}
@@ -224,11 +224,11 @@
       .mf-edit,.alt-fill,.alt-q{touch-action:manipulation;display:inline-block;padding:2px 4px}
       .alt-note{font-size:12px}
       .alt-cover{grid-template-columns:1fr;gap:8px}
-      .mf-alt .alt-strip{grid-template-columns:1fr 1fr;gap:9px}
-      .alt-img{height:84px}
-      .alt-body{padding:9px 11px}
-      .alt-name{font-size:13.5px}
-      .alt-price{font-size:14.5px}
+      .mf-alt .alt-card{flex-basis:80%}
+      .alt-img{height:200px}
+      .alt-body{padding:11px 13px}
+      .alt-name{font-size:15px}
+      .alt-price{font-size:16px}
       /* Jämför-tabell → staplade kort i stället för sidoscroll */
       .mf-cmp .cmp-scroll{overflow:visible;margin:0}
       .cmp-table{min-width:0}
@@ -246,8 +246,8 @@
       .v-sep{display:none}
     }
     @media(max-width:360px){
-      .mf-alt .alt-strip{grid-template-columns:1fr}
-      .alt-img{height:150px}
+      .mf-alt .alt-card{flex-basis:88%}
+      .alt-img{height:215px}
     }
   </style>
 </head>
@@ -345,6 +345,24 @@
        finish:{kok:"ja",vitvaror:"ja",bad:"ja",golv:"ja"},
        lines:[{l:"Hus nyckelfärdigt (Tidlös 100)",v:3330000},{l:"Permanentklassning",v:150000},
               {l:"Fast pris: grund, montage, el/VA-inkoppling, KA, besiktning, färdigställandeskydd",v:700000}]},
+      {id:"sommar120",name:"Tidlös Sommar 120",sup:"Sommarnöjen",kvm:120,plan:"1-plan + loft",lev:"Nyckelfärdigt + Fast pris",
+       url:"https://sommarnojen.se/hus/tidlos-sommar-120/",img:"/maria-hus/sommarnojen.jpg",
+       imgs:["/maria-hus/sommarnojen.jpg","/maria-hus/sommarnojen-2.jpg","/maria-hus/sommarnojen-3.jpg"],
+       note:"Sommarnöjens 120 kvm — 3–4 sovrum + loft. Samma trygghet (fast pris + 10 år ABS 18 + verifierat allt-inkluderat).",
+       incl:["Hus nyckelfärdigt monterat (kök, bad, golv, målning, invändig el+VVS)","Fast pris: grund (plintar), montage, el/VA-inkoppling","Bygglov, KA, besiktning, färdigställandeskydd","Permanentklassning (tillgänglighet, värmepump, energiberäkning)","10 års ansvar (ABS 18)"],
+       excl:["Tomt","Anslutningsavgifter el/vatten/avlopp","Ev. enskilt avlopp + borrad brunn","Bergsprängning/pålning vid svår mark"],
+       finish:{kok:"ja",vitvaror:"ja",bad:"ja",golv:"ja"},
+       lines:[{l:"Hus nyckelfärdigt (Tidlös 120)",v:3870000},{l:"Permanentklassning",v:150000},
+              {l:"Fast pris: grund, montage, el/VA-inkoppling, KA, besiktning, färdigställandeskydd",v:760000}]},
+      {id:"sommar150",name:"Tidlös Sommar 150",sup:"Sommarnöjen",kvm:150,plan:"1-plan + loft",lev:"Nyckelfärdigt + Fast pris",
+       url:"https://sommarnojen.se/hus/tidlos-sommar-150/",img:"/maria-hus/sommarnojen.jpg",
+       imgs:["/maria-hus/sommarnojen.jpg","/maria-hus/sommarnojen-2.jpg","/maria-hus/sommarnojen-3.jpg"],
+       note:"Sommarnöjens största 150 kvm — 3–4 sovrum + loft, två badrum. Fast pris + 10 år ABS 18 + allt-inkluderat.",
+       incl:["Hus nyckelfärdigt monterat (kök, bad, golv, målning, invändig el+VVS)","Fast pris: grund (plintar), montage, el/VA-inkoppling","Bygglov, KA, besiktning, färdigställandeskydd","Permanentklassning (tillgänglighet, värmepump, energiberäkning)","10 års ansvar (ABS 18)"],
+       excl:["Tomt","Anslutningsavgifter el/vatten/avlopp","Ev. enskilt avlopp + borrad brunn","Bergsprängning/pålning vid svår mark"],
+       finish:{kok:"ja",vitvaror:"ja",bad:"ja",golv:"ja"},
+       lines:[{l:"Hus nyckelfärdigt (Tidlös 150)",v:4800000},{l:"Permanentklassning",v:150000},
+              {l:"Fast pris: grund, montage, el/VA-inkoppling, KA, besiktning, färdigställandeskydd",v:850000}]},
       {id:"stella119",name:"Stella 119",sup:"Trivselhus",kvm:119,plan:"1-plan",lev:"Totalentreprenad (nyckelfärdigt)",
        url:"https://www.trivselhus.se/husmodeller/stella-119/",img:"/maria-hus/stella119.jpg",
        imgs:["/maria-hus/stella119.jpg","/maria-hus/stella119-2.jpg","/maria-hus/stella119-3.jpg"],
@@ -408,7 +426,23 @@
        incl:["Arkitektritat trähus (allmoge/lada)","Totalentreprenad möjlig (grund + bygge + ansvar)","Byggfelsförsäkring ingår"],
        excl:["Öppet pris saknas — begär offert","Tomt + anslutningar","Finish-nivå (kök/vitvaror/bad) ej publicerad"],
        finish:{kok:"?",vitvaror:"?",bad:"?",golv:"?"},
-       lines:[{l:"Hus (Åre 87, totalentreprenad)",v:null,note:"pris vid förfrågan"}]}
+       lines:[{l:"Hus (Åre 87, totalentreprenad)",v:null,note:"pris vid förfrågan"}]},
+      {id:"hara94",name:"Hara 94",sup:"Arvesund",kvm:94,plan:"1-plan",lev:"Totalentreprenad (offert)",
+       url:"https://www.arvesund.com/fritidshus",img:"/maria-hus/hara94.jpg",
+       imgs:["/maria-hus/hara94.jpg","/maria-hus/arvesund-3.jpg"],
+       note:"Arvesund Hara 94 — arkitektritat trähus i allmoge-/ladstil, 94 kvm. Totalentreprenad + byggfelsförsäkring. Pris vid förfrågan.",
+       incl:["Arkitektritat trähus (allmoge/lada)","Totalentreprenad möjlig (grund + bygge + ansvar)","Byggfelsförsäkring ingår"],
+       excl:["Öppet pris saknas — begär offert","Tomt + anslutningar","Finish-nivå (kök/vitvaror/bad) ej publicerad"],
+       finish:{kok:"?",vitvaror:"?",bad:"?",golv:"?"},
+       lines:[{l:"Hus (Hara 94, totalentreprenad)",v:null,note:"pris vid förfrågan"}]},
+      {id:"hara102",name:"Hara 102",sup:"Arvesund",kvm:102,plan:"1-plan",lev:"Totalentreprenad (offert)",
+       url:"https://www.arvesund.com/fritidshus",img:"/maria-hus/hara102.jpg",
+       imgs:["/maria-hus/hara102.jpg","/maria-hus/hara94.jpg","/maria-hus/arvesund-3.jpg"],
+       note:"Arvesund Hara 102 — arkitektritat trähus i allmoge-/ladstil, 102 kvm. Totalentreprenad + byggfelsförsäkring. Pris vid förfrågan.",
+       incl:["Arkitektritat trähus (allmoge/lada)","Totalentreprenad möjlig (grund + bygge + ansvar)","Byggfelsförsäkring ingår"],
+       excl:["Öppet pris saknas — begär offert","Tomt + anslutningar","Finish-nivå (kök/vitvaror/bad) ej publicerad"],
+       finish:{kok:"?",vitvaror:"?",bad:"?",golv:"?"},
+       lines:[{l:"Hus (Hara 102, totalentreprenad)",v:null,note:"pris vid förfrågan"}]}
     ];
     var selectedAlt=localStorage.getItem("maria_alt")||"ametisten";
     var altEdits={}; try{ altEdits=JSON.parse(localStorage.getItem("maria_alt_edits")||"{}"); }catch(e){}
@@ -537,7 +571,7 @@
       logHtml+='</div>';
 
       // Husalternativ-switcher (kort med bild) — driver kalkylen
-      var switcherHtml='<section class="mf-card mf-card-wide mf-alt"><h3>🏘 Husalternativ <span class="mf-tag">byt hus → kalkylen räknar om</span></h3>'
+      var switcherHtml='<section class="mf-card mf-card-wide mf-alt"><h3>🏘 Husalternativ <span class="mf-tag">👉 swipa · byt hus → allt räknar om</span></h3>'
         +'<div class="alt-strip">'+ALTERNATIVES.map(function(a){
           var ac=computeAlt(a),ah=houseSum(a);
           var sub=ah.unknown?(ah.unknown+' post'+(ah.unknown>1?'er':'')+' ej offererad'+(ah.unknown>1?'e':'')):'inflyttningsklart';
@@ -654,7 +688,7 @@
       +row("Vinstskatt (22 %)",kr(c.gSkatt),{calc:true,hi:"warn",strong:true})
       +row("Netto (efter lån + skatt)",kr(c.gNetto),{calc:true,hi:"ok",strong:true})
       +'</table><div class="mf-callout mf-callout-hi">📌 Störst osäkerhet: <b>inköpspriset</b>. Står det 0 är skatten maximal — fyll i verkliga priset.</div></section>'
-      +switcherHtml+vettershagaHtml
+      +vettershagaHtml
       +'<section class="mf-card mf-card-wide" data-collapse="lan"><h3>🏦 Lån &amp; scenario <span class="mf-tag">permanentbostad vs fritidshus</span></h3>'
       +'<div class="mf-toggle"><button class="mf-tg'+(!c.permanent?" on":"")+'" data-perm="0">🏖 Fritidshus</button><button class="mf-tg'+(c.permanent?" on":"")+'" data-perm="1">🏠 Permanentbostad</button></div>'
       +'<div class="mf-callout '+(c.permanent?"mf-callout-ok":"mf-callout-warn")+'">'
@@ -687,7 +721,7 @@
       +row("Kvar/mån medan hon jobbar",kr(c.kvarJobbar),{calc:true})
       +row("Kvar/mån efter pension",kvarBadge,{calc:true,strong:true,hi:c.kvarPension<5000?"warn":"ok"})
       +'</table><div class="mf-callout mf-callout-warn">⚠️ Efter pension lämnar '+kr(S.privatekonomi.pensionNetto)+'/mån minus boende + lån <b>'+kr(c.kvarPension)+'/mån</b> till mat och liv.</div></section>'
-      +compareHtml+finishHtml
+      +switcherHtml+compareHtml+finishHtml
       +'</div>'
       +reasonHtml+chatHtml+logHtml;
 
