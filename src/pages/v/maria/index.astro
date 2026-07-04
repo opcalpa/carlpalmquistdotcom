@@ -133,6 +133,45 @@
     .mf-log-arrow{font-variant-numeric:tabular-nums;color:var(--ink)}
     .mf-log-meta{font-size:11.5px;color:var(--faint);margin-top:1px}
     .mf-log-note{color:var(--dim);font-style:italic}
+    /* Husalternativ-switcher */
+    .mf-alt .alt-strip{display:grid;grid-template-columns:repeat(auto-fill,minmax(178px,1fr));gap:11px;margin-top:4px}
+    .alt-card{display:flex;flex-direction:column;text-align:left;background:var(--field);border:1px solid var(--line2);border-radius:12px;padding:0;overflow:hidden;cursor:pointer;transition:border-color .12s,box-shadow .12s;font:inherit}
+    .alt-card:hover{border-color:var(--accent)}
+    .alt-card.on{border-color:var(--accent);box-shadow:0 0 0 2px var(--accent-tint)}
+    .alt-img{display:block;height:98px;background-size:cover;background-position:center;background-color:var(--soft)}
+    .alt-body{padding:10px 13px;display:flex;flex-direction:column;gap:1px}
+    .alt-sup{font-size:10.5px;font-weight:700;color:var(--accent);text-transform:uppercase;letter-spacing:.4px}
+    .alt-name{font-size:14.5px;font-weight:700;color:var(--ink);letter-spacing:-.01em}
+    .alt-tags{font-size:11.5px;color:var(--dim);margin-bottom:5px}
+    .alt-price{font-size:16px;font-weight:750;color:var(--ink);font-variant-numeric:tabular-nums;line-height:1.1}
+    .alt-price.q{color:var(--warn)}
+    .alt-sub{font-size:11px;color:var(--faint)}
+    .alt-link{font-size:12.5px;font-weight:600;margin-left:auto;text-decoration:none}
+    .alt-note{font-size:12.5px;color:var(--dim);font-style:italic;margin:2px 0 12px;line-height:1.5;max-width:820px}
+    .mf-subrow td{font-size:10.5px;text-transform:uppercase;letter-spacing:.5px;color:var(--faint);font-weight:700;padding:14px 0 5px;border-bottom:1px solid var(--line)}
+    .alt-fill{cursor:text;border-bottom:1px dashed rgba(10,143,84,.5);padding:0 1px;border-radius:3px}
+    .alt-fill:hover{background:var(--accent-tint)}
+    .alt-q{cursor:text;border-bottom:1px dashed var(--warn);color:var(--warn);font-weight:600;padding:0 1px}
+    .alt-q:hover{background:var(--warn-tint)}
+    .alt-ingar{color:var(--faint);font-style:italic;font-size:12.5px}
+    /* Jämför-tabell */
+    .mf-cmp .cmp-scroll{overflow-x:auto;margin:2px -4px 0}
+    .cmp-table{width:100%;border-collapse:collapse;font-size:13.5px;min-width:560px}
+    .cmp-table th{text-align:right;font-size:10.5px;text-transform:uppercase;letter-spacing:.4px;color:var(--faint);font-weight:700;padding:6px 12px;border-bottom:1px solid var(--line2);white-space:nowrap}
+    .cmp-table th:first-child{text-align:left}
+    .cmp-table td{padding:10px 12px;text-align:right;font-variant-numeric:tabular-nums;border-bottom:1px solid var(--line);color:var(--ink2);white-space:nowrap}
+    .cmp-table td:first-child{text-align:left;white-space:normal;color:var(--ink)}
+    .cmp-table tr[data-alt]{cursor:pointer}
+    .cmp-table tbody tr.on{background:var(--accent-tint)}
+    .cmp-table tbody tr:hover{background:var(--soft)}
+    .cmp-sub{display:block;font-size:11px;color:var(--faint);font-weight:400}
+    .cmp-table td.pos{color:var(--ok);font-weight:700}.cmp-table td.neg{color:var(--bad);font-weight:700}.cmp-table td.warnv{color:var(--warn);font-weight:700}
+    /* Fällbara sektioner */
+    .mf-collhead{cursor:pointer;user-select:none}
+    .mf-collhead:hover{color:var(--accent)}
+    .mf-collchev{display:inline-block;width:14px;font-size:12px;color:var(--dim);flex:0 0 auto}
+    .mf-card.collapsed>*:not(h3),.mf-sec.collapsed>*:not(h3){display:none}
+    .mf-card.collapsed h3,.mf-sec.collapsed h3{margin-bottom:0}
     @media(max-width:820px){.mf-grid{grid-template-columns:1fr}}
   </style>
 </head>
@@ -142,7 +181,7 @@
       <div class="gate-lock">🔒</div>
       <h1>Marias flytt</h1>
       <p>Privat familjesida. Skriv koden.</p>
-      <input id="gate-pw" inputmode="numeric" autocomplete="off" placeholder="••••" />
+      <input id="gate-pw" type="password" inputmode="numeric" autocomplete="off" placeholder="••••" />
       <button id="gate-go">Öppna</button>
       <div class="err" id="gate-err"></div>
     </div>
@@ -193,6 +232,50 @@
     FIELDS.forEach(function(f){ FIELD_LABEL[f[0]]=f[1]; FIELD_TYPE[f[0]]=f[2]; });
     function fmtVal(path,n){ return (FIELD_TYPE[path]==="pct"?pct:kr)(n); }
 
+    // ---- Husalternativ (publika katalogpriser; Ametisten = live-baslinjen från KV) ----
+    // lines[].v: tal (kr) | "ingår" (bundlat → 0) | null (? ej offererat → räknas ej, flaggar total).
+    // lines===null → använd den redigerbara Ametisten-baslinjen (vettershaga.*).
+    var ALTERNATIVES=[
+      {id:"ametisten",name:"Ametisten",sup:"Fiskarhedenvillan",kvm:130,plan:"2-plan",lev:"Byggsats",
+       url:"https://fiskarhedenvillan.se/valj-ditt-hus/husmodeller/ametisten/",img:"/maria-hus/ametisten.jpg",
+       note:"Nuvarande plan. Byggsats = material; grund, montage och finish är egna poster. Redigerbar & delad (spara till alla).",lines:null},
+      {id:"sommar80",name:"Tidlös Sommar 80",sup:"Sommarnöjen",kvm:80,plan:"1-plan + loft",lev:"Nyckelfärdigt + Fast pris",
+       url:"https://sommarnojen.se/hus/tidlos-sommar-70/",img:"/maria-hus/sommarnojen.jpg",
+       note:"Arkitektritad volymmodul på plintar, skjutbara treglas. Fast pris bundlar grund→myndighet, 10 år ABS 18 + färdigställandeskydd.",
+       lines:[{l:"Hus nyckelfärdigt (Tidlös 80)",v:2610000},{l:"Permanentklassning",v:150000},
+              {l:"Fast pris: grund, montage, el/VA-inkoppling, KA, besiktning, färdigställandeskydd",v:640000}]},
+      {id:"sommar100",name:"Tidlös Sommar 100",sup:"Sommarnöjen",kvm:100,plan:"1-plan + loft",lev:"Nyckelfärdigt + Fast pris",
+       url:"https://sommarnojen.se/hus/tidlos-sommar-100/",img:"/maria-hus/sommarnojen.jpg",
+       note:"Som Sommar 80 men 100 kvm. Fler kvm, samma trygghet (fast pris + 10 år ABS 18).",
+       lines:[{l:"Hus nyckelfärdigt (Tidlös 100)",v:3330000},{l:"Permanentklassning",v:150000},
+              {l:"Fast pris: grund, montage, el/VA-inkoppling, KA, besiktning, färdigställandeskydd",v:700000}]},
+      {id:"husverket80",name:"Klassisk K3.80",sup:"Husverket",kvm:80,plan:"1-plan",lev:"Modul + entreprenadpaket",
+       url:"https://husverket.se/fritidshus-80kvm/",img:"/maria-hus/husverket.jpg",
+       note:"Billig modul i permanentstandard. 'Stora entreprenadpaketet – Fast pris' (grund, VA/el, inkoppling, slutbesiktning, försäkring) sätts efter platsbesök.",
+       lines:[{l:"Hus modul (Klassisk K3.80)",v:822900},{l:"Stora entreprenadpaketet – Fast pris",v:null,note:"grund, VA/el, inkoppling, besiktning, försäkring — offereras efter platsbesök"}]},
+      {id:"gimmeshelter",name:"H80",sup:"Gimme Shelter",kvm:80,plan:"1-plan",lev:"Nyckelfärdigt (plintar)",
+       url:"https://gimme-shelter.se/",img:"/maria-hus/gimmeshelter.jpg",
+       note:"Arkitektritad volymmodul, skjutbara treglas ner till golv. Smak-tvilling till Sommarnöjen. Pris vid förfrågan.",
+       lines:[{l:"Hus nyckelfärdigt (H80, plintar)",v:null,note:"pris vid förfrågan"}]},
+      {id:"brutnatur",name:"Brut Natur",sup:"Brut Natur",kvm:80,plan:"1-plan",lev:"Nyckelfärdigt (KL-trä)",
+       url:"https://brutnatur.se/fritidshus-norrtalje/",img:"/maria-hus/brutnatur.jpg",
+       note:"Arkitektritat i KL-trä + natursten + bränd panel (Shou Sugi Ban). Marknadsför Norrtälje. Pris vid förfrågan.",
+       lines:[{l:"Hus nyckelfärdigt (CLT)",v:null,note:"pris vid förfrågan"}]}
+    ];
+    var selectedAlt=localStorage.getItem("maria_alt")||"ametisten";
+    var altEdits={}; try{ altEdits=JSON.parse(localStorage.getItem("maria_alt_edits")||"{}"); }catch(e){}
+    function altById(id){ for(var i=0;i<ALTERNATIVES.length;i++){ if(ALTERNATIVES[i].id===id) return ALTERNATIVES[i]; } return ALTERNATIVES[0]; }
+    function altLines(alt){ if(!alt.lines)return null; var e=altEdits[alt.id]||{}; return alt.lines.map(function(ln,i){ return {l:ln.l,v:(e[i]!=null?e[i]:ln.v),note:ln.note}; }); }
+    function houseSum(alt){
+      if(!alt.lines){ var V=work.vettershaga; return {sum:(V.byggsats||0)+(V.grund||0)+(V.montage||0)+(V.installation||0)+(V.malning||0)+(V.kringkostnad||0),unknown:0}; }
+      var sum=0,unknown=0; altLines(alt).forEach(function(ln){ if(ln.v==null||ln.v==="?")unknown++; else if(ln.v!=="ingår")sum+=(parseKr(ln.v)||0); });
+      return {sum:sum,unknown:unknown};
+    }
+    function effV(alt){ var V=work.vettershaga; if(!alt.lines)return V;
+      return {tomt:V.tomt,lagfartPct:V.lagfartPct,avlopp:V.avlopp,brunn:V.brunn,el:V.el,buffertPct:V.buffertPct,
+              byggsats:houseSum(alt).sum,grund:0,montage:0,installation:0,malning:0,kringkostnad:0}; }
+    function computeAlt(alt){ var S=clone(work); S.vettershaga=effV(alt); return compute(S); }
+
     // ---- compute (samma motor som pappen) ----
     function compute(S){
       var K=S.karlpers,G=S.grimvagen,V=S.vettershaga,P=S.privatekonomi,N=S.nyahuset||{};
@@ -240,25 +323,28 @@
     function fmtDate(ts){ var d=new Date(ts); return d.toLocaleDateString("sv-SE")+" "+d.toLocaleTimeString("sv-SE",{hour:"2-digit",minute:"2-digit"}); }
 
     function draw(){
-      var S=work, c=compute(S);
+      var alt=altById(selectedAlt);
+      var S=clone(work); S.vettershaga=effV(alt);
+      var c=compute(S);
+      var hs=houseSum(alt);
       var unsaved=diffList().length;
       var goBadge=c.buffert>=0?'<span class="mf-pill mf-ok">Buffert '+kr(c.buffert)+'</span>':'<span class="mf-pill mf-bad">Underskott '+kr(-c.buffert)+'</span>';
       var kvarBadge=c.kvarPension<5000?'<span class="mf-pill mf-warn">Tight — '+kr(c.kvarPension)+'/mån kvar</span>':'<span class="mf-pill mf-ok">'+kr(c.kvarPension)+'/mån kvar</span>';
       var reasonHtml="";
       if(reasoning){
-        reasonHtml='<div class="mf-sec"><h3>🧭 Resonemang &amp; öppna frågor</h3>';
+        reasonHtml='<div class="mf-sec" data-collapse="resonemang" data-collapse-default="closed"><h3>🧭 Resonemang &amp; öppna frågor</h3>';
         if(reasoning.insikter&&reasoning.insikter.length){ reasonHtml+='<h4>Insikter</h4><ul>'+reasoning.insikter.map(function(x){return "<li>"+x+"</li>";}).join("")+'</ul>'; }
         if(reasoning.oppnaFragor&&reasoning.oppnaFragor.length){ reasonHtml+='<h4>Öppna frågor att komplettera</h4><ul>'+reasoning.oppnaFragor.map(function(x){return "<li>"+x+"</li>";}).join("")+'</ul>'; }
         if(reasoning.uppdaterad){ reasonHtml+='<p class="muted" style="font-size:11.5px;margin-top:12px">Senast uppdaterad: '+esc(reasoning.uppdaterad)+'</p>'; }
         reasonHtml+='</div>';
       }
-      var chatHtml='<div class="mf-sec"><h3>💬 Familjechatt</h3><div class="muted" style="font-size:13px;margin-bottom:6px">Skriv här för att bolla siffror, ställa frågor eller lämna en kommentar till familjen.</div><div class="chat-feed" id="chat-feed"></div>'
+      var chatHtml='<div class="mf-sec" data-collapse="chatt" data-collapse-default="closed"><h3>💬 Familjechatt</h3><div class="muted" style="font-size:13px;margin-bottom:6px">Skriv här för att bolla siffror, ställa frågor eller lämna en kommentar till familjen.</div><div class="chat-feed" id="chat-feed"></div>'
         +'<div class="chat-form"><input class="name" id="chat-name" placeholder="Ditt namn" maxlength="40" />'
         +'<textarea id="chat-msg" rows="2" placeholder="Skriv ett meddelande…" maxlength="1500"></textarea>'
         +'<div><button class="mf-btn primary" id="chat-send">Skicka</button></div></div></div>';
 
       // Publik ändringslogg (feed längst ned): alla sparade ändringar + återställningar, av vem.
-      var logHtml='<div class="mf-sec"><h3>📝 Ändringslogg <span class="mf-tag">alla sparade ändringar</span></h3>';
+      var logHtml='<div class="mf-sec" data-collapse="andringslogg" data-collapse-default="closed"><h3>📝 Ändringslogg <span class="mf-tag">alla sparade ändringar</span></h3>';
       if(!changelog.length){ logHtml+='<div class="muted" style="font-size:14px">Inga sparade ändringar än. Ändringar som sparas med 💾 Spara till alla hamnar här.</div>'; }
       else{
         logHtml+='<div class="mf-log">'+changelog.slice().reverse().map(function(e){
@@ -271,6 +357,69 @@
         }).join('')+'</div>';
       }
       logHtml+='</div>';
+
+      // Husalternativ-switcher (kort med bild) — driver kalkylen
+      var switcherHtml='<section class="mf-card mf-card-wide mf-alt"><h3>🏘 Husalternativ <span class="mf-tag">byt hus → kalkylen räknar om</span></h3>'
+        +'<div class="alt-strip">'+ALTERNATIVES.map(function(a){
+          var ac=computeAlt(a),ah=houseSum(a);
+          var sub=ah.unknown?(ah.unknown+' post'+(ah.unknown>1?'er':'')+' ej offererad'+(ah.unknown>1?'e':'')):'inflyttningsklart';
+          return '<button class="alt-card'+(a.id===selectedAlt?' on':'')+'" data-alt="'+a.id+'">'
+            +'<span class="alt-img" style="background-image:url('+a.img+')"></span>'
+            +'<span class="alt-body"><span class="alt-sup">'+esc(a.sup)+'</span><span class="alt-name">'+esc(a.name)+'</span>'
+            +'<span class="alt-tags">'+a.kvm+' kvm · '+esc(a.plan)+'</span>'
+            +'<span class="alt-price'+(ah.unknown?' q':'')+'">'+(ah.unknown?'≥ ':'')+kr(ac.vTotal)+'</span><span class="alt-sub">'+sub+'</span></span></button>';
+        }).join('')+'</div></section>';
+
+      // Byggbudget för valt alternativ (Ametisten = redigerbara rader; övriga = katalog + lokal komplettering)
+      var houseRows;
+      if(!alt.lines){
+        houseRows=row("Villabyggsats Ametisten",ed("vettershaga.byggsats"),{note:"material inkl. vitvaror/värme/kök/bad — ej grund, montage, målning"})
+          +row("Grund / platta på mark",ed("vettershaga.grund"))
+          +row("Montage/resning",ed("vettershaga.montage"),{note:"största osäkerheten — begär offert"})
+          +row("VVS/el-installation (arbete)",ed("vettershaga.installation"))
+          +row("Slutmålning/finish",ed("vettershaga.malning"))
+          +row("Bygglov, karta, KA, besiktning",ed("vettershaga.kringkostnad"));
+      } else {
+        houseRows=altLines(alt).map(function(ln,i){
+          var val;
+          if(ln.v==null||ln.v==="?") val='<span class="alt-q" data-altedit="'+alt.id+':'+i+'" tabindex="0" title="Dubbelklicka för att fylla i offert">? ej offererat</span>';
+          else if(ln.v==="ingår") val='<span class="alt-ingar">ingår</span>';
+          else val='<span class="alt-fill" data-altedit="'+alt.id+':'+i+'" tabindex="0" title="Dubbelklicka för att ändra">'+kr(parseKr(ln.v))+'</span>';
+          return row(esc(ln.l),val,ln.note?{note:esc(ln.note)}:null);
+        }).join('');
+      }
+      var totalRow=hs.unknown
+        ? row("= TOTALT inflyttningsklart",'≥ '+kr(c.vTotal)+' <span class="mf-flag mf-komplettera">ofullständig · '+hs.unknown+' saknas</span>',{calc:true,strong:true})
+        : row("= TOTALT inflyttningsklart",kr(c.vTotal),{calc:true,hi:"hi",strong:true});
+      var vettershagaHtml='<section class="mf-card mf-card-wide"><h3>🔨 Vettershaga — byggbudget <span class="mf-tag">'+esc(alt.sup+' · '+alt.name)+'</span> <a class="alt-link" href="'+alt.url+'" target="_blank" rel="noopener">↗ leverantör</a></h3>'
+        +'<div class="alt-note">'+esc(alt.note)+'</div><table class="mf-table">'
+        +'<tr class="mf-subrow"><td colspan="2">Tomt &amp; anslutning — samma för alla alternativ</td></tr>'
+        +row("Tomt",ed("vettershaga.tomt"))
+        +row("Lagfart (stämpelskatt)",ed("vettershaga.lagfartPct","pct")+' <span class="mf-inline-res">= '+kr(c.vLagfart)+'</span>')
+        +row("Enskilt avlopp (WC/spolvatten)",ed("vettershaga.avlopp"))
+        +row("Borrad brunn",ed("vettershaga.brunn"))
+        +row("El-framdragning (~50 m)",ed("vettershaga.el"))
+        +'<tr class="mf-subrow"><td colspan="2">Hus &amp; bygge — '+esc(alt.name)+'</td></tr>'
+        +houseRows
+        +'<tr class="mf-divider"><td colspan="2"></td></tr>'
+        +row("Delsumma",kr(c.vDelsum)+(hs.unknown?' <span class="alt-ingar">(exkl. ? poster)</span>':''),{calc:true})
+        +row("Buffert",ed("vettershaga.buffertPct","pct")+' <span class="mf-inline-res">= '+kr(c.vBuffert)+'</span>')
+        +totalRow
+        +'</table></section>';
+
+      // Jämför alla alternativ (tabell) — samma tomt & lån
+      var compareHtml='<section class="mf-card mf-card-wide mf-cmp"><h3>📊 Jämför alla alternativ <span class="mf-tag">samma tomt &amp; lån</span></h3>'
+        +'<div class="cmp-scroll"><table class="cmp-table"><thead><tr><th>Alternativ</th><th>Hus-del</th><th>Totalt inflytt.</th><th>Buffert efter bygge</th><th>Kvar/mån (pension)</th></tr></thead><tbody>'
+        +ALTERNATIVES.map(function(a){
+          var ac=computeAlt(a),ah=houseSum(a);
+          var q=ah.unknown?' <span class="mf-flag mf-komplettera">? '+ah.unknown+'</span>':'';
+          return '<tr class="'+(a.id===selectedAlt?'on':'')+'" data-alt="'+a.id+'"><td><b>'+esc(a.sup)+'</b> '+esc(a.name)+'<span class="cmp-sub">'+a.kvm+' kvm · '+esc(a.lev)+'</span></td>'
+            +'<td>'+(ah.unknown?'≥ ':'')+kr(ah.sum)+q+'</td>'
+            +'<td>'+(ah.unknown?'≥ ':'')+kr(ac.vTotal)+'</td>'
+            +'<td class="'+(ac.buffert>=0?'pos':'neg')+'">'+(ac.buffert>=0?kr(ac.buffert):'−'+kr(-ac.buffert))+'</td>'
+            +'<td class="'+(ac.kvarPension<5000?'warnv':'pos')+'">'+kr(ac.kvarPension)+'</td></tr>';
+        }).join('')+'</tbody></table></div>'
+        +'<div class="mf-callout mf-callout-warn">? = ej offererat än; rader med ≥ är ofullständiga (saknade poster räknas som 0). Klicka en rad för att välja huset, eller fyll i en offert genom att dubbelklicka posten i byggbudgeten ovan.</div></section>';
 
       document.getElementById("app").innerHTML =
       '<div class="mf-head"><span class="mf-eyebrow">🏡 Familjekalkyl</span><h2>Marias flytt</h2>'
@@ -285,10 +434,11 @@
       +'<div class="mf-toolbar">'
       +'<button class="mf-btn primary" id="btn-save"'+(unsaved?'':' disabled style="opacity:.5;cursor:default"')+'>💾 Spara till alla'+(unsaved?(' ('+unsaved+')'):'')+'</button>'
       +'<button class="mf-btn" id="btn-reset">↺ Ångra mina osparade</button>'
+      +'<button class="mf-btn" id="btn-collapse" title="Fäll ihop eller ut alla fällbara sektioner">⊟ Fäll ihop / ut</button>'
       +'</div>'
       +'<div class="mf-legend"><span><span class="mf-flag mf-schablon">schablon</span> gissning</span><span><span class="mf-flag mf-komplettera">kompletteras</span> behöver riktig uppgift</span><span>✎ dubbelklicka ett belopp</span></div>'
       +'<div class="mf-grid">'
-      +'<section class="mf-card"><h3>🏡 Karlpers <span class="mf-tag">fritidshus · inget uppskov</span></h3><table class="mf-table">'
+      +'<section class="mf-card" data-collapse="karlpers"><h3>🏡 Karlpers <span class="mf-tag">fritidshus · inget uppskov</span></h3><table class="mf-table">'
       +row("Totalpris (båda systrarna)",ed("karlpers.totalpris"))
       +row("Marias ägarandel",ed("karlpers.agarandelPct","pct"))
       +row("Mäklararvode (totalt)",ed("karlpers.maklararvode"))
@@ -299,7 +449,7 @@
       +row("Vinstskatt (22 %)",kr(c.kSkatt),{calc:true,hi:"warn",strong:true})
       +row("Netto kontant till Maria",kr(c.kNetto),{calc:true,hi:"ok",strong:true})
       +'</table><div class="mf-callout mf-callout-warn">⏰ Skatten ('+kr(c.kSkatt)+') betalas i slutskatten <b>våren 2027</b> — reservera den.</div></section>'
-      +'<section class="mf-card"><h3>🏢 Grimvägen <span class="mf-tag">bostadsrätt</span></h3><table class="mf-table">'
+      +'<section class="mf-card" data-collapse="grimvagen"><h3>🏢 Grimvägen <span class="mf-tag">bostadsrätt</span></h3><table class="mf-table">'
       +row("Marknadsvärde",ed("grimvagen.varde"))
       +row("Kvarvarande lån",ed("grimvagen.lan"))
       +row("Inköpspris (när Maria köpte)",ed("grimvagen.anskaffning"))
@@ -310,24 +460,8 @@
       +row("Vinstskatt (22 %)",kr(c.gSkatt),{calc:true,hi:"warn",strong:true})
       +row("Netto (efter lån + skatt)",kr(c.gNetto),{calc:true,hi:"ok",strong:true})
       +'</table><div class="mf-callout mf-callout-hi">📌 Störst osäkerhet: <b>inköpspriset</b>. Står det 0 är skatten maximal — fyll i verkliga priset.</div></section>'
-      +'<section class="mf-card mf-card-wide"><h3>🔨 Vettershaga — byggbudget <span class="mf-tag">villabyggsats ≠ färdigt hus</span></h3><table class="mf-table">'
-      +row("Tomt",ed("vettershaga.tomt"))
-      +row("Lagfart (stämpelskatt)",ed("vettershaga.lagfartPct","pct")+' <span class="mf-inline-res">= '+kr(c.vLagfart)+'</span>')
-      +row("Enskilt avlopp (WC/spolvatten)",ed("vettershaga.avlopp"))
-      +row("Borrad brunn",ed("vettershaga.brunn"))
-      +row("El-framdragning (~50 m)",ed("vettershaga.el"))
-      +row("Villabyggsats Ametisten",ed("vettershaga.byggsats"),{note:"material inkl. vitvaror/värme/kök/bad — ej grund, montage, målning"})
-      +row("Grund / platta på mark",ed("vettershaga.grund"))
-      +row("Montage/resning",ed("vettershaga.montage"),{note:"största osäkerheten — begär offert"})
-      +row("VVS/el-installation (arbete)",ed("vettershaga.installation"))
-      +row("Slutmålning/finish",ed("vettershaga.malning"))
-      +row("Bygglov, karta, KA, besiktning",ed("vettershaga.kringkostnad"))
-      +'<tr class="mf-divider"><td colspan="2"></td></tr>'
-      +row("Delsumma",kr(c.vDelsum),{calc:true})
-      +row("Buffert",ed("vettershaga.buffertPct","pct")+' <span class="mf-inline-res">= '+kr(c.vBuffert)+'</span>')
-      +row("= TOTALT inflyttningsklart",kr(c.vTotal),{calc:true,hi:"hi",strong:true})
-      +'</table></section>'
-      +'<section class="mf-card mf-card-wide"><h3>🏦 Lån &amp; scenario <span class="mf-tag">permanentbostad vs fritidshus</span></h3>'
+      +switcherHtml+vettershagaHtml
+      +'<section class="mf-card mf-card-wide" data-collapse="lan"><h3>🏦 Lån &amp; scenario <span class="mf-tag">permanentbostad vs fritidshus</span></h3>'
       +'<div class="mf-toggle"><button class="mf-tg'+(!c.permanent?" on":"")+'" data-perm="0">🏖 Fritidshus</button><button class="mf-tg'+(c.permanent?" on":"")+'" data-perm="1">🏠 Permanentbostad</button></div>'
       +'<div class="mf-callout '+(c.permanent?"mf-callout-ok":"mf-callout-warn")+'">'
       +(c.permanent?('🏠 Som permanentbostad kan Grimvägens vinstskatt <b>skjutas upp (uppskov, räntefritt)</b> → '+kr(c.uppskov)+' stannar i kassan nu. <b>Kräver att hon faktiskt bor mest i Vettershaga (folkbokförd där)</b> — annars skatterisk, inte genväg.')
@@ -359,6 +493,7 @@
       +row("Kvar/mån medan hon jobbar",kr(c.kvarJobbar),{calc:true})
       +row("Kvar/mån efter pension",kvarBadge,{calc:true,strong:true,hi:c.kvarPension<5000?"warn":"ok"})
       +'</table><div class="mf-callout mf-callout-warn">⚠️ Efter pension lämnar '+kr(S.privatekonomi.pensionNetto)+'/mån minus boende + lån <b>'+kr(c.kvarPension)+'/mån</b> till mat och liv.</div></section>'
+      +compareHtml
       +'</div>'
       +reasonHtml+chatHtml+logHtml;
 
@@ -368,6 +503,23 @@
 
     function wire(){
       Array.prototype.forEach.call(document.querySelectorAll(".mf-tg"),function(b){ b.onclick=function(){ set(work,"nyahuset.permanent",b.getAttribute("data-perm")==="1"); save(); draw(); }; });
+      // Husalternativ-val (switcher-kort + jämför-radrader)
+      Array.prototype.forEach.call(document.querySelectorAll("[data-alt]"),function(b){ b.onclick=function(){ selectedAlt=b.getAttribute("data-alt"); try{localStorage.setItem("maria_alt",selectedAlt);}catch(e){} draw(); }; });
+      // Lokal komplettering av alternativens hus-poster (offert fylls i)
+      Array.prototype.forEach.call(document.querySelectorAll("[data-altedit]"),function(el){
+        function start(){
+          if(el.querySelector("input"))return;
+          var ref=el.getAttribute("data-altedit").split(":"),aid=ref[0],idx=+ref[1];
+          var cur=(altEdits[aid]&&altEdits[aid][idx]!=null)?altEdits[aid][idx]:"";
+          el.innerHTML='<input class="mf-input" value="'+cur+'" inputmode="decimal">';
+          var inp=el.querySelector("input"); inp.focus(); inp.select(); var done=false;
+          function commit(){ if(done)return; done=true; altEdits[aid]=altEdits[aid]||{}; if(String(inp.value).trim()===""){ delete altEdits[aid][idx]; } else { altEdits[aid][idx]=parseKr(inp.value); } try{localStorage.setItem("maria_alt_edits",JSON.stringify(altEdits));}catch(e){} draw(); }
+          inp.addEventListener("blur",commit);
+          inp.addEventListener("keydown",function(e){ if(e.key==="Enter"){e.preventDefault();inp.blur();} else if(e.key==="Escape"){done=true;draw();} });
+        }
+        el.addEventListener("dblclick",start);
+        el.addEventListener("keydown",function(e){ if(e.key==="Enter"){e.preventDefault();start();} });
+      });
       Array.prototype.forEach.call(document.querySelectorAll(".mf-edit"),function(el){
         function start(){
           if(el.querySelector("input"))return;
@@ -381,6 +533,25 @@
         el.addEventListener("dblclick",start);
         el.addEventListener("keydown",function(e){ if(e.key==="Enter"){e.preventDefault();start();} });
       });
+      // Fällbara sektioner (klick på rubriken; läge sparas per sektion)
+      Array.prototype.forEach.call(document.querySelectorAll("[data-collapse]"),function(sec){
+        var key="maria_col_"+sec.getAttribute("data-collapse");
+        var saved=localStorage.getItem(key);
+        var collapsed = saved===null ? (sec.getAttribute("data-collapse-default")==="closed") : saved==="1";
+        var h=sec.querySelector("h3"); if(!h)return;
+        h.classList.add("mf-collhead");
+        if(!h.querySelector(".mf-collchev")){ var cv=document.createElement("span"); cv.className="mf-collchev"; h.insertBefore(cv,h.firstChild); }
+        function apply(){ sec.classList.toggle("collapsed",collapsed); var c=h.querySelector(".mf-collchev"); if(c)c.textContent=collapsed?"▸":"▾"; }
+        apply();
+        h.addEventListener("click",function(e){ if(e.target.closest("a,button,input,.mf-edit,.alt-fill,.alt-q,.mf-revert"))return; collapsed=!collapsed; try{localStorage.setItem(key,collapsed?"1":"0");}catch(_){} apply(); });
+      });
+      var bc=document.getElementById("btn-collapse");
+      if(bc) bc.onclick=function(){
+        var secs=document.querySelectorAll("[data-collapse]");
+        var anyOpen=Array.prototype.some.call(secs,function(s){return !s.classList.contains("collapsed");});
+        Array.prototype.forEach.call(secs,function(s){ try{localStorage.setItem("maria_col_"+s.getAttribute("data-collapse"),anyOpen?"1":"0");}catch(_){} });
+        draw();
+      };
       document.getElementById("btn-reset").onclick=function(){ work=clone(shared); localStorage.removeItem("maria_work"); draw(); };
       var bs=document.getElementById("btn-save"); if(bs) bs.onclick=saveToAll;
       Array.prototype.forEach.call(document.querySelectorAll(".mf-revert"),function(el){ el.onclick=function(){ revertOverride(el.getAttribute("data-revert")); }; });
