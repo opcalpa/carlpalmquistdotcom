@@ -172,6 +172,10 @@
     .schv{color:var(--warn);font-style:italic;font-weight:600}
     .alt-sch{color:var(--warn);font-size:12px;font-style:italic;white-space:nowrap}
     .cmp-q{color:var(--warn);font-weight:700}
+    /* ⭐ delad shortlist-markering på huskorten */
+    .alt-star{position:absolute;left:6px;bottom:6px;background:rgba(12,15,20,.62);color:#fff;border-radius:8px;font-size:12px;padding:3px 7px;cursor:pointer;backdrop-filter:blur(2px)}
+    .alt-star:hover{background:rgba(12,15,20,.85)}
+    .alt-star.on{background:rgba(10,143,84,.85)}
     /* Sorterbara kolumnrubriker i jämför-tabellen */
     #cmp-main th[data-sort]{cursor:pointer;user-select:none;transition:color .12s}
     #cmp-main th[data-sort]:hover{color:var(--accent)}
@@ -358,25 +362,25 @@
        incl:["Husbyggsats: stomme, fasad, yttertak, fönster, ytterdörrar, trappa (svenskt virke)","Bygglovsritningar + teknisk projektering","Stöd i entreprenadupphandling + byggsupport"],
        excl:["Kök, vitvaror, badrumsinredning, kakel/klinker, golv","Värme- och ventilationssystem","Grund/platta + montage/resning","VVS/el-installation + målning","Bygglov/KA/besiktning","Tomt + anslutningar"],
        finish:{kok:"nej",vitvaror:"nej",bad:"nej",golv:"nej",varme:"nej"},inredS:"➕ inget ingår",
-       lines:[{l:"Husbyggsats (Marsfjäll 94)",v:1278100},
-              {l:"Frakt & leverans av byggsats",v:null,sch:50000,note:"offereras av Hudikhus vid beställning"},
-              {l:"Grund/platta på mark inkl. markarbete (standard)",v:null,sch:400000},
-              {l:"Montage/resning + snickeri till färdigt skal & invändigt",v:null,sch:800000,note:"största posten att pressa — begär 2–3 offerter; delar kan göras av Fredrik"},
-              {l:"El-installation (arbete + materiel)",v:null,sch:150000},
-              {l:"VVS-installation (rör, sanitet, arbete)",v:null,sch:200000},
-              {l:"Värmesystem (frånluftsvärmepump, installerad)",v:null,sch:150000,note:"ingår EJ i Hudikhus byggsats"},
-              {l:"Ventilation",v:null,sch:70000,note:"ingår EJ i Hudikhus byggsats"},
-              {l:"Invändig målning & ytskikt väggar/tak",v:null,sch:150000,note:"kan delvis DIY:as"},
-              {l:"Utvändig slutmålning",v:null,sch:60000,note:"kan DIY:as (fasaden levereras grundmålad — bekräfta med Hudikhus)"},
-              {l:"Golvläggning (ytskikt, inkl. läggning)",v:null,sch:100000},
-              {l:"Badrum: kakel/klinker + inredning/porslin",v:null,sch:150000,cat:"inred"},
-              {l:"Kök: stommar, bänkskivor, montering",v:null,sch:150000,cat:"inred"},
-              {l:"Vitvaror",v:null,sch:60000,cat:"inred"},
-              {l:"Braskamin + skorsten (BK-plats finns i planritningen)",v:null,sch:80000,note:"mammas öppen spis-önskan — kan tas i efterhand"},
-              {l:"Bygglov, nybyggnadskarta, utsättning, KA, besiktningar",v:null,sch:100000},
-              {l:"Byggförsäkringar (färdigställandeskydd + allrisk)",v:null,sch:35000},
-              {l:"Byggström/-vatten, etablering, ställning",v:null,sch:50000},
-              {l:"Altandeck runt huset (material)",v:null,sch:80000,note:"mammas deck-önskan — DIY m. Fredrik; färdigbyggt ≈ det dubbla"}]},
+       lines:[{l:"Husbyggsats (Marsfjäll 94)",v:1278100,grp:"hus"},
+              {l:"Frakt & leverans av byggsats",v:null,sch:50000,note:"offereras av Hudikhus vid beställning",grp:"hus"},
+              {l:"Grund/platta på mark inkl. markarbete (standard)",v:null,sch:400000,grp:"bygge"},
+              {l:"Montage/resning + snickeri till färdigt skal & invändigt",v:null,sch:800000,note:"största posten att pressa — begär 2–3 offerter; delar kan göras av Fredrik",grp:"bygge"},
+              {l:"El-installation (arbete + materiel)",v:null,sch:150000,grp:"bygge"},
+              {l:"VVS-installation (rör, sanitet, arbete)",v:null,sch:200000,grp:"bygge"},
+              {l:"Värmesystem (frånluftsvärmepump, installerad)",v:null,sch:150000,note:"ingår EJ i Hudikhus byggsats",grp:"bygge"},
+              {l:"Ventilation",v:null,sch:70000,note:"ingår EJ i Hudikhus byggsats",grp:"bygge"},
+              {l:"Invändig målning & ytskikt väggar/tak",v:null,sch:150000,note:"kan delvis DIY:as",grp:"bygge"},
+              {l:"Utvändig slutmålning",v:null,sch:60000,note:"kan DIY:as (fasaden levereras grundmålad — bekräfta med Hudikhus)",grp:"bygge"},
+              {l:"Golvläggning (ytskikt, inkl. läggning)",v:null,sch:100000,grp:"bygge"},
+              {l:"Badrum: kakel/klinker + inredning/porslin",v:null,sch:150000,cat:"inred",grp:"inred"},
+              {l:"Kök: stommar, bänkskivor, montering",v:null,sch:150000,cat:"inred",grp:"inred"},
+              {l:"Vitvaror",v:null,sch:60000,cat:"inred",grp:"inred"},
+              {l:"Braskamin + skorsten (BK-plats finns i planritningen)",v:null,sch:80000,note:"mammas öppen spis-önskan — kan tas i efterhand",grp:"ovrigt"},
+              {l:"Bygglov, nybyggnadskarta, utsättning, KA, besiktningar",v:null,sch:100000,grp:"ovrigt"},
+              {l:"Byggförsäkringar (färdigställandeskydd + allrisk)",v:null,sch:35000,grp:"ovrigt"},
+              {l:"Byggström/-vatten, etablering, ställning",v:null,sch:50000,grp:"ovrigt"},
+              {l:"Altandeck runt huset (material)",v:null,sch:80000,note:"mammas deck-önskan — DIY m. Fredrik; färdigbyggt ≈ det dubbla",grp:"ovrigt"}]},
       {id:"gotland113",planM:9,planNote:"Nästan exakt text-visionen: sex stora fönster + TVÅ altandörrar längs hela ena långsidan, kök/storstuga 44 m² i fil, master-svit m. eget bad + klädkammare på fönstersidans ena ände, gästrum + WC2 + tvätt mot andra långsidan, braskaminplats och köksö inritade — dock ej golv-till-tak-glas och ingen gaveldörr",name:"Gotland 27-113",sup:"Hudikhus",kvm:113,plan:"1-plan",lev:"Byggsats",mat:1140800,
        url:"https://www.hudikhus.se/fritidshus/gotland-27-113/",img:"/maria-hus/gotland113.jpg",
        imgs:["/maria-hus/gotland113.jpg","/maria-hus/gotland113-2.jpg","/maria-hus/gotland113-3.jpg"],
@@ -384,25 +388,25 @@
        incl:["Husbyggsats: stomme, fasad, yttertak, fönster, ytterdörrar (svenskt virke)","Bygglovsritningar + teknisk projektering","Stöd i entreprenadupphandling + byggsupport"],
        excl:["Kök, vitvaror, badrumsinredning, kakel/klinker, golv","Värme- och ventilationssystem","Grund/platta + montage/resning","VVS/el-installation + målning","Bygglov/KA/besiktning","Tomt + anslutningar"],
        finish:{kok:"nej",vitvaror:"nej",bad:"nej",golv:"nej",varme:"nej"},inredS:"➕ inget ingår",
-       lines:[{l:"Husbyggsats (Gotland 27-113)",v:1140800},
-              {l:"Frakt & leverans av byggsats",v:null,sch:50000,note:"offereras av Hudikhus vid beställning"},
-              {l:"Grund/platta på mark inkl. markarbete (standard)",v:null,sch:400000},
-              {l:"Montage/resning + snickeri till färdigt skal & invändigt",v:null,sch:800000,note:"största posten att pressa — begär 2–3 offerter; delar kan göras av Fredrik"},
-              {l:"El-installation (arbete + materiel)",v:null,sch:150000},
-              {l:"VVS-installation (rör, sanitet, arbete)",v:null,sch:200000},
-              {l:"Värmesystem (frånluftsvärmepump, installerad)",v:null,sch:150000,note:"ingår EJ i Hudikhus byggsats"},
-              {l:"Ventilation",v:null,sch:70000,note:"ingår EJ i Hudikhus byggsats"},
-              {l:"Invändig målning & ytskikt väggar/tak",v:null,sch:150000,note:"kan delvis DIY:as"},
-              {l:"Utvändig slutmålning",v:null,sch:60000,note:"kan DIY:as (bekräfta grundmålning med Hudikhus)"},
-              {l:"Golvläggning (ytskikt, inkl. läggning)",v:null,sch:100000},
-              {l:"Badrum ×2: kakel/klinker + inredning/porslin",v:null,sch:250000,cat:"inred",note:"WC1 (master-svit) + WC2 — därför högre än enbadrumshusen"},
-              {l:"Kök: stommar, bänkskivor, montering",v:null,sch:150000,cat:"inred"},
-              {l:"Vitvaror",v:null,sch:60000,cat:"inred"},
-              {l:"Braskamin + skorsten (BK-plats finns i planritningen)",v:null,sch:80000,note:"mammas öppen spis-önskan — kan tas i efterhand"},
-              {l:"Bygglov, nybyggnadskarta, utsättning, KA, besiktningar",v:null,sch:100000},
-              {l:"Byggförsäkringar (färdigställandeskydd + allrisk)",v:null,sch:35000},
-              {l:"Byggström/-vatten, etablering, ställning",v:null,sch:50000},
-              {l:"Altandeck runt huset (material)",v:null,sch:80000,note:"mammas deck-önskan — DIY m. Fredrik; färdigbyggt ≈ det dubbla"}]},
+       lines:[{l:"Husbyggsats (Gotland 27-113)",v:1140800,grp:"hus"},
+              {l:"Frakt & leverans av byggsats",v:null,sch:50000,note:"offereras av Hudikhus vid beställning",grp:"hus"},
+              {l:"Grund/platta på mark inkl. markarbete (standard)",v:null,sch:400000,grp:"bygge"},
+              {l:"Montage/resning + snickeri till färdigt skal & invändigt",v:null,sch:800000,note:"största posten att pressa — begär 2–3 offerter; delar kan göras av Fredrik",grp:"bygge"},
+              {l:"El-installation (arbete + materiel)",v:null,sch:150000,grp:"bygge"},
+              {l:"VVS-installation (rör, sanitet, arbete)",v:null,sch:200000,grp:"bygge"},
+              {l:"Värmesystem (frånluftsvärmepump, installerad)",v:null,sch:150000,note:"ingår EJ i Hudikhus byggsats",grp:"bygge"},
+              {l:"Ventilation",v:null,sch:70000,note:"ingår EJ i Hudikhus byggsats",grp:"bygge"},
+              {l:"Invändig målning & ytskikt väggar/tak",v:null,sch:150000,note:"kan delvis DIY:as",grp:"bygge"},
+              {l:"Utvändig slutmålning",v:null,sch:60000,note:"kan DIY:as (bekräfta grundmålning med Hudikhus)",grp:"bygge"},
+              {l:"Golvläggning (ytskikt, inkl. läggning)",v:null,sch:100000,grp:"bygge"},
+              {l:"Badrum ×2: kakel/klinker + inredning/porslin",v:null,sch:250000,cat:"inred",note:"WC1 (master-svit) + WC2 — därför högre än enbadrumshusen",grp:"inred"},
+              {l:"Kök: stommar, bänkskivor, montering",v:null,sch:150000,cat:"inred",grp:"inred"},
+              {l:"Vitvaror",v:null,sch:60000,cat:"inred",grp:"inred"},
+              {l:"Braskamin + skorsten (BK-plats finns i planritningen)",v:null,sch:80000,note:"mammas öppen spis-önskan — kan tas i efterhand",grp:"ovrigt"},
+              {l:"Bygglov, nybyggnadskarta, utsättning, KA, besiktningar",v:null,sch:100000,grp:"ovrigt"},
+              {l:"Byggförsäkringar (färdigställandeskydd + allrisk)",v:null,sch:35000,grp:"ovrigt"},
+              {l:"Byggström/-vatten, etablering, ställning",v:null,sch:50000,grp:"ovrigt"},
+              {l:"Altandeck runt huset (material)",v:null,sch:80000,note:"mammas deck-önskan — DIY m. Fredrik; färdigbyggt ≈ det dubbla",grp:"ovrigt"}]},
       {id:"sommar80",planM:7,planNote:"Skjutglas golv-till-tak längs hela långsidan (visionens fönster!), sovrum mot baksidan — men loft-koncept och master inte given i raden",name:"Tidlös Sommar 80",sup:"Sommarnöjen",kvm:80,plan:"1-plan + loft",lev:"Nyckelfärdigt + Fast pris",
        url:"https://sommarnojen.se/hus/tidlos-sommar-70/",img:"/maria-hus/sommarnojen.jpg",
        imgs:["/maria-hus/sommarnojen.jpg","/maria-hus/sommarnojen-2.jpg","/maria-hus/sommarnojen-3.jpg"],
@@ -557,9 +561,18 @@
     var selectedAlt=localStorage.getItem("maria_alt")||"ametisten";
     var schOn=localStorage.getItem("maria_sch")==="1"; // ≈-läget: räkna in schablonkostnader på ?-poster
     var cmpSort=null; try{ cmpSort=JSON.parse(localStorage.getItem("maria_cmp_sort")||"null"); }catch(e){} // {col,dir} för jämför-tabellen
+    var shortlist=[];  // delad ⭐-shortlist (KV maria:shortlist) — familjen väljer vilka hus som är aktuella
+    var showAll=localStorage.getItem("maria_showall")==="1";
     var altEdits={}; try{ altEdits=JSON.parse(localStorage.getItem("maria_alt_edits")||"{}"); }catch(e){}
     function altById(id){ for(var i=0;i<ALTERNATIVES.length;i++){ if(ALTERNATIVES[i].id===id) return ALTERNATIVES[i]; } return ALTERNATIVES[0]; }
-    function altLines(alt){ if(!alt.lines)return null; var e=altEdits[alt.id]||{}; return alt.lines.map(function(ln,i){ return {l:ln.l,v:(e[i]!=null?e[i]:ln.v),note:ln.note,sch:ln.sch,cat:ln.cat,edited:e[i]!=null}; }); }
+    // Synliga hus: shortlist-filtret (valt hus alltid med). Tom shortlist eller "visa alla" → alla.
+    function visAlts(){ if(!shortlist.length||showAll)return ALTERNATIVES; return ALTERNATIVES.filter(function(a){ return shortlist.indexOf(a.id)>=0||a.id===selectedAlt; }); }
+    function saveShortlist(){ var name=localStorage.getItem("maria_name")||"";
+      api("POST","&kind=shortlist",{pw:pw,ids:shortlist,name:name}).then(function(r){
+        if(r.ok&&r.j.shortlist){ shortlist=r.j.shortlist.ids||[]; draw(); }
+        else alert("Kunde inte spara shortlist: "+((r.j&&r.j.error)||r.status)); });
+    }
+    function altLines(alt){ if(!alt.lines)return null; var e=altEdits[alt.id]||{}; return alt.lines.map(function(ln,i){ return {l:ln.l,v:(e[i]!=null?e[i]:ln.v),note:ln.note,sch:ln.sch,cat:ln.cat,grp:ln.grp,edited:e[i]!=null}; }); }
     // sum = kända poster · sch = schablonsumma för ?-poster · inred = schablon-delen som är kök/vitvaror/inredning
     function houseSum(alt){
       if(!alt.lines){ var V=work.vettershaga; return {sum:(V.byggsats||0)+(V.grund||0)+(V.montage||0)+(V.installation||0)+(V.malning||0)+(V.kringkostnad||0),unknown:0,sch:0,inred:0}; }
@@ -701,12 +714,14 @@
       logHtml+='</div>';
 
       // Husalternativ-switcher (kort med bild) — driver kalkylen
-      var switcherHtml='<section class="mf-card mf-card-wide mf-alt"><h3>🏘 Husalternativ <span class="mf-tag">👉 swipa · byt hus → allt räknar om</span></h3>'
-        +'<div class="alt-strip">'+ALTERNATIVES.map(function(a){
+      var VIS=visAlts();
+      var slBtn=shortlist.length?'<button class="mf-btn btn-showall" style="margin-left:auto;font-size:12px;padding:6px 11px">'+(showAll?'⭐ Visa bara shortlist ('+shortlist.length+')':'Visa alla ('+ALTERNATIVES.length+')')+'</button>':'';
+      var switcherHtml='<section class="mf-card mf-card-wide mf-alt"><h3>🏘 Husalternativ <span class="mf-tag">'+(shortlist.length&&!showAll?('⭐ shortlist · '+VIS.length+' av '+ALTERNATIVES.length):'👉 swipa · byt hus → allt räknar om')+'</span> <span class="mf-tag">☆ på kortet = med på familjens delade shortlist</span> '+slBtn+'</h3>'
+        +'<div class="alt-strip">'+VIS.map(function(a){
           var ac=computeAlt(a),ah=houseSum(a),aAp=schOn&&ah.sch>0;
           var sub=ah.unknown?(aAp?('inkl. '+ah.unknown+' schablonpost'+(ah.unknown>1?'er':'')):(ah.unknown+' post'+(ah.unknown>1?'er':'')+' ej offererad'+(ah.unknown>1?'e':''))):'inflyttningsklart';
           return '<button class="alt-card'+(a.id===selectedAlt?' on':'')+'" data-alt="'+a.id+'">'
-            +'<span class="alt-img" style="background-image:url('+a.img+')"><span class="alt-zoom" data-gallery="'+a.id+'" title="Öppna bildgalleri">⤢ '+altGallery(a).length+'</span></span>'
+            +'<span class="alt-img" style="background-image:url('+a.img+')"><span class="alt-star'+(shortlist.indexOf(a.id)>=0?' on':'')+'" data-star="'+a.id+'" title="⭐-märk för familjens shortlist (delas med alla)">'+(shortlist.indexOf(a.id)>=0?'⭐':'☆')+'</span><span class="alt-zoom" data-gallery="'+a.id+'" title="Öppna bildgalleri">⤢ '+altGallery(a).length+'</span></span>'
             +'<span class="alt-body"><span class="alt-sup">'+esc(a.sup)+'</span><span class="alt-name">'+esc(a.name)+'</span>'
             +'<span class="alt-tags">'+a.kvm+' kvm · '+esc(a.plan)+(a.planM!=null?' · 🎯 '+a.planM+'/10':'')+'</span>'
             +'<span class="alt-price'+(ah.unknown&&!aAp?' q':'')+'">'+(ah.unknown?(aAp?'≈ ':'≥ '):'')+kr(ac.vTotal)+'</span><span class="alt-sub">'+sub+'</span></span></button>';
@@ -722,14 +737,30 @@
           +row("Slutmålning/finish",ed("vettershaga.malning"),{note:"inkl. golvytskikt (ingår ej i byggsatsen)"})
           +row("Bygglov, karta, KA, besiktning",ed("vettershaga.kringkostnad"));
       } else {
-        houseRows=altLines(alt).map(function(ln,i){
+        var GRPS={hus:"🏠 Hus & material",bygge:"🔨 Bygge & installationer",inred:"🍴 Inredning & utrustning",ovrigt:"📋 Myndigheter, försäkring & tillval"};
+        var lns=altLines(alt);
+        function lineRow(ln,i){
           var val;
-          if(ln.v==null||ln.v==="?") val='<span class="alt-q" data-altedit="'+alt.id+':'+i+'" tabindex="0" title="Dubbelklicka för att fylla i offert">? ej offererat</span>'+(schOn&&ln.sch?' <span class="alt-sch">(≈ '+kr(ln.sch)+')</span>':'');
+          if(ln.v==null||ln.v==="?") val='<span class="alt-q" data-altedit="'+alt.id+':'+i+'" tabindex="0" title="Dubbelklicka för att fylla i offert">? ej offererat</span>'+(ln.sch?' <span class="alt-sch">(≈ '+kr(ln.sch)+')</span>':'');
           else if(ln.v==="ingår") val='<span class="alt-ingar">ingår</span>';
           else val='<span class="alt-fill" data-altedit="'+alt.id+':'+i+'" tabindex="0" title="Dubbelklicka för att ändra">'+kr(parseKr(ln.v))+'</span>'
             +(ln.edited&&ln.sch!=null?' <span class="alt-sch">(schablon ≈ '+kr(ln.sch)+')</span> <span class="mf-revert" data-altrevert="'+alt.id+':'+i+'" title="Återställ till schablonen">↺ schablon</span>':'');
           return row(esc(ln.l),val,ln.note?{note:esc(ln.note)}:null);
-        }).join('');
+        }
+        if(!lns.some(function(l){return l.grp;})){ houseRows=lns.map(lineRow).join(''); }
+        else{
+          houseRows='';
+          ["hus","bygge","inred","ovrigt"].forEach(function(g){
+            var idxs=[]; lns.forEach(function(l,i){ if((l.grp||"hus")===g)idxs.push(i); });
+            if(!idxs.length)return;
+            var known=0,schsum=0;
+            idxs.forEach(function(i){ var l=lns[i]; if(l.v!=null&&l.v!=="?"&&l.v!=="ingår")known+=parseKr(l.v)||0; else if(l.sch)schsum+=l.sch; });
+            var dsum=(known?kr(known):"")+(known&&schsum?" + ":"")+(schsum?'<span class="schv">≈ '+kr(schsum)+'</span>':"");
+            houseRows+='<tr class="mf-subrow"><td colspan="2">'+GRPS[g]+'</td></tr>'
+              +idxs.map(function(i){return lineRow(lns[i],i);}).join('')
+              +row('= Delsumma',dsum,{calc:true});
+          });
+        }
       }
       houseRows+=row("Inredning &amp; vitvaror i huspriset",(alt.inredS||"—")+(schOn&&hs.inred?' <span class="schv">≈ '+kr(hs.inred)+' inräknat ovan</span>':''),{note:"kök/vitvaror/bad/golv/värme per hus — detaljer i 🍴-tabellen längst ned"});
       var totalRow=hs.unknown
@@ -768,9 +799,9 @@
 
       // Jämför alla alternativ (tabell) — samma tomt & lån. Alla poster i EN tabell:
       // husmaterial vs bygge vs inredning vs färdigt, med ?-poster ifyllbara via schablon (≈-läget).
-      var schBtn='<button class="mf-btn btn-sch" style="margin-left:auto;font-size:12px;padding:6px 11px" title="Fyll ?-poster med realistiska schablonkostnader — allt blir jämförbart men märks ≈">≈ Schabloner: '+(schOn?'PÅ':'av')+'</button>';
+      var schBtn='<button class="mf-btn btn-sch" style="margin-left:auto;font-size:12px;padding:6px 11px" title="Fyll ?-poster med realistiska schablonkostnader — allt blir jämförbart men märks ≈">≈ Räkna med schabloner: '+(schOn?'PÅ':'av')+'</button>';
       var CMP_COLS=[["name","Alternativ"],["plan","🎯 Plan-match"],["mat","Husmaterial"],["bygge","Bygge till klart"],["inred","Inredning &amp; vitvaror"],["hus","Hus klart"],["tot","Totalt inflytt."],["buf","Buffert efter bygge"]];
-      var cmpRows=ALTERNATIVES.map(function(a){
+      var cmpRows=VIS.map(function(a){
           var ac=computeAlt(a),ah=houseSum(a);
           var hd=husdelEff(ah),mat=matEff(a,hd),matKnown=(!a.lines)||!!a.mat;
           var aAp=schOn&&ah.sch>0;
@@ -811,9 +842,9 @@
       // Inredning & utrustning — jämförelse (kök/vitvaror/bad/golv per alternativ)
       var FIN_COLS=[["kok","Kök"],["vitvaror","Vitvaror"],["bad","Bad / WC"],["golv","Golv"],["varme","Värme"]];
       var finMark=function(v){ return v==="ja"?"✅":(v==="nej"?"➕":"❓"); };
-      var finishHtml='<section class="mf-card mf-card-wide mf-cmp" data-collapse="inredning"><h3>🍴 Inredning &amp; utrustning <span class="mf-tag">vad ingår i huspriset</span></h3>'
+      var finishHtml='<section class="mf-card mf-card-wide mf-cmp" data-collapse="inredning" data-collapse-default="closed"><h3>🍴 Inredning &amp; utrustning <span class="mf-tag">vad ingår i huspriset</span></h3>'
         +'<div class="cmp-scroll"><table class="cmp-table"><thead><tr><th>Alternativ</th>'+FIN_COLS.map(function(c){return "<th>"+c[1]+"</th>";}).join("")+'</tr></thead><tbody>'
-        +ALTERNATIVES.map(function(a){ var f=a.finish||{};
+        +VIS.map(function(a){ var f=a.finish||{};
           return '<tr class="'+(a.id===selectedAlt?"on":"")+'" data-alt="'+a.id+'"><td><b>'+esc(a.sup)+'</b> '+esc(a.name)+'<span class="cmp-sub">'+esc(a.lev)+'</span></td>'
             +FIN_COLS.map(function(c){return '<td data-l="'+c[1]+'">'+finMark(f[c[0]])+'</td>';}).join("")+'</tr>';
         }).join("")+'</tbody></table></div>'
@@ -833,9 +864,9 @@
       +'<button class="mf-btn primary" id="btn-save"'+(unsaved?'':' disabled style="opacity:.5;cursor:default"')+'>💾 Spara till alla'+(unsaved?(' ('+unsaved+')'):'')+'</button>'
       +'<button class="mf-btn" id="btn-reset">↺ Ångra mina osparade</button>'
       +'<button class="mf-btn" id="btn-collapse" title="Fäll ihop eller ut alla fällbara sektioner">⊟ Fäll ihop / ut</button>'
-      +'<button class="mf-btn btn-sch" title="Fyll ?-poster (ej offererade) med realistiska schablonkostnader så alla hus blir jämförbara — märks med ≈ i orange kursiv">≈ Schabloner: '+(schOn?'PÅ':'av')+'</button>'
+      +'<button class="mf-btn btn-sch" title="Fyll ?-poster (ej offererade) med realistiska schablonkostnader så alla hus blir jämförbara — märks med ≈ i orange kursiv">≈ Räkna med schabloner: '+(schOn?'PÅ':'av')+'</button>'
       +'</div>'
-      +'<div class="mf-legend"><span><span class="mf-flag mf-schablon">schablon</span> gissning</span><span><span class="mf-flag mf-komplettera">kompletteras</span> behöver riktig uppgift</span><span><span class="schv">(≈ belopp)</span> schablon på ?-post</span><span>✎ tryck / dubbelklicka ett belopp</span></div>'
+      +'<div class="mf-legend"><span><span class="mf-flag mf-schablon">schablon</span> gissning</span><span><span class="mf-flag mf-komplettera">kompletteras</span> behöver riktig uppgift</span><span><span class="schv">(≈ belopp)</span> schablonkostnad — räknas i totaler när ≈-läget är PÅ</span><span>✎ tryck / dubbelklicka ett belopp</span></div>'
       +'<div class="mf-grid">'
       +'<section class="mf-card" data-collapse="karlpers"><h3>🏡 Karlpers <span class="mf-tag">fritidshus · inget uppskov</span></h3><table class="mf-table">'
       +row("Totalpris (båda systrarna)",ed("karlpers.totalpris"))
@@ -952,6 +983,16 @@
         apply();
         h.addEventListener("click",function(e){ if(e.target.closest("a,button,input,.mf-edit,.alt-fill,.alt-q,.mf-revert"))return; collapsed=!collapsed; try{localStorage.setItem(key,collapsed?"1":"0");}catch(_){} apply(); });
       });
+      // ⭐ shortlist: toggla hus + spara delat; "visa alla"-knappen togglar filtret lokalt
+      Array.prototype.forEach.call(document.querySelectorAll("[data-star]"),function(el){
+        el.onclick=function(e){ e.stopPropagation();
+          var id=el.getAttribute("data-star"),i=shortlist.indexOf(id);
+          if(i>=0)shortlist.splice(i,1); else shortlist.push(id);
+          draw(); saveShortlist(); };
+      });
+      Array.prototype.forEach.call(document.querySelectorAll(".btn-showall"),function(b){
+        b.onclick=function(e){ e.stopPropagation(); showAll=!showAll; try{localStorage.setItem("maria_showall",showAll?"1":"0");}catch(_){} draw(); };
+      });
       // ≈-läget: schablonkostnader på/av (knapp i toolbaren + i jämför-tabellen)
       Array.prototype.forEach.call(document.querySelectorAll(".btn-sch"),function(b){
         b.onclick=function(e){ e.stopPropagation(); schOn=!schOn; try{localStorage.setItem("maria_sch",schOn?"1":"0");}catch(_){} draw(); };
@@ -1050,6 +1091,7 @@
         if(r.status===401){ throw new Error("pw"); }
         if(!r.ok){ throw new Error(r.j.error||("HTTP "+r.status)); }
         baseline=r.j.baseline; reasoning=r.j.reasoning; chat=r.j.chat||[]; overrides=r.j.overrides||{}; changelog=r.j.changelog||[];
+        shortlist=(r.j.shortlist&&Array.isArray(r.j.shortlist.ids))?r.j.shortlist.ids:[];
         if(!baseline){ document.getElementById("app").innerHTML='<p class="muted">Baslinjen är inte inlagd än.</p>'; document.getElementById("app").hidden=false; document.getElementById("gate").hidden=true; return; }
         shared=applyOverrides(baseline,overrides);
         var savedWork=null; try{ savedWork=JSON.parse(localStorage.getItem("maria_work")||"null"); }catch(e){}

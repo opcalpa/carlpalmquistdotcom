@@ -24,7 +24,7 @@ const clientIp = (req) => req.headers.get("cf-connecting-ip") || (req.headers.ge
 
 const PW = (env) => env.MARIA_PW || "1441";
 const ADMIN = "maria-admin-3f9q7x";     // hindrar bara oavsiktlig överskrivning av baslinjen; ej en hemlighet
-const K_BASE = "maria:baseline", K_REASON = "maria:reasoning", K_CHAT = "maria:chat", K_OV = "maria:overrides", K_LOG = "maria:changelog";
+const K_BASE = "maria:baseline", K_REASON = "maria:reasoning", K_CHAT = "maria:chat", K_OV = "maria:overrides", K_LOG = "maria:changelog", K_SHORT = "maria:shortlist";
 const LOG_CAP = 300;   // append-only publik ändringslogg (vem ändrade vad, när) — visas som feed på sidan
 
 // Delat "override-lager": besökare (t.ex. Fredrik) kan spara nya värden för ALLA utan att röra
@@ -68,10 +68,10 @@ export async function onRequestGet(context) {
     return Response.json({ error: "unauthorized" }, { status: 401 });
   }
   try {
-    const [baseline, reasoning, chat, overrides, changelog] = await Promise.all([
-      readJson(env, K_BASE, null), readJson(env, K_REASON, null), readJson(env, K_CHAT, []), readJson(env, K_OV, {}), readJson(env, K_LOG, []),
+    const [baseline, reasoning, chat, overrides, changelog, shortlist] = await Promise.all([
+      readJson(env, K_BASE, null), readJson(env, K_REASON, null), readJson(env, K_CHAT, []), readJson(env, K_OV, {}), readJson(env, K_LOG, []), readJson(env, K_SHORT, { ids: [] }),
     ]);
-    return Response.json({ baseline, reasoning, chat, overrides, changelog });
+    return Response.json({ baseline, reasoning, chat, overrides, changelog, shortlist });
   } catch (e) { return Response.json({ error: String(e).slice(0, 200) }, { status: 500 }); }
 }
 
@@ -129,6 +129,19 @@ export async function onRequestPost(context) {
     return Response.json({ overrides, changelog });
   }
 
+  // Delad shortlist: familjen ⭐-märker vilka husalternativ som är aktuella (hela id-listan skrivs varje gång).
+  if (kind === "shortlist") {
+    const ip = clientIp(request);
+    const rlov = parseInt((await kvGet(env, rlovKey(ip))) || "0", 10) || 0;
+    if (rlov >= RLOV_MAX) return Response.json({ error: "rate_limited" }, { status: 429 });
+    if (!Array.isArray(body.ids)) return Response.json({ error: "bad_shortlist" }, { status: 400 });
+    const ids = [...new Set(body.ids.filter((x) => typeof x === "string" && /^[a-z0-9]{1,40}$/.test(x)))].slice(0, 30);
+    const shortlist = { ids, by: sanitize(body.name, NAME_MAX) || "Någon", ts: Date.now() };
+    await kvPut(env, K_SHORT, JSON.stringify(shortlist));
+    await kvPut(env, rlovKey(ip), String(rlov + 1), RLOV_WINDOW);
+    return Response.json({ shortlist });
+  }
+
   if (kind !== "chat") return Response.json({ error: "bad kind" }, { status: 400 });
   const name = sanitize(body.name, NAME_MAX) || "Anonym";
   const message = sanitize(body.message, BODY_MAX);
@@ -157,6 +170,7 @@ export async function onRequestPut(context) {
     if (body.resetChat) await kvPut(env, K_CHAT, "[]");
     if (body.resetLog) await kvPut(env, K_LOG, "[]");           // töm publik ändringslogg
     if (body.resetOverrides) await kvPut(env, K_OV, "{}");      // nollställ alla sparade override-värden
+    if (body.resetShortlist) await kvPut(env, K_SHORT, JSON.stringify({ ids: [] }));  // töm delad shortlist
     return Response.json({ ok: true });
   } catch (e) { return Response.json({ error: String(e).slice(0, 200) }, { status: 500 }); }
 }
