@@ -171,6 +171,8 @@
     .alt-img{position:relative}
     .alt-zoom{position:absolute;right:6px;bottom:6px;display:inline-flex;align-items:center;gap:3px;background:rgba(12,15,20,.62);color:#fff;border:0;border-radius:8px;font-size:11px;font-weight:600;padding:3px 7px;cursor:zoom-in;backdrop-filter:blur(2px);letter-spacing:.2px}
     .alt-zoom:hover{background:rgba(12,15,20,.82)}
+    .alt-planbtn{display:inline-flex;align-items:center;gap:6px;background:var(--soft);border:1px solid var(--line2);color:var(--ink2);font:inherit;font-size:13px;font-weight:600;border-radius:9px;padding:8px 13px;cursor:pointer;text-decoration:none;margin:0 0 12px}
+    .alt-planbtn:hover{border-color:var(--accent);color:var(--accent)}
     .alt-cover{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:0 0 14px}
     .alt-cov-col{border:1px solid var(--line);border-radius:11px;padding:11px 13px}
     .alt-cov-in{background:var(--ok-tint);border-color:color-mix(in srgb,var(--ok) 22%,var(--line))}
@@ -458,6 +460,11 @@
               byggsats:houseSum(alt).sum,grund:0,montage:0,installation:0,malning:0,kringkostnad:0}; }
     function computeAlt(alt){ var S=clone(work); S.vettershaga=effV(alt); return compute(S); }
 
+    // Planlösningar per modell (där nedladdbar; annars länk till leverantören). Läggs sist i galleriet.
+    var PLANS={ametisten:"/maria-hus/ametisten-plan.jpg",sparven:"/maria-hus/sparven-plan.jpg",sommar80:"/maria-hus/sommar80-plan.jpg",sommar100:"/maria-hus/sommar100-plan.jpg",sommar120:"/maria-hus/sommar120-plan.jpg",sommar150:"/maria-hus/sommar150-plan.jpg",stella119:"/maria-hus/stella119-plan.jpg",gimmeshelter:"/maria-hus/gimme-plan.jpg",gimme90:"/maria-hus/gimme-plan.jpg"};
+    function altPlan(a){ return PLANS[a.id]||null; }
+    function altGallery(a){ var g=(a.imgs||[]).slice(); if(altPlan(a))g.push(altPlan(a)); return g; }
+
     // ---- Bildgalleri / lightbox (swipa + zooma) ----
     var _lbImgs=[],_lbI=0,_lbScale=1,_lbX=0,_lbY=0;
     function lbApplyT(){ var im=document.getElementById("mf-lb-img"); if(im) im.style.transform="translate("+_lbX+"px,"+_lbY+"px) scale("+_lbScale+")"; }
@@ -576,7 +583,7 @@
           var ac=computeAlt(a),ah=houseSum(a);
           var sub=ah.unknown?(ah.unknown+' post'+(ah.unknown>1?'er':'')+' ej offererad'+(ah.unknown>1?'e':'')):'inflyttningsklart';
           return '<button class="alt-card'+(a.id===selectedAlt?' on':'')+'" data-alt="'+a.id+'">'
-            +'<span class="alt-img" style="background-image:url('+a.img+')"><span class="alt-zoom" data-gallery="'+a.id+'" title="Öppna bildgalleri">⤢ '+(a.imgs?a.imgs.length:1)+'</span></span>'
+            +'<span class="alt-img" style="background-image:url('+a.img+')"><span class="alt-zoom" data-gallery="'+a.id+'" title="Öppna bildgalleri">⤢ '+altGallery(a).length+'</span></span>'
             +'<span class="alt-body"><span class="alt-sup">'+esc(a.sup)+'</span><span class="alt-name">'+esc(a.name)+'</span>'
             +'<span class="alt-tags">'+a.kvm+' kvm · '+esc(a.plan)+'</span>'
             +'<span class="alt-price'+(ah.unknown?' q':'')+'">'+(ah.unknown?'≥ ':'')+kr(ac.vTotal)+'</span><span class="alt-sub">'+sub+'</span></span></button>';
@@ -605,6 +612,9 @@
         : row("= TOTALT inflyttningsklart",kr(c.vTotal),{calc:true,hi:"hi",strong:true});
       var vettershagaHtml='<section class="mf-card mf-card-wide"><h3>🔨 Vettershaga — byggbudget <span class="mf-tag">'+esc(alt.sup+' · '+alt.name)+'</span> <a class="alt-link" href="'+alt.url+'" target="_blank" rel="noopener">↗ leverantör</a></h3>'
         +'<div class="alt-note">'+esc(alt.note)+'</div>'
+        +(altPlan(alt)
+          ? '<button class="alt-planbtn" data-planopen="'+alt.id+'">📐 Se planlösning</button>'
+          : '<a class="alt-planbtn" href="'+alt.url+'" target="_blank" rel="noopener">📐 Planlösning ↗ (hos leverantören)</a>')
         +((alt.incl||alt.excl)?('<div class="alt-cover">'
           +'<div class="alt-cov-col alt-cov-in"><div class="alt-cov-h">✅ Ingår i priset</div><ul>'+(alt.incl||[]).map(function(x){return "<li>"+esc(x)+"</li>";}).join("")+'</ul></div>'
           +'<div class="alt-cov-col alt-cov-ex"><div class="alt-cov-h">➕ Tillkommer</div><ul>'+(alt.excl||[]).map(function(x){return "<li>"+esc(x)+"</li>";}).join("")+'</ul></div>'
@@ -736,7 +746,9 @@
       // Husalternativ-val (switcher-kort + jämför-radrader)
       Array.prototype.forEach.call(document.querySelectorAll("[data-alt]"),function(b){ b.onclick=function(){ selectedAlt=b.getAttribute("data-alt"); try{localStorage.setItem("maria_alt",selectedAlt);}catch(e){} draw(); }; });
       // Bildgalleri-badge → öppna lightbox (utan att välja huset)
-      Array.prototype.forEach.call(document.querySelectorAll("[data-gallery]"),function(el){ el.onclick=function(e){ e.stopPropagation(); e.preventDefault(); openLightbox(altById(el.getAttribute("data-gallery")).imgs,0); }; });
+      Array.prototype.forEach.call(document.querySelectorAll("[data-gallery]"),function(el){ el.onclick=function(e){ e.stopPropagation(); e.preventDefault(); openLightbox(altGallery(altById(el.getAttribute("data-gallery"))),0); }; });
+      // "📐 Se planlösning" → öppna lightbox på plan-bilden (sista i galleriet)
+      Array.prototype.forEach.call(document.querySelectorAll("[data-planopen]"),function(el){ el.onclick=function(){ var a=altById(el.getAttribute("data-planopen")); var g=altGallery(a); openLightbox(g,g.length-1); }; });
       // Lokal komplettering av alternativens hus-poster (offert fylls i)
       Array.prototype.forEach.call(document.querySelectorAll("[data-altedit]"),function(el){
         function start(){
