@@ -136,10 +136,10 @@
     .mf-log-note{color:var(--dim);font-style:italic}
     /* Husalternativ-switcher */
     .mf-alt .alt-strip{display:flex;gap:12px;overflow-x:auto;scroll-snap-type:x mandatory;-webkit-overflow-scrolling:touch;padding:4px 2px 10px;margin-top:4px;scrollbar-width:thin}
-    .alt-card{flex:0 0 220px;scroll-snap-align:start;display:flex;flex-direction:column;text-align:left;background:var(--field);border:1px solid var(--line2);border-radius:12px;padding:0;overflow:hidden;cursor:pointer;transition:border-color .12s,box-shadow .12s;font:inherit}
+    .alt-card{flex:0 0 165px;scroll-snap-align:start;display:flex;flex-direction:column;text-align:left;background:var(--field);border:1px solid var(--line2);border-radius:12px;padding:0;overflow:hidden;cursor:pointer;transition:border-color .12s,box-shadow .12s;font:inherit}
     .alt-card:hover{border-color:var(--accent)}
     .alt-card.on{border-color:var(--accent);box-shadow:0 0 0 2px var(--accent-tint)}
-    .alt-img{display:block;height:150px;background-size:cover;background-position:center;background-color:var(--soft)}
+    .alt-img{display:block;height:98px;background-size:cover;background-position:center;background-color:var(--soft)}
     .alt-body{padding:10px 13px;display:flex;flex-direction:column;gap:1px}
     .alt-sup{font-size:10.5px;font-weight:700;color:var(--accent);text-transform:uppercase;letter-spacing:.4px}
     .alt-name{font-size:14.5px;font-weight:700;color:var(--ink);letter-spacing:-.01em}
@@ -173,6 +173,13 @@
     .alt-zoom:hover{background:rgba(12,15,20,.82)}
     .alt-planbtn{display:inline-flex;align-items:center;gap:6px;background:var(--soft);border:1px solid var(--line2);color:var(--ink2);font:inherit;font-size:13px;font-weight:600;border-radius:9px;padding:8px 13px;cursor:pointer;text-decoration:none;margin:0 0 12px}
     .alt-planbtn:hover{border-color:var(--accent);color:var(--accent)}
+    /* Cover-art-karusell i Vettershaga (valt hus) */
+    .veh-coverwrap{position:relative;margin:0 0 14px}
+    .veh-cover{display:flex;gap:8px;overflow-x:auto;scroll-snap-type:x mandatory;-webkit-overflow-scrolling:touch;border-radius:12px;scrollbar-width:none}
+    .veh-cover::-webkit-scrollbar{display:none}
+    .veh-slide{flex:0 0 88%;scroll-snap-align:center;height:230px;background-size:cover;background-position:center;background-color:var(--soft);border-radius:12px;cursor:zoom-in}
+    .veh-hint{position:absolute;right:8px;bottom:8px;background:rgba(12,15,20,.6);color:#fff;font-size:11px;font-weight:600;padding:3px 9px;border-radius:8px;-webkit-backdrop-filter:blur(2px);backdrop-filter:blur(2px);pointer-events:none}
+    @media(min-width:701px){.veh-slide{flex-basis:58%;height:320px}}
     .alt-cover{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:0 0 14px}
     .alt-cov-col{border:1px solid var(--line);border-radius:11px;padding:11px 13px}
     .alt-cov-in{background:var(--ok-tint);border-color:color-mix(in srgb,var(--ok) 22%,var(--line))}
@@ -226,11 +233,11 @@
       .mf-edit,.alt-fill,.alt-q{touch-action:manipulation;display:inline-block;padding:2px 4px}
       .alt-note{font-size:12px}
       .alt-cover{grid-template-columns:1fr;gap:8px}
-      .mf-alt .alt-card{flex-basis:80%}
-      .alt-img{height:200px}
-      .alt-body{padding:11px 13px}
-      .alt-name{font-size:15px}
-      .alt-price{font-size:16px}
+      .mf-alt .alt-card{flex-basis:47%}
+      .alt-img{height:96px}
+      .alt-body{padding:9px 11px}
+      .alt-name{font-size:13px}
+      .alt-price{font-size:14.5px}
       /* Jämför-tabell → staplade kort i stället för sidoscroll */
       .mf-cmp .cmp-scroll{overflow:visible;margin:0}
       .cmp-table{min-width:0}
@@ -248,8 +255,8 @@
       .v-sep{display:none}
     }
     @media(max-width:360px){
-      .mf-alt .alt-card{flex-basis:88%}
-      .alt-img{height:215px}
+      .mf-alt .alt-card{flex-basis:62%}
+      .alt-img{height:105px}
     }
   </style>
 </head>
@@ -610,7 +617,10 @@
       var totalRow=hs.unknown
         ? row("= TOTALT inflyttningsklart",'≥ '+kr(c.vTotal)+' <span class="mf-flag mf-komplettera">ofullständig · '+hs.unknown+' saknas</span>',{calc:true,strong:true})
         : row("= TOTALT inflyttningsklart",kr(c.vTotal),{calc:true,hi:"hi",strong:true});
+      var coverImgs=altGallery(alt);
+      var coverHtml='<div class="veh-coverwrap"><div class="veh-cover">'+coverImgs.map(function(src,i){ return '<div class="veh-slide" style="background-image:url('+src+')" data-cover="'+alt.id+':'+i+'" title="Öppna i galleri"></div>'; }).join('')+'</div><span class="veh-hint">👉 svep · tryck för galleri</span></div>';
       var vettershagaHtml='<section class="mf-card mf-card-wide"><h3>🔨 Vettershaga — byggbudget <span class="mf-tag">'+esc(alt.sup+' · '+alt.name)+'</span> <a class="alt-link" href="'+alt.url+'" target="_blank" rel="noopener">↗ leverantör</a></h3>'
+        +coverHtml
         +'<div class="alt-note">'+esc(alt.note)+'</div>'
         +(altPlan(alt)
           ? '<button class="alt-planbtn" data-planopen="'+alt.id+'">📐 Se planlösning</button>'
@@ -698,7 +708,7 @@
       +row("Vinstskatt (22 %)",kr(c.gSkatt),{calc:true,hi:"warn",strong:true})
       +row("Netto (efter lån + skatt)",kr(c.gNetto),{calc:true,hi:"ok",strong:true})
       +'</table><div class="mf-callout mf-callout-hi">📌 Störst osäkerhet: <b>inköpspriset</b>. Står det 0 är skatten maximal — fyll i verkliga priset.</div></section>'
-      +vettershagaHtml
+      +switcherHtml+vettershagaHtml
       +'<section class="mf-card mf-card-wide" data-collapse="lan"><h3>🏦 Lån &amp; scenario <span class="mf-tag">permanentbostad vs fritidshus</span></h3>'
       +'<div class="mf-toggle"><button class="mf-tg'+(!c.permanent?" on":"")+'" data-perm="0">🏖 Fritidshus</button><button class="mf-tg'+(c.permanent?" on":"")+'" data-perm="1">🏠 Permanentbostad</button></div>'
       +'<div class="mf-callout '+(c.permanent?"mf-callout-ok":"mf-callout-warn")+'">'
@@ -731,7 +741,7 @@
       +row("Kvar/mån medan hon jobbar",kr(c.kvarJobbar),{calc:true})
       +row("Kvar/mån efter pension",kvarBadge,{calc:true,strong:true,hi:c.kvarPension<5000?"warn":"ok"})
       +'</table><div class="mf-callout mf-callout-warn">⚠️ Efter pension lämnar '+kr(S.privatekonomi.pensionNetto)+'/mån minus boende + lån <b>'+kr(c.kvarPension)+'/mån</b> till mat och liv.</div></section>'
-      +switcherHtml+compareHtml+finishHtml
+      +compareHtml+finishHtml
       +'</div>'
       +reasonHtml+chatHtml+logHtml;
 
@@ -749,6 +759,8 @@
       Array.prototype.forEach.call(document.querySelectorAll("[data-gallery]"),function(el){ el.onclick=function(e){ e.stopPropagation(); e.preventDefault(); openLightbox(altGallery(altById(el.getAttribute("data-gallery"))),0); }; });
       // "📐 Se planlösning" → öppna lightbox på plan-bilden (sista i galleriet)
       Array.prototype.forEach.call(document.querySelectorAll("[data-planopen]"),function(el){ el.onclick=function(){ var a=altById(el.getAttribute("data-planopen")); var g=altGallery(a); openLightbox(g,g.length-1); }; });
+      // Cover-art-karusell i Vettershaga: tryck på en bild → öppna i lightbox på rätt index
+      Array.prototype.forEach.call(document.querySelectorAll("[data-cover]"),function(el){ el.onclick=function(){ var ref=el.getAttribute("data-cover").split(":"); openLightbox(altGallery(altById(ref[0])),+ref[1]); }; });
       // Lokal komplettering av alternativens hus-poster (offert fylls i)
       Array.prototype.forEach.call(document.querySelectorAll("[data-altedit]"),function(el){
         function start(){
