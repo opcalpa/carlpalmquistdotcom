@@ -407,6 +407,15 @@
        finish:{kok:"ja",vitvaror:"?",bad:"ja",golv:"?",varme:"ja"},inredS:"❓ vitvaror + golv",
        lines:[{l:"Hus nyckelfärdigt inkl. grund (Stella 119, totalentreprenad, lägsta zon)",v:3175400,note:"verifierat pris på trivselhus.se (från-pris, lägsta zon); byggsats/materialleverans från 1 720 800 exkl. grund/bygge"},
               {l:"Vitvaror + golvbeläggning (ofta tillval — bekräfta med Trivselhus)",v:null,sch:160000,cat:"inred",note:"schablon: vitvaror 60 + golv 100 tkr"}]},
+      {id:"stella103",name:"Stella 103",sup:"Trivselhus",kvm:103,plan:"1-plan",lev:"Totalentreprenad (nyckelfärdigt)",mat:1525400,
+       url:"https://www.trivselhus.se/husmodeller/stella-103/",img:"/maria-hus/stella103.jpg",
+       imgs:["/maria-hus/stella103.jpg","/maria-hus/stella103-2.jpg","/maria-hus/stella103-3.jpg"],
+       note:"Mindre syskon till Stella 119 — enplans ladhusstil m. ryggåstak (27°), boyta 103 kvm (byggyta 119), 3 sovrum, köksö + eldstadsplats inritade. Totalentreprenad m. platta på mark + standardmark ingår. 340 600 kr billigare än Stella 119; spegelvänd planritning finns. OBS: sovrummen spridda (2 på terrass-sidan, 1 på motsatta) — matchar Marias rad-vision sämre än 119:an.",
+       incl:["Hus nyckelfärdigt byggt på plats (totalentreprenad)","Platta på mark + standardmark ingår","Kök + badrum i standardutförande","Fullt bygge + samordning + 10 års ansvar (ABS 18)"],
+       excl:["⚠️ Vitvaror + golv ofta tillval (ej itemiserat på sajten — bekräfta)","Tomt + anslutningsavgifter","Ev. enskilt avlopp + borrad brunn","Icke-standard mark + priszon-tillägg"],
+       finish:{kok:"ja",vitvaror:"?",bad:"ja",golv:"?",varme:"ja"},inredS:"❓ vitvaror + golv",
+       lines:[{l:"Hus nyckelfärdigt inkl. grund (Stella 103, totalentreprenad, lägsta zon)",v:2834800,note:"verifierat pris på trivselhus.se (från-pris, lägsta zon); materialleverans från 1 525 400 exkl. grund/bygge"},
+              {l:"Vitvaror + golvbeläggning (ofta tillval — bekräfta med Trivselhus)",v:null,sch:160000,cat:"inred",note:"schablon: vitvaror 60 + golv 100 tkr"}]},
       {id:"husverket80",name:"Klassisk K3.80",sup:"Husverket",kvm:80,plan:"1-plan",lev:"Modul + entreprenadpaket",mat:822900,
        url:"https://husverket.se/fritidshus-80kvm/",img:"/maria-hus/husverket.jpg",
        imgs:["/maria-hus/husverket.jpg","/maria-hus/husverket-2.jpg","/maria-hus/husverket-3.jpg"],
@@ -505,11 +514,11 @@
     function computeAlt(alt){ var S=clone(work); S.vettershaga=effV(alt); return compute(S); }
 
     // Planlösningar per modell (där nedladdbar; annars länk till leverantören). Läggs sist i galleriet.
-    var PLANS={ametisten:"/maria-hus/ametisten-plan.jpg",sparven:"/maria-hus/sparven-plan.jpg",marsfjall94:["/maria-hus/marsfjall94-plan.jpg","/maria-hus/marsfjall94-plan-spegel.jpg"],sommar80:"/maria-hus/sommar80-plan.jpg",sommar100:"/maria-hus/sommar100-plan.jpg",sommar120:"/maria-hus/sommar120-plan.jpg",sommar150:"/maria-hus/sommar150-plan.jpg",stella119:"/maria-hus/stella119-plan.jpg",gimmeshelter:"/maria-hus/gimme-plan.jpg",gimme90:"/maria-hus/gimme-plan.jpg"};
+    var PLANS={ametisten:"/maria-hus/ametisten-plan.jpg",sparven:"/maria-hus/sparven-plan.jpg",marsfjall94:["/maria-hus/marsfjall94-plan.jpg","/maria-hus/marsfjall94-plan-spegel.jpg"],stella103:["/maria-hus/stella103-plan.jpg","/maria-hus/stella103-plan-spegel.jpg"],sommar80:"/maria-hus/sommar80-plan.jpg",sommar100:"/maria-hus/sommar100-plan.jpg",sommar120:"/maria-hus/sommar120-plan.jpg",sommar150:"/maria-hus/sommar150-plan.jpg",stella119:"/maria-hus/stella119-plan.jpg",gimmeshelter:"/maria-hus/gimme-plan.jpg",gimme90:"/maria-hus/gimme-plan.jpg"};
     function altPlan(a){ return PLANS[a.id]||null; } // sträng ELLER array (t.ex. normal + spegelvänd)
     function altGallery(a){ var g=(a.imgs||[]).slice(),p=altPlan(a); if(p)g=g.concat(p); return g; }
     // Rum/sovrum per modell (där verifierat; annars hänvisning till leverantör)
-    var ROOMS={ametisten:"4 rum · 3 sovrum",sparven:"4 rum · 3 sovrum",marsfjall94:"3 sovrum · 1 badrum (boyta 82, byggyta 100)",sommar80:"3 sovrum + sovloft",sommar100:"3 sovrum + sovloft",sommar120:"3–4 sovrum + sovloft",sommar150:"3–4 sovrum + sovloft · 2 badrum",stella119:"3 sovrum",husverket80:"valbar plan (2–3 sovrum)",husverket100:"valbar plan (~3 sovrum)",gimmeshelter:"3 rum",gimme90:"3 rum"};
+    var ROOMS={ametisten:"4 rum · 3 sovrum",sparven:"4 rum · 3 sovrum",marsfjall94:"3 sovrum · 1 badrum (boyta 82, byggyta 100)",sommar80:"3 sovrum + sovloft",sommar100:"3 sovrum + sovloft",sommar120:"3–4 sovrum + sovloft",sommar150:"3–4 sovrum + sovloft · 2 badrum",stella119:"3 sovrum",stella103:"3 sovrum · boyta 103 (byggyta 119)",husverket80:"valbar plan (2–3 sovrum)",husverket100:"valbar plan (~3 sovrum)",gimmeshelter:"3 rum",gimme90:"3 rum"};
     function altRooms(a){ return ROOMS[a.id]||"rum/sovrum: se leverantör"; }
 
     // ---- Bildgalleri / lightbox (swipa + zooma) ----
