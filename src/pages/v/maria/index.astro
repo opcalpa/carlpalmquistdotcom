@@ -377,6 +377,32 @@
               {l:"Byggförsäkringar (färdigställandeskydd + allrisk)",v:null,sch:35000},
               {l:"Byggström/-vatten, etablering, ställning",v:null,sch:50000},
               {l:"Altandeck runt huset (material)",v:null,sch:80000,note:"mammas deck-önskan — DIY m. Fredrik; färdigbyggt ≈ det dubbla"}]},
+      {id:"gotland113",planM:9,planNote:"Nästan exakt text-visionen: sex stora fönster + TVÅ altandörrar längs hela ena långsidan, kök/storstuga 44 m² i fil, master-svit m. eget bad + klädkammare på fönstersidans ena ände, gästrum + WC2 + tvätt mot andra långsidan, braskaminplats och köksö inritade — dock ej golv-till-tak-glas och ingen gaveldörr",name:"Gotland 27-113",sup:"Hudikhus",kvm:113,plan:"1-plan",lev:"Byggsats",mat:1140800,
+       url:"https://www.hudikhus.se/fritidshus/gotland-27-113/",img:"/maria-hus/gotland113.jpg",
+       imgs:["/maria-hus/gotland113.jpg","/maria-hus/gotland113-2.jpg","/maria-hus/gotland113-3.jpg"],
+       note:"Hudikhus Gotland-serie — avlång enplans (14,8×7,6 m), byggyta 113 (boyta 101), 3 sovrum + 2 badrum med MASTER-SVIT (eget bad + klk) på fönsterlångsidan. Kök/storstuga 44 m² i fil längs långsidan med sex stora fönster + två altandörrar, braskaminplats, knäckt innertak. Samma renodlade byggsats som Marsfjäll (varken kök, vitvaror, bad, golv eller värme ingår) — men billigare: från 1 140 800 kr. Spegelvänd planritning finns. Komplett kostnadslista till inflytt nedan; ↺ tar alltid tillbaka till schablonen.",
+       incl:["Husbyggsats: stomme, fasad, yttertak, fönster, ytterdörrar (svenskt virke)","Bygglovsritningar + teknisk projektering","Stöd i entreprenadupphandling + byggsupport"],
+       excl:["Kök, vitvaror, badrumsinredning, kakel/klinker, golv","Värme- och ventilationssystem","Grund/platta + montage/resning","VVS/el-installation + målning","Bygglov/KA/besiktning","Tomt + anslutningar"],
+       finish:{kok:"nej",vitvaror:"nej",bad:"nej",golv:"nej",varme:"nej"},inredS:"➕ inget ingår",
+       lines:[{l:"Husbyggsats (Gotland 27-113)",v:1140800},
+              {l:"Frakt & leverans av byggsats",v:null,sch:50000,note:"offereras av Hudikhus vid beställning"},
+              {l:"Grund/platta på mark inkl. markarbete (standard)",v:null,sch:400000},
+              {l:"Montage/resning + snickeri till färdigt skal & invändigt",v:null,sch:800000,note:"största posten att pressa — begär 2–3 offerter; delar kan göras av Fredrik"},
+              {l:"El-installation (arbete + materiel)",v:null,sch:150000},
+              {l:"VVS-installation (rör, sanitet, arbete)",v:null,sch:200000},
+              {l:"Värmesystem (frånluftsvärmepump, installerad)",v:null,sch:150000,note:"ingår EJ i Hudikhus byggsats"},
+              {l:"Ventilation",v:null,sch:70000,note:"ingår EJ i Hudikhus byggsats"},
+              {l:"Invändig målning & ytskikt väggar/tak",v:null,sch:150000,note:"kan delvis DIY:as"},
+              {l:"Utvändig slutmålning",v:null,sch:60000,note:"kan DIY:as (bekräfta grundmålning med Hudikhus)"},
+              {l:"Golvläggning (ytskikt, inkl. läggning)",v:null,sch:100000},
+              {l:"Badrum ×2: kakel/klinker + inredning/porslin",v:null,sch:250000,cat:"inred",note:"WC1 (master-svit) + WC2 — därför högre än enbadrumshusen"},
+              {l:"Kök: stommar, bänkskivor, montering",v:null,sch:150000,cat:"inred"},
+              {l:"Vitvaror",v:null,sch:60000,cat:"inred"},
+              {l:"Braskamin + skorsten (BK-plats finns i planritningen)",v:null,sch:80000,note:"mammas öppen spis-önskan — kan tas i efterhand"},
+              {l:"Bygglov, nybyggnadskarta, utsättning, KA, besiktningar",v:null,sch:100000},
+              {l:"Byggförsäkringar (färdigställandeskydd + allrisk)",v:null,sch:35000},
+              {l:"Byggström/-vatten, etablering, ställning",v:null,sch:50000},
+              {l:"Altandeck runt huset (material)",v:null,sch:80000,note:"mammas deck-önskan — DIY m. Fredrik; färdigbyggt ≈ det dubbla"}]},
       {id:"sommar80",planM:7,planNote:"Skjutglas golv-till-tak längs hela långsidan (visionens fönster!), sovrum mot baksidan — men loft-koncept och master inte given i raden",name:"Tidlös Sommar 80",sup:"Sommarnöjen",kvm:80,plan:"1-plan + loft",lev:"Nyckelfärdigt + Fast pris",
        url:"https://sommarnojen.se/hus/tidlos-sommar-70/",img:"/maria-hus/sommarnojen.jpg",
        imgs:["/maria-hus/sommarnojen.jpg","/maria-hus/sommarnojen-2.jpg","/maria-hus/sommarnojen-3.jpg"],
@@ -553,11 +579,11 @@
     function computeAlt(alt){ var S=clone(work); S.vettershaga=effV(alt); return compute(S); }
 
     // Planlösningar per modell (där nedladdbar; annars länk till leverantören). Läggs sist i galleriet.
-    var PLANS={ametisten:"/maria-hus/ametisten-plan.jpg",sparven:"/maria-hus/sparven-plan.jpg",marsfjall94:["/maria-hus/marsfjall94-plan.jpg","/maria-hus/marsfjall94-plan-spegel.jpg"],stella103:["/maria-hus/stella103-plan.jpg","/maria-hus/stella103-plan-spegel.jpg"],sommar80:"/maria-hus/sommar80-plan.jpg",sommar100:"/maria-hus/sommar100-plan.jpg",sommar120:"/maria-hus/sommar120-plan.jpg",sommar150:"/maria-hus/sommar150-plan.jpg",stella119:"/maria-hus/stella119-plan.jpg",gimmeshelter:"/maria-hus/gimme-plan.jpg",gimme90:"/maria-hus/gimme-plan.jpg"};
+    var PLANS={ametisten:"/maria-hus/ametisten-plan.jpg",sparven:"/maria-hus/sparven-plan.jpg",marsfjall94:["/maria-hus/marsfjall94-plan.jpg","/maria-hus/marsfjall94-plan-spegel.jpg"],gotland113:["/maria-hus/gotland113-plan.jpg","/maria-hus/gotland113-plan-spegel.jpg"],stella103:["/maria-hus/stella103-plan.jpg","/maria-hus/stella103-plan-spegel.jpg"],sommar80:"/maria-hus/sommar80-plan.jpg",sommar100:"/maria-hus/sommar100-plan.jpg",sommar120:"/maria-hus/sommar120-plan.jpg",sommar150:"/maria-hus/sommar150-plan.jpg",stella119:"/maria-hus/stella119-plan.jpg",gimmeshelter:"/maria-hus/gimme-plan.jpg",gimme90:"/maria-hus/gimme-plan.jpg"};
     function altPlan(a){ return PLANS[a.id]||null; } // sträng ELLER array (t.ex. normal + spegelvänd)
     function altGallery(a){ var g=(a.imgs||[]).slice(),p=altPlan(a); if(p)g=g.concat(p); return g; }
     // Rum/sovrum per modell (där verifierat; annars hänvisning till leverantör)
-    var ROOMS={ametisten:"4 rum · 3 sovrum",sparven:"4 rum · 3 sovrum",marsfjall94:"3 sovrum · 1 badrum (boyta 82, byggyta 100)",sommar80:"3 sovrum + sovloft",sommar100:"3 sovrum + sovloft",sommar120:"3–4 sovrum + sovloft",sommar150:"3–4 sovrum + sovloft · 2 badrum",stella119:"3 sovrum",stella103:"3 sovrum · boyta 103 (byggyta 119)",husverket80:"3 sovrum · 1 badrum",husverket100:"3 sovrum (4 planvarianter)",husverketu130:"3 sovrum · 2 planlösningar",husverketu140:"4 rum · 3 planvarianter",gimmeshelter:"3 rum",gimme90:"3 rum"};
+    var ROOMS={ametisten:"4 rum · 3 sovrum",sparven:"4 rum · 3 sovrum",marsfjall94:"3 sovrum · 1 badrum (boyta 82, byggyta 100)",gotland113:"3 sovrum · 2 badrum · master-svit (boyta 101, byggyta 113)",sommar80:"3 sovrum + sovloft",sommar100:"3 sovrum + sovloft",sommar120:"3–4 sovrum + sovloft",sommar150:"3–4 sovrum + sovloft · 2 badrum",stella119:"3 sovrum",stella103:"3 sovrum · boyta 103 (byggyta 119)",husverket80:"3 sovrum · 1 badrum",husverket100:"3 sovrum (4 planvarianter)",husverketu130:"3 sovrum · 2 planlösningar",husverketu140:"4 rum · 3 planvarianter",gimmeshelter:"3 rum",gimme90:"3 rum"};
     function altRooms(a){ return ROOMS[a.id]||"rum/sovrum: se leverantör"; }
 
     // ---- Bildgalleri / lightbox (swipa + zooma) ----
