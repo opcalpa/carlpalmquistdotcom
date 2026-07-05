@@ -168,6 +168,13 @@
     .cmp-table tbody tr:hover{background:var(--soft)}
     .cmp-sub{display:block;font-size:11px;color:var(--faint);font-weight:400}
     .cmp-table td.pos{color:var(--ok);font-weight:700}.cmp-table td.neg{color:var(--bad);font-weight:700}.cmp-table td.warnv{color:var(--warn);font-weight:700}
+    /* Schablon-värden (≈): uppskattningar där posten inte är offererad */
+    .schv{color:var(--warn);font-style:italic;font-weight:600}
+    .alt-sch{color:var(--warn);font-size:12px;font-style:italic;white-space:nowrap}
+    .cmp-q{color:var(--warn);font-weight:700}
+    /* Sorterbara kolumnrubriker i jämför-tabellen */
+    #cmp-main th[data-sort]{cursor:pointer;user-select:none;transition:color .12s}
+    #cmp-main th[data-sort]:hover{color:var(--accent)}
     /* Bildgalleri-badge + vad ingår/tillkommer */
     .alt-img{position:relative}
     .alt-zoom{position:absolute;right:6px;bottom:6px;display:inline-flex;align-items:center;gap:3px;background:rgba(12,15,20,.62);color:#fff;border:0;border-radius:8px;font-size:11px;font-weight:600;padding:3px 7px;cursor:zoom-in;backdrop-filter:blur(2px);letter-spacing:.2px}
@@ -320,30 +327,48 @@
 
     // ---- Husalternativ (publika katalogpriser; Ametisten = live-baslinjen från KV) ----
     // lines[].v: tal (kr) | "ingår" (bundlat → 0) | null (? ej offererat → räknas ej, flaggar total).
+    // lines[].sch: realistisk schablonkostnad (kr) för en ?-post — visas i parentes & räknas in när ≈-läget är på.
+    // lines[].cat: "inred" särredovisar kök/vitvaror/inredning i jämförelsen (annars bygge/hus).
+    // mat: känd husmaterial-/byggsats-/modulkostnad (kr). inredS: kort ingår-etikett för jämförelsetabellen.
     // lines===null → använd den redigerbara Ametisten-baslinjen (vettershaga.*).
+    // Schablonnivåer (2025/26, Roslagen): grund/platta 400k · montage/resning 800k · VVS/el 350k ·
+    // målning 150k · golv 100k · kök 150k · vitvaror 60k · bad 150k · värme 150k · bygglov/KA 100k ·
+    // nyckelfärdigt arkitekthus ≈ 42 000 kr/kvm (benchmark: Sommarnöjens fasta priser) · materialandel ≈ 45 %.
+    var SCH_INFO="grund 400 tkr · montage 800 tkr · VVS/el 350 tkr · målning 150 tkr · golv 100 tkr · kök 150 tkr · vitvaror 60 tkr · bad 150 tkr · värme 150 tkr · bygglov/KA 100 tkr · nyckelfärdigt 42 tkr/kvm";
     var ALTERNATIVES=[
       {id:"ametisten",name:"Ametisten",sup:"Fiskarhedenvillan",kvm:130,plan:"2-plan",lev:"Byggsats",
        url:"https://fiskarhedenvillan.se/valj-ditt-hus/husmodeller/ametisten/",img:"/maria-hus/ametisten.jpg",
        imgs:["/maria-hus/ametisten.jpg","/maria-hus/ametisten-2.jpg","/maria-hus/ametisten-3.jpg"],
-       note:"Nuvarande plan. Villabyggsats = material ovan grund (INTE kök/vitvaror/bad — de tillkommer). Grund, montage och finish är egna poster. Redigerbar & delad (spara till alla).",
-       incl:["Materialsats: stomme, fasad, yttertak, fönster, ytterdörrar, innerväggar","Värmesystem (frånluftsvärmepump/fjärrvärmemodul)","Ritningar"],
-       excl:["Kök, vitvaror, badrumsporslin/WC, golvbeläggning","Grund/platta","Montage & resning","VVS/el-installation","Målning & finish","Bygglov/KA/besiktning","Tomt + anslutningar"],
-       finish:{kok:"nej",vitvaror:"nej",bad:"nej",golv:"nej"},lines:null},
-      {id:"sparven",name:"Sparven 92,8",sup:"Fiskarhedenvillan",kvm:93,plan:"1-plan",lev:"Byggsats",
+       note:"Nuvarande plan. Villabyggsats = materialsats där kök, Siemens-vitvaror och badrumsmöbel INGÅR (leveransdeklarationen) — men golvbeläggning/målning tillkommer, och grund, montage och installation är egna poster. Redigerbar & delad (spara till alla).",
+       incl:["Materialsats: stomme, fasad, yttertak, fönster, ytterdörrar, innerväggar","Kök inkl. bänkskiva/diskbänk + Siemens-vitvaror (ugn, häll, micro, DM, kyl, frys, tvätt)","Badrumsmöbel, WC/porslin, duschhörna","Värmesystem (frånluftsvärmepump/fjärrvärmemodul)","Ritningar"],
+       excl:["Golvbeläggning (ytskikt) + invändig målning","Grund/platta","Montage & resning","VVS/el-installation (arbetet)","Bygglov/KA/besiktning","Tomt + anslutningar"],
+       finish:{kok:"ja",vitvaror:"ja",bad:"ja",golv:"nej",varme:"ja"},inredS:"✅ utom golv",lines:null},
+      {id:"sparven",name:"Sparven 92,8",sup:"Fiskarhedenvillan",kvm:93,plan:"1-plan",lev:"Byggsats",mat:1062000,
        url:"https://fiskarhedenvillan.se/valj-ditt-hus/husmodeller/sparven/",img:"/maria-hus/sparven.jpg",
        imgs:["/maria-hus/sparven.jpg","/maria-hus/sparven-2.jpg","/maria-hus/sparven-3.jpg"],
-       note:"Mindre Fiskarheden — 1-plan 92,8 kvm, 3 sovrum. Villabyggsats (som Ametisten men mindre & billigare). Kök/vitvaror/bad + grund/montage tillkommer.",
-       incl:["Materialsats: stomme, fasad, yttertak, fönster, ytterdörrar, innerväggar","Värmesystem (frånluftsvärmepump/fjärrvärmemodul)","Ritningar"],
-       excl:["Kök, vitvaror, badrumsporslin/WC, golvbeläggning","Grund/platta","Montage & resning","VVS/el-installation","Målning & finish","Bygglov/KA/besiktning","Tomt + anslutningar"],
-       finish:{kok:"nej",vitvaror:"nej",bad:"nej",golv:"nej"},
-       lines:[{l:"Villabyggsats (Sparven 92,8)",v:1062000},{l:"Grund, montage, VVS/el, kök/vitvaror/bad, finish, bygglov (byggsats ≠ färdigt hus)",v:null,note:"begär bygg-offert"}]},
+       note:"Mindre Fiskarheden — 1-plan 92,8 kvm, 3 sovrum. Villabyggsats (som Ametisten): kök/vitvaror/bad ingår i materialet, men grund/montage/installation/golv/målning tillkommer.",
+       incl:["Materialsats: stomme, fasad, yttertak, fönster, ytterdörrar, innerväggar","Kök inkl. bänkskiva/diskbänk + Siemens-vitvaror (ugn, häll, micro, DM, kyl, frys, tvätt)","Badrumsmöbel, WC/porslin, duschhörna","Värmesystem (frånluftsvärmepump/fjärrvärmemodul)","Ritningar"],
+       excl:["Golvbeläggning (ytskikt) + invändig målning","Grund/platta","Montage & resning","VVS/el-installation (arbetet)","Bygglov/KA/besiktning","Tomt + anslutningar"],
+       finish:{kok:"ja",vitvaror:"ja",bad:"ja",golv:"nej",varme:"ja"},inredS:"✅ utom golv",
+       lines:[{l:"Villabyggsats (Sparven 92,8)",v:1062000},{l:"Grund, montage, VVS/el, målning, golv, bygglov (byggsats ≠ färdigt hus)",v:null,sch:1900000,note:"begär bygg-offert · ≈ = schablon: grund 400 + montage 800 + VVS/el 350 + målning 150 + golv 100 + bygglov/KA 100 tkr"}]},
+      {id:"marsfjall94",name:"Marsfjäll 94",sup:"Hudikhus",kvm:100,plan:"1-plan",lev:"Byggsats",mat:1278100,
+       url:"https://www.hudikhus.se/fjallstugor/marsfjall-94/",img:"/maria-hus/marsfjall94.jpg",
+       imgs:["/maria-hus/marsfjall94.jpg","/maria-hus/marsfjall94-2.jpg","/maria-hus/marsfjall94-3.jpg"],
+       note:"Hudikhus fjällstuga i vinkel — byggyta 100 kvm (boyta 82), 3 sovrum. OBS: Hudikhus byggsats är en RENODLAD materialsats (svenskt virke, fönster, dörrar, tak) — varken kök, vitvaror, bad, golv eller värmesystem ingår, till skillnad från Fiskarheden. Större syskon: Marsfjäll 122 (boyta 107, 2 badrum + bastu) från 1 558 900 kr.",
+       incl:["Husbyggsats: stomme, fasad, yttertak, fönster, ytterdörrar, trappa (svenskt virke)","Bygglovsritningar + teknisk projektering","Stöd i entreprenadupphandling + byggsupport"],
+       excl:["Kök, vitvaror, badrumsinredning, kakel/klinker, golv","Värme- och ventilationssystem","Grund/platta + montage/resning","VVS/el-installation + målning","Bygglov/KA/besiktning","Tomt + anslutningar"],
+       finish:{kok:"nej",vitvaror:"nej",bad:"nej",golv:"nej",varme:"nej"},inredS:"➕ inget ingår",
+       lines:[{l:"Husbyggsats (Marsfjäll 94)",v:1278100},
+              {l:"Grund, montage, VVS/el, målning, golv, bygglov (byggsats ≠ färdigt hus)",v:null,sch:1900000,note:"begär bygg-offert · ≈ = schablon: grund 400 + montage 800 + VVS/el 350 + målning 150 + golv 100 + bygglov/KA 100 tkr"},
+              {l:"Värmesystem (ingår ej i Hudikhus byggsats)",v:null,sch:150000,note:"t.ex. frånluftsvärmepump installerad"},
+              {l:"Kök, vitvaror, badrumsinredning (ingår ej)",v:null,sch:360000,cat:"inred",note:"schablon: kök 150 + vitvaror 60 + bad 150 tkr"}]},
       {id:"sommar80",name:"Tidlös Sommar 80",sup:"Sommarnöjen",kvm:80,plan:"1-plan + loft",lev:"Nyckelfärdigt + Fast pris",
        url:"https://sommarnojen.se/hus/tidlos-sommar-70/",img:"/maria-hus/sommarnojen.jpg",
        imgs:["/maria-hus/sommarnojen.jpg","/maria-hus/sommarnojen-2.jpg","/maria-hus/sommarnojen-3.jpg"],
        note:"Arkitektritad volymmodul på plintar, skjutbara treglas. Fast pris bundlar grund→myndighet, 10 år ABS 18 + färdigställandeskydd.",
        incl:["Hus nyckelfärdigt monterat (kök, bad, golv, målning, invändig el+VVS)","Fast pris: grund (plintar), montage, el/VA-inkoppling","Bygglov, KA, besiktning, färdigställandeskydd","Permanentklassning (tillgänglighet, värmepump, energiberäkning)","10 års ansvar (ABS 18)"],
        excl:["Tomt","Anslutningsavgifter el/vatten/avlopp","Ev. enskilt avlopp + borrad brunn","Bergsprängning/pålning vid svår mark"],
-       finish:{kok:"ja",vitvaror:"ja",bad:"ja",golv:"ja"},
+       finish:{kok:"ja",vitvaror:"ja",bad:"ja",golv:"ja",varme:"ja"},inredS:"✅ allt ingår",
        lines:[{l:"Hus nyckelfärdigt (Tidlös 80)",v:2610000},{l:"Permanentklassning",v:150000},
               {l:"Fast pris: grund, montage, el/VA-inkoppling, KA, besiktning, färdigställandeskydd",v:640000}]},
       {id:"sommar100",name:"Tidlös Sommar 100",sup:"Sommarnöjen",kvm:100,plan:"1-plan + loft",lev:"Nyckelfärdigt + Fast pris",
@@ -352,7 +377,7 @@
        note:"Som Sommar 80 men 100 kvm. Fler kvm, samma trygghet (fast pris + 10 år ABS 18).",
        incl:["Hus nyckelfärdigt monterat (kök, bad, golv, målning, invändig el+VVS)","Fast pris: grund (plintar), montage, el/VA-inkoppling","Bygglov, KA, besiktning, färdigställandeskydd","Permanentklassning (tillgänglighet, värmepump, energiberäkning)","10 års ansvar (ABS 18)"],
        excl:["Tomt","Anslutningsavgifter el/vatten/avlopp","Ev. enskilt avlopp + borrad brunn","Bergsprängning/pålning vid svår mark"],
-       finish:{kok:"ja",vitvaror:"ja",bad:"ja",golv:"ja"},
+       finish:{kok:"ja",vitvaror:"ja",bad:"ja",golv:"ja",varme:"ja"},inredS:"✅ allt ingår",
        lines:[{l:"Hus nyckelfärdigt (Tidlös 100)",v:3330000},{l:"Permanentklassning",v:150000},
               {l:"Fast pris: grund, montage, el/VA-inkoppling, KA, besiktning, färdigställandeskydd",v:700000}]},
       {id:"sommar120",name:"Tidlös Sommar 120",sup:"Sommarnöjen",kvm:120,plan:"1-plan + loft",lev:"Nyckelfärdigt + Fast pris",
@@ -361,7 +386,7 @@
        note:"Sommarnöjens 120 kvm — 3–4 sovrum + loft. Samma trygghet (fast pris + 10 år ABS 18 + verifierat allt-inkluderat).",
        incl:["Hus nyckelfärdigt monterat (kök, bad, golv, målning, invändig el+VVS)","Fast pris: grund (plintar), montage, el/VA-inkoppling","Bygglov, KA, besiktning, färdigställandeskydd","Permanentklassning (tillgänglighet, värmepump, energiberäkning)","10 års ansvar (ABS 18)"],
        excl:["Tomt","Anslutningsavgifter el/vatten/avlopp","Ev. enskilt avlopp + borrad brunn","Bergsprängning/pålning vid svår mark"],
-       finish:{kok:"ja",vitvaror:"ja",bad:"ja",golv:"ja"},
+       finish:{kok:"ja",vitvaror:"ja",bad:"ja",golv:"ja",varme:"ja"},inredS:"✅ allt ingår",
        lines:[{l:"Hus nyckelfärdigt (Tidlös 120)",v:3870000},{l:"Permanentklassning",v:150000},
               {l:"Fast pris: grund, montage, el/VA-inkoppling, KA, besiktning, färdigställandeskydd",v:760000}]},
       {id:"sommar150",name:"Tidlös Sommar 150",sup:"Sommarnöjen",kvm:150,plan:"1-plan + loft",lev:"Nyckelfärdigt + Fast pris",
@@ -370,110 +395,121 @@
        note:"Sommarnöjens största 150 kvm — 3–4 sovrum + loft, två badrum. Fast pris + 10 år ABS 18 + allt-inkluderat.",
        incl:["Hus nyckelfärdigt monterat (kök, bad, golv, målning, invändig el+VVS)","Fast pris: grund (plintar), montage, el/VA-inkoppling","Bygglov, KA, besiktning, färdigställandeskydd","Permanentklassning (tillgänglighet, värmepump, energiberäkning)","10 års ansvar (ABS 18)"],
        excl:["Tomt","Anslutningsavgifter el/vatten/avlopp","Ev. enskilt avlopp + borrad brunn","Bergsprängning/pålning vid svår mark"],
-       finish:{kok:"ja",vitvaror:"ja",bad:"ja",golv:"ja"},
+       finish:{kok:"ja",vitvaror:"ja",bad:"ja",golv:"ja",varme:"ja"},inredS:"✅ allt ingår",
        lines:[{l:"Hus nyckelfärdigt (Tidlös 150)",v:4800000},{l:"Permanentklassning",v:150000},
               {l:"Fast pris: grund, montage, el/VA-inkoppling, KA, besiktning, färdigställandeskydd",v:850000}]},
-      {id:"stella119",name:"Stella 119",sup:"Trivselhus",kvm:119,plan:"1-plan",lev:"Totalentreprenad (nyckelfärdigt)",
+      {id:"stella119",name:"Stella 119",sup:"Trivselhus",kvm:119,plan:"1-plan",lev:"Totalentreprenad (nyckelfärdigt)",mat:1720800,
        url:"https://www.trivselhus.se/husmodeller/stella-119/",img:"/maria-hus/stella119.jpg",
        imgs:["/maria-hus/stella119.jpg","/maria-hus/stella119-2.jpg","/maria-hus/stella119-3.jpg"],
        note:"Enplans 'ladhusstil' m. ryggåstak, öppen plan och stora fönsterpartier (Trivselhus ljus-/fönster-profil). Totalentreprenad = fast ansvar, platta på mark ingår. Öppet pris.",
        incl:["Hus nyckelfärdigt byggt på plats (totalentreprenad)","Platta på mark + standardmark ingår","Kök + badrum i standardutförande","Fullt bygge + samordning + 10 års ansvar (ABS 18)"],
        excl:["⚠️ Vitvaror + golv ofta tillval (ej itemiserat på sajten — bekräfta)","Tomt + anslutningsavgifter","Ev. enskilt avlopp + borrad brunn","Icke-standard mark + priszon-tillägg"],
-       finish:{kok:"ja",vitvaror:"?",bad:"ja",golv:"?"},
-       lines:[{l:"Hus nyckelfärdigt inkl. grund (Stella 119, totalentreprenad, lägsta zon)",v:3175400,note:"verifierat pris på trivselhus.se (från-pris, lägsta zon); byggsats/materialleverans från 1 720 800 exkl. grund/bygge"}]},
-      {id:"husverket80",name:"Klassisk K3.80",sup:"Husverket",kvm:80,plan:"1-plan",lev:"Modul + entreprenadpaket",
+       finish:{kok:"ja",vitvaror:"?",bad:"ja",golv:"?",varme:"ja"},inredS:"❓ vitvaror + golv",
+       lines:[{l:"Hus nyckelfärdigt inkl. grund (Stella 119, totalentreprenad, lägsta zon)",v:3175400,note:"verifierat pris på trivselhus.se (från-pris, lägsta zon); byggsats/materialleverans från 1 720 800 exkl. grund/bygge"},
+              {l:"Vitvaror + golvbeläggning (ofta tillval — bekräfta med Trivselhus)",v:null,sch:160000,cat:"inred",note:"schablon: vitvaror 60 + golv 100 tkr"}]},
+      {id:"husverket80",name:"Klassisk K3.80",sup:"Husverket",kvm:80,plan:"1-plan",lev:"Modul + entreprenadpaket",mat:822900,
        url:"https://husverket.se/fritidshus-80kvm/",img:"/maria-hus/husverket.jpg",
        imgs:["/maria-hus/husverket.jpg","/maria-hus/husverket-2.jpg","/maria-hus/husverket-3.jpg"],
        note:"Billig modul i permanentstandard. 'Stora entreprenadpaketet – Fast pris' (grund, VA/el, inkoppling, slutbesiktning, försäkring) sätts efter platsbesök.",
        incl:["Hus modul i permanentstandard (åretrunt)","'Stora entreprenadpaketet' (fast pris): grund, VA/el-infra, inkoppling","Slutbesiktning + färdigställande-/nybyggnadsförsäkring"],
        excl:["Tomt","Anslutningsavgifter","Fast pris-siffran sätts efter platsbesök"],
-       finish:{kok:"ja",vitvaror:"?",bad:"ja",golv:"ja"},
-       lines:[{l:"Hus modul (Klassisk K3.80)",v:822900},{l:"Stora entreprenadpaketet – Fast pris",v:null,note:"grund, VA/el, inkoppling, besiktning, försäkring — offereras efter platsbesök"}]},
-      {id:"husverket100",name:"Klassisk K3.100",sup:"Husverket",kvm:100,plan:"1-plan",lev:"Modul + entreprenadpaket",
+       finish:{kok:"ja",vitvaror:"?",bad:"ja",golv:"ja",varme:"ja"},inredS:"❓ vitvaror",
+       lines:[{l:"Hus modul (Klassisk K3.80)",v:822900},{l:"Stora entreprenadpaketet – Fast pris",v:null,sch:600000,note:"grund, VA/el, inkoppling, besiktning, försäkring — offereras efter platsbesök"},{l:"Vitvaror (oklart — bekräfta)",v:null,sch:60000,cat:"inred"}]},
+      {id:"husverket100",name:"Klassisk K3.100",sup:"Husverket",kvm:100,plan:"1-plan",lev:"Modul + entreprenadpaket",mat:887900,
        url:"https://husverket.se/hus/fritidshus/",img:"/maria-hus/husverket.jpg",
        imgs:["/maria-hus/husverket.jpg","/maria-hus/husverket-2.jpg","/maria-hus/husverket-3.jpg"],
        note:"Större Husverket-modul, 100 kvm (samma K3-serie som 80). Permanentstandard. Entreprenadpaket (grund/VA/el) sätts efter platsbesök.",
        incl:["Hus modul i permanentstandard (åretrunt)","'Stora entreprenadpaketet' (fast pris): grund, VA/el-infra, inkoppling","Slutbesiktning + färdigställande-/nybyggnadsförsäkring"],
        excl:["Tomt","Anslutningsavgifter","Fast pris-siffran sätts efter platsbesök"],
-       finish:{kok:"ja",vitvaror:"?",bad:"ja",golv:"ja"},
-       lines:[{l:"Hus modul (Klassisk K3.100)",v:887900},{l:"Stora entreprenadpaketet – Fast pris",v:null,note:"grund, VA/el, inkoppling, besiktning, försäkring — offereras efter platsbesök"}]},
+       finish:{kok:"ja",vitvaror:"?",bad:"ja",golv:"ja",varme:"ja"},inredS:"❓ vitvaror",
+       lines:[{l:"Hus modul (Klassisk K3.100)",v:887900},{l:"Stora entreprenadpaketet – Fast pris",v:null,sch:600000,note:"grund, VA/el, inkoppling, besiktning, försäkring — offereras efter platsbesök"},{l:"Vitvaror (oklart — bekräfta)",v:null,sch:60000,cat:"inred"}]},
       {id:"gimmeshelter",name:"H80",sup:"Gimme Shelter",kvm:80,plan:"1-plan",lev:"Nyckelfärdigt (plintar)",
        url:"https://gimme-shelter.se/",img:"/maria-hus/gimmeshelter.jpg",
        imgs:["/maria-hus/gimmeshelter.jpg","/maria-hus/gimmeshelter-2.jpg","/maria-hus/gimmeshelter-3.jpg"],
        note:"Arkitektritad volymmodul, skjutbara treglas ner till golv. Smak-tvilling till Sommarnöjen. Pris vid förfrågan.",
        incl:["Hus nyckelfärdigt monterat på plintar","Vinterisolerat för åretruntboende"],
        excl:["Mark/grund-omfattning oklar — begär offert","Tomt + anslutningar","Pris vid förfrågan (inga öppna priser)"],
-       finish:{kok:"ja",vitvaror:"?",bad:"ja",golv:"ja"},
-       lines:[{l:"Hus nyckelfärdigt (H80, plintar)",v:null,note:"pris vid förfrågan"}]},
+       finish:{kok:"ja",vitvaror:"?",bad:"ja",golv:"ja",varme:"?"},inredS:"❓ vitvaror",
+       lines:[{l:"Hus nyckelfärdigt (H80, plintar)",v:null,sch:3360000,note:"pris vid förfrågan · ≈ = schablon 42 tkr/kvm × 80"}]},
       {id:"gimme90",name:"H90",sup:"Gimme Shelter",kvm:90,plan:"1-plan",lev:"Nyckelfärdigt (plintar)",
        url:"https://gimme-shelter.se/",img:"/maria-hus/gimmeshelter.jpg",
        imgs:["/maria-hus/gimmeshelter.jpg","/maria-hus/gimmeshelter-2.jpg","/maria-hus/gimmeshelter-3.jpg"],
        note:"Större Gimme Shelter, 90 kvm med permanentstandard. Arkitektritad volymmodul, skjutbara treglas. Pris vid förfrågan.",
        incl:["Hus nyckelfärdigt monterat på plintar","Vinterisolerat för åretruntboende (permanentstandard)"],
        excl:["Mark/grund-omfattning oklar — begär offert","Tomt + anslutningar","Pris vid förfrågan (inga öppna priser)"],
-       finish:{kok:"ja",vitvaror:"?",bad:"ja",golv:"ja"},
-       lines:[{l:"Hus nyckelfärdigt (H90, plintar)",v:null,note:"pris vid förfrågan"}]},
+       finish:{kok:"ja",vitvaror:"?",bad:"ja",golv:"ja",varme:"?"},inredS:"❓ vitvaror",
+       lines:[{l:"Hus nyckelfärdigt (H90, plintar)",v:null,sch:3780000,note:"pris vid förfrågan · ≈ = schablon 42 tkr/kvm × 90"}]},
       {id:"brutnatur",name:"BN100",sup:"Brut Natur",kvm:100,plan:"1-plan",lev:"Nyckelfärdigt (KL-trä)",
        url:"https://brutnatur.se/fritidshus-norrtalje/",img:"/maria-hus/brutnatur.jpg",
        imgs:["/maria-hus/brutnatur.jpg","/maria-hus/brutnatur-2.jpg","/maria-hus/brutnatur-3.jpg"],
        note:"Arkitektritat i KL-trä + natursten + bränd panel (Shou Sugi Ban). Marknadsför Norrtälje. Pris vid förfrågan.",
        incl:["Hus nyckelfärdigt i KL-trä (natursten, bränd panel)","Marknadsför Norrtälje/Roslagen"],
        excl:["Mark/grund-omfattning oklar — begär offert","Tomt + anslutningar","Pris vid förfrågan (inga öppna priser)"],
-       finish:{kok:"ja",vitvaror:"?",bad:"ja",golv:"ja"},
-       lines:[{l:"Hus nyckelfärdigt (BN100, CLT)",v:null,note:"pris vid förfrågan"}]},
+       finish:{kok:"ja",vitvaror:"?",bad:"ja",golv:"ja",varme:"?"},inredS:"❓ vitvaror",
+       lines:[{l:"Hus nyckelfärdigt (BN100, CLT)",v:null,sch:4200000,note:"pris vid förfrågan · ≈ = schablon 42 tkr/kvm × 100"}]},
       {id:"brut120",name:"BN120",sup:"Brut Natur",kvm:120,plan:"1-plan",lev:"Nyckelfärdigt (KL-trä)",
        url:"https://brutnatur.se/",img:"/maria-hus/brutnatur.jpg",
        imgs:["/maria-hus/brutnatur.jpg","/maria-hus/brutnatur-2.jpg","/maria-hus/brutnatur-3.jpg"],
        note:"Största Brut Natur, 120 kvm ('The little BIG Dream House'). Arkitektritat KL-trä + natursten + bränd panel. Pris vid förfrågan.",
        incl:["Hus nyckelfärdigt i KL-trä (natursten, bränd panel)","Marknadsför Norrtälje/Roslagen"],
        excl:["Mark/grund-omfattning oklar — begär offert","Tomt + anslutningar","Pris vid förfrågan (inga öppna priser)"],
-       finish:{kok:"ja",vitvaror:"?",bad:"ja",golv:"ja"},
-       lines:[{l:"Hus nyckelfärdigt (BN120, CLT)",v:null,note:"pris vid förfrågan"}]},
+       finish:{kok:"ja",vitvaror:"?",bad:"ja",golv:"ja",varme:"?"},inredS:"❓ vitvaror",
+       lines:[{l:"Hus nyckelfärdigt (BN120, CLT)",v:null,sch:5040000,note:"pris vid förfrågan · ≈ = schablon 42 tkr/kvm × 120"}]},
       {id:"arvesund",name:"Åre 87",sup:"Arvesund",kvm:87,plan:"1-plan",lev:"Totalentreprenad (offert)",
        url:"https://www.arvesund.com/fritidshus",img:"/maria-hus/arvesund.jpg",
        imgs:["/maria-hus/arvesund.jpg","/maria-hus/arvesund-2.jpg","/maria-hus/arvesund-3.jpg"],
        note:"Arkitektritat trähus i allmoge-/ladstil (hållbart, karaktär). Erbjuder totalentreprenad/general-/delad entreprenad + byggfelsförsäkring. Pris vid förfrågan.",
        incl:["Arkitektritat trähus (allmoge/lada)","Totalentreprenad möjlig (grund + bygge + ansvar)","Byggfelsförsäkring ingår"],
        excl:["Öppet pris saknas — begär offert","Tomt + anslutningar","Finish-nivå (kök/vitvaror/bad) ej publicerad"],
-       finish:{kok:"?",vitvaror:"?",bad:"?",golv:"?"},
-       lines:[{l:"Hus (Åre 87, totalentreprenad)",v:null,note:"pris vid förfrågan"}]},
+       finish:{kok:"?",vitvaror:"?",bad:"?",golv:"?",varme:"?"},inredS:"❓ allt obekräftat",
+       lines:[{l:"Hus (Åre 87, totalentreprenad)",v:null,sch:3654000,note:"pris vid förfrågan · ≈ = schablon 42 tkr/kvm × 87"}]},
       {id:"hara94",name:"Hara 94",sup:"Arvesund",kvm:94,plan:"1-plan",lev:"Totalentreprenad (offert)",
        url:"https://www.arvesund.com/fritidshus",img:"/maria-hus/hara94.jpg",
        imgs:["/maria-hus/hara94.jpg","/maria-hus/arvesund-3.jpg"],
        note:"Arvesund Hara 94 — arkitektritat trähus i allmoge-/ladstil, 94 kvm. Totalentreprenad + byggfelsförsäkring. Pris vid förfrågan.",
        incl:["Arkitektritat trähus (allmoge/lada)","Totalentreprenad möjlig (grund + bygge + ansvar)","Byggfelsförsäkring ingår"],
        excl:["Öppet pris saknas — begär offert","Tomt + anslutningar","Finish-nivå (kök/vitvaror/bad) ej publicerad"],
-       finish:{kok:"?",vitvaror:"?",bad:"?",golv:"?"},
-       lines:[{l:"Hus (Hara 94, totalentreprenad)",v:null,note:"pris vid förfrågan"}]},
+       finish:{kok:"?",vitvaror:"?",bad:"?",golv:"?",varme:"?"},inredS:"❓ allt obekräftat",
+       lines:[{l:"Hus (Hara 94, totalentreprenad)",v:null,sch:3948000,note:"pris vid förfrågan · ≈ = schablon 42 tkr/kvm × 94"}]},
       {id:"hara102",name:"Hara 102",sup:"Arvesund",kvm:102,plan:"1-plan",lev:"Totalentreprenad (offert)",
        url:"https://www.arvesund.com/fritidshus",img:"/maria-hus/hara102.jpg",
        imgs:["/maria-hus/hara102.jpg","/maria-hus/hara94.jpg","/maria-hus/arvesund-3.jpg"],
        note:"Arvesund Hara 102 — arkitektritat trähus i allmoge-/ladstil, 102 kvm. Totalentreprenad + byggfelsförsäkring. Pris vid förfrågan.",
        incl:["Arkitektritat trähus (allmoge/lada)","Totalentreprenad möjlig (grund + bygge + ansvar)","Byggfelsförsäkring ingår"],
        excl:["Öppet pris saknas — begär offert","Tomt + anslutningar","Finish-nivå (kök/vitvaror/bad) ej publicerad"],
-       finish:{kok:"?",vitvaror:"?",bad:"?",golv:"?"},
-       lines:[{l:"Hus (Hara 102, totalentreprenad)",v:null,note:"pris vid förfrågan"}]}
+       finish:{kok:"?",vitvaror:"?",bad:"?",golv:"?",varme:"?"},inredS:"❓ allt obekräftat",
+       lines:[{l:"Hus (Hara 102, totalentreprenad)",v:null,sch:4284000,note:"pris vid förfrågan · ≈ = schablon 42 tkr/kvm × 102"}]}
     ];
     var selectedAlt=localStorage.getItem("maria_alt")||"ametisten";
+    var schOn=localStorage.getItem("maria_sch")==="1"; // ≈-läget: räkna in schablonkostnader på ?-poster
+    var cmpSort=null; try{ cmpSort=JSON.parse(localStorage.getItem("maria_cmp_sort")||"null"); }catch(e){} // {col,dir} för jämför-tabellen
     var altEdits={}; try{ altEdits=JSON.parse(localStorage.getItem("maria_alt_edits")||"{}"); }catch(e){}
     function altById(id){ for(var i=0;i<ALTERNATIVES.length;i++){ if(ALTERNATIVES[i].id===id) return ALTERNATIVES[i]; } return ALTERNATIVES[0]; }
-    function altLines(alt){ if(!alt.lines)return null; var e=altEdits[alt.id]||{}; return alt.lines.map(function(ln,i){ return {l:ln.l,v:(e[i]!=null?e[i]:ln.v),note:ln.note}; }); }
+    function altLines(alt){ if(!alt.lines)return null; var e=altEdits[alt.id]||{}; return alt.lines.map(function(ln,i){ return {l:ln.l,v:(e[i]!=null?e[i]:ln.v),note:ln.note,sch:ln.sch,cat:ln.cat}; }); }
+    // sum = kända poster · sch = schablonsumma för ?-poster · inred = schablon-delen som är kök/vitvaror/inredning
     function houseSum(alt){
-      if(!alt.lines){ var V=work.vettershaga; return {sum:(V.byggsats||0)+(V.grund||0)+(V.montage||0)+(V.installation||0)+(V.malning||0)+(V.kringkostnad||0),unknown:0}; }
-      var sum=0,unknown=0; altLines(alt).forEach(function(ln){ if(ln.v==null||ln.v==="?")unknown++; else if(ln.v!=="ingår")sum+=(parseKr(ln.v)||0); });
-      return {sum:sum,unknown:unknown};
+      if(!alt.lines){ var V=work.vettershaga; return {sum:(V.byggsats||0)+(V.grund||0)+(V.montage||0)+(V.installation||0)+(V.malning||0)+(V.kringkostnad||0),unknown:0,sch:0,inred:0}; }
+      var sum=0,unknown=0,sch=0,inred=0;
+      altLines(alt).forEach(function(ln){
+        if(ln.v==null||ln.v==="?"){ unknown++; if(ln.sch){ sch+=ln.sch; if(ln.cat==="inred")inred+=ln.sch; } }
+        else if(ln.v!=="ingår")sum+=(parseKr(ln.v)||0);
+      });
+      return {sum:sum,unknown:unknown,sch:sch,inred:inred};
     }
+    function husdelEff(hs){ return hs.sum+(schOn?hs.sch:0); }
+    // Känd husmaterial-/byggsatskostnad; annars schablon-andel 45 % av färdig husdel (bara i ≈-läget).
+    function matEff(alt,hd){ if(!alt.lines)return (work.vettershaga.byggsats||0); if(alt.mat)return alt.mat; return schOn?Math.round(hd*0.45):null; }
     function effV(alt){ var V=work.vettershaga; if(!alt.lines)return V;
       return {tomt:V.tomt,lagfartPct:V.lagfartPct,avlopp:V.avlopp,brunn:V.brunn,el:V.el,buffertPct:V.buffertPct,
-              byggsats:houseSum(alt).sum,grund:0,montage:0,installation:0,malning:0,kringkostnad:0}; }
+              byggsats:husdelEff(houseSum(alt)),grund:0,montage:0,installation:0,malning:0,kringkostnad:0}; }
     function computeAlt(alt){ var S=clone(work); S.vettershaga=effV(alt); return compute(S); }
 
     // Planlösningar per modell (där nedladdbar; annars länk till leverantören). Läggs sist i galleriet.
-    var PLANS={ametisten:"/maria-hus/ametisten-plan.jpg",sparven:"/maria-hus/sparven-plan.jpg",sommar80:"/maria-hus/sommar80-plan.jpg",sommar100:"/maria-hus/sommar100-plan.jpg",sommar120:"/maria-hus/sommar120-plan.jpg",sommar150:"/maria-hus/sommar150-plan.jpg",stella119:"/maria-hus/stella119-plan.jpg",gimmeshelter:"/maria-hus/gimme-plan.jpg",gimme90:"/maria-hus/gimme-plan.jpg"};
+    var PLANS={ametisten:"/maria-hus/ametisten-plan.jpg",sparven:"/maria-hus/sparven-plan.jpg",marsfjall94:"/maria-hus/marsfjall94-plan.jpg",sommar80:"/maria-hus/sommar80-plan.jpg",sommar100:"/maria-hus/sommar100-plan.jpg",sommar120:"/maria-hus/sommar120-plan.jpg",sommar150:"/maria-hus/sommar150-plan.jpg",stella119:"/maria-hus/stella119-plan.jpg",gimmeshelter:"/maria-hus/gimme-plan.jpg",gimme90:"/maria-hus/gimme-plan.jpg"};
     function altPlan(a){ return PLANS[a.id]||null; }
     function altGallery(a){ var g=(a.imgs||[]).slice(); if(altPlan(a))g.push(altPlan(a)); return g; }
     // Rum/sovrum per modell (där verifierat; annars hänvisning till leverantör)
-    var ROOMS={ametisten:"4 rum · 3 sovrum",sparven:"4 rum · 3 sovrum",sommar80:"3 sovrum + sovloft",sommar100:"3 sovrum + sovloft",sommar120:"3–4 sovrum + sovloft",sommar150:"3–4 sovrum + sovloft · 2 badrum",stella119:"3 sovrum",husverket80:"valbar plan (2–3 sovrum)",husverket100:"valbar plan (~3 sovrum)",gimmeshelter:"3 rum",gimme90:"3 rum"};
+    var ROOMS={ametisten:"4 rum · 3 sovrum",sparven:"4 rum · 3 sovrum",marsfjall94:"3 sovrum · 1 badrum (boyta 82, byggyta 100)",sommar80:"3 sovrum + sovloft",sommar100:"3 sovrum + sovloft",sommar120:"3–4 sovrum + sovloft",sommar150:"3–4 sovrum + sovloft · 2 badrum",stella119:"3 sovrum",husverket80:"valbar plan (2–3 sovrum)",husverket100:"valbar plan (~3 sovrum)",gimmeshelter:"3 rum",gimme90:"3 rum"};
     function altRooms(a){ return ROOMS[a.id]||"rum/sovrum: se leverantör"; }
 
     // ---- Bildgalleri / lightbox (swipa + zooma) ----
@@ -557,8 +593,10 @@
       var S=clone(work); S.vettershaga=effV(alt);
       var c=compute(S);
       var hs=houseSum(alt);
+      var approx=schOn&&hs.sch>0; // valda husets total innehåller schablonposter → markera ≈
+      var apx=approx?'≈ ':'';
       var unsaved=diffList().length;
-      var goBadge=c.buffert>=0?'<span class="mf-pill mf-ok">Buffert '+kr(c.buffert)+'</span>':'<span class="mf-pill mf-bad">Underskott '+kr(-c.buffert)+'</span>';
+      var goBadge=c.buffert>=0?'<span class="mf-pill mf-ok">Buffert '+apx+kr(c.buffert)+'</span>':'<span class="mf-pill mf-bad">Underskott '+apx+kr(-c.buffert)+'</span>';
       var kvarBadge=c.kvarPension<5000?'<span class="mf-pill mf-warn">Tight — '+kr(c.kvarPension)+'/mån kvar</span>':'<span class="mf-pill mf-ok">'+kr(c.kvarPension)+'/mån kvar</span>';
       var reasonHtml="";
       if(reasoning){
@@ -591,35 +629,38 @@
       // Husalternativ-switcher (kort med bild) — driver kalkylen
       var switcherHtml='<section class="mf-card mf-card-wide mf-alt"><h3>🏘 Husalternativ <span class="mf-tag">👉 swipa · byt hus → allt räknar om</span></h3>'
         +'<div class="alt-strip">'+ALTERNATIVES.map(function(a){
-          var ac=computeAlt(a),ah=houseSum(a);
-          var sub=ah.unknown?(ah.unknown+' post'+(ah.unknown>1?'er':'')+' ej offererad'+(ah.unknown>1?'e':'')):'inflyttningsklart';
+          var ac=computeAlt(a),ah=houseSum(a),aAp=schOn&&ah.sch>0;
+          var sub=ah.unknown?(aAp?('inkl. '+ah.unknown+' schablonpost'+(ah.unknown>1?'er':'')):(ah.unknown+' post'+(ah.unknown>1?'er':'')+' ej offererad'+(ah.unknown>1?'e':''))):'inflyttningsklart';
           return '<button class="alt-card'+(a.id===selectedAlt?' on':'')+'" data-alt="'+a.id+'">'
             +'<span class="alt-img" style="background-image:url('+a.img+')"><span class="alt-zoom" data-gallery="'+a.id+'" title="Öppna bildgalleri">⤢ '+altGallery(a).length+'</span></span>'
             +'<span class="alt-body"><span class="alt-sup">'+esc(a.sup)+'</span><span class="alt-name">'+esc(a.name)+'</span>'
             +'<span class="alt-tags">'+a.kvm+' kvm · '+esc(a.plan)+'</span>'
-            +'<span class="alt-price'+(ah.unknown?' q':'')+'">'+(ah.unknown?'≥ ':'')+kr(ac.vTotal)+'</span><span class="alt-sub">'+sub+'</span></span></button>';
+            +'<span class="alt-price'+(ah.unknown&&!aAp?' q':'')+'">'+(ah.unknown?(aAp?'≈ ':'≥ '):'')+kr(ac.vTotal)+'</span><span class="alt-sub">'+sub+'</span></span></button>';
         }).join('')+'</div></section>';
 
       // Byggbudget för valt alternativ (Ametisten = redigerbara rader; övriga = katalog + lokal komplettering)
       var houseRows;
       if(!alt.lines){
-        houseRows=row("Villabyggsats Ametisten",ed("vettershaga.byggsats"),{note:"material inkl. vitvaror/värme/kök/bad — ej grund, montage, målning"})
+        houseRows=row("Villabyggsats Ametisten",ed("vettershaga.byggsats"),{note:"material inkl. kök/Siemens-vitvaror/bad/värme — ej golv, grund, montage, målning"})
           +row("Grund / platta på mark",ed("vettershaga.grund"))
           +row("Montage/resning",ed("vettershaga.montage"),{note:"största osäkerheten — begär offert"})
           +row("VVS/el-installation (arbete)",ed("vettershaga.installation"))
-          +row("Slutmålning/finish",ed("vettershaga.malning"))
+          +row("Slutmålning/finish",ed("vettershaga.malning"),{note:"inkl. golvytskikt (ingår ej i byggsatsen)"})
           +row("Bygglov, karta, KA, besiktning",ed("vettershaga.kringkostnad"));
       } else {
         houseRows=altLines(alt).map(function(ln,i){
           var val;
-          if(ln.v==null||ln.v==="?") val='<span class="alt-q" data-altedit="'+alt.id+':'+i+'" tabindex="0" title="Dubbelklicka för att fylla i offert">? ej offererat</span>';
+          if(ln.v==null||ln.v==="?") val='<span class="alt-q" data-altedit="'+alt.id+':'+i+'" tabindex="0" title="Dubbelklicka för att fylla i offert">? ej offererat</span>'+(schOn&&ln.sch?' <span class="alt-sch">(≈ '+kr(ln.sch)+')</span>':'');
           else if(ln.v==="ingår") val='<span class="alt-ingar">ingår</span>';
           else val='<span class="alt-fill" data-altedit="'+alt.id+':'+i+'" tabindex="0" title="Dubbelklicka för att ändra">'+kr(parseKr(ln.v))+'</span>';
           return row(esc(ln.l),val,ln.note?{note:esc(ln.note)}:null);
         }).join('');
       }
+      houseRows+=row("Inredning &amp; vitvaror i huspriset",(alt.inredS||"—")+(schOn&&hs.inred?' <span class="schv">≈ '+kr(hs.inred)+' inräknat ovan</span>':''),{note:"kök/vitvaror/bad/golv/värme per hus — detaljer i 🍴-tabellen längst ned"});
       var totalRow=hs.unknown
-        ? row("= TOTALT inflyttningsklart",'≥ '+kr(c.vTotal)+' <span class="mf-flag mf-komplettera">ofullständig · '+hs.unknown+' saknas</span>',{calc:true,strong:true})
+        ? (approx
+          ? row("= TOTALT inflyttningsklart",'≈ '+kr(c.vTotal)+' <span class="mf-flag mf-schablon">inkl. '+hs.unknown+' schablonpost'+(hs.unknown>1?'er':'')+'</span>',{calc:true,hi:"hi",strong:true})
+          : row("= TOTALT inflyttningsklart",'≥ '+kr(c.vTotal)+' <span class="mf-flag mf-komplettera">ofullständig · '+hs.unknown+' saknas</span>',{calc:true,strong:true}))
         : row("= TOTALT inflyttningsklart",kr(c.vTotal),{calc:true,hi:"hi",strong:true});
       var coverImgs=altGallery(alt);
       var coverHtml='<div class="veh-coverwrap"><div class="veh-cover">'+coverImgs.map(function(src,i){ return '<div class="veh-slide" style="background-image:url('+src+')" data-cover="'+alt.id+':'+i+'" title="Öppna i galleri"></div>'; }).join('')+'</div><span class="veh-hint">👉 svep · tryck för galleri</span></div>';
@@ -644,27 +685,52 @@
         +'<tr class="veh-specrow"><td colspan="2">🏠 '+esc(alt.kvm+' kvm · '+alt.plan+' · '+altRooms(alt))+'</td></tr>'
         +houseRows
         +'<tr class="mf-divider"><td colspan="2"></td></tr>'
-        +row("Delsumma",kr(c.vDelsum)+(hs.unknown?' <span class="alt-ingar">(exkl. ? poster)</span>':''),{calc:true})
+        +row("Delsumma",apx+kr(c.vDelsum)+(hs.unknown?(approx?' <span class="alt-ingar">(inkl. schablon på ?-poster)</span>':' <span class="alt-ingar">(exkl. ? poster)</span>'):''),{calc:true})
         +row("Buffert",ed("vettershaga.buffertPct","pct")+' <span class="mf-inline-res">= '+kr(c.vBuffert)+'</span>')
         +totalRow
         +'</table></section>';
 
-      // Jämför alla alternativ (tabell) — samma tomt & lån
-      var compareHtml='<section class="mf-card mf-card-wide mf-cmp"><h3>📊 Jämför alla alternativ <span class="mf-tag">samma tomt &amp; lån</span></h3>'
-        +'<div class="cmp-scroll"><table class="cmp-table"><thead><tr><th>Alternativ</th><th>Hus-del</th><th>Totalt inflytt.</th><th>Buffert efter bygge</th><th>Kvar/mån (pension)</th></tr></thead><tbody>'
-        +ALTERNATIVES.map(function(a){
+      // Jämför alla alternativ (tabell) — samma tomt & lån. Alla poster i EN tabell:
+      // husmaterial vs bygge vs inredning vs färdigt, med ?-poster ifyllbara via schablon (≈-läget).
+      var schBtn='<button class="mf-btn btn-sch" style="margin-left:auto;font-size:12px;padding:6px 11px" title="Fyll ?-poster med realistiska schablonkostnader — allt blir jämförbart men märks ≈">≈ Schabloner: '+(schOn?'PÅ':'av')+'</button>';
+      var CMP_COLS=[["name","Alternativ"],["mat","Husmaterial"],["bygge","Bygge till klart"],["inred","Inredning &amp; vitvaror"],["hus","Hus klart"],["tot","Totalt inflytt."],["buf","Buffert efter bygge"]];
+      var cmpRows=ALTERNATIVES.map(function(a){
           var ac=computeAlt(a),ah=houseSum(a);
-          var q=ah.unknown?' <span class="mf-flag mf-komplettera">? '+ah.unknown+'</span>':'';
-          return '<tr class="'+(a.id===selectedAlt?'on':'')+'" data-alt="'+a.id+'"><td><b>'+esc(a.sup)+'</b> '+esc(a.name)+'<span class="cmp-sub">'+a.kvm+' kvm · '+esc(a.lev)+'</span></td>'
-            +'<td data-l="Hus-del">'+(ah.unknown?'≥ ':'')+kr(ah.sum)+q+'</td>'
-            +'<td data-l="Totalt inflytt.">'+(ah.unknown?'≥ ':'')+kr(ac.vTotal)+'</td>'
-            +'<td data-l="Buffert efter bygge" class="'+(ac.buffert>=0?'pos':'neg')+'">'+(ac.buffert>=0?kr(ac.buffert):'−'+kr(-ac.buffert))+'</td>'
-            +'<td data-l="Kvar/mån (pension)" class="'+(ac.kvarPension<5000?'warnv':'pos')+'">'+kr(ac.kvarPension)+'</td></tr>';
-        }).join('')+'</tbody></table></div>'
-        +'<div class="mf-callout mf-callout-warn">? = ej offererat än; rader med ≥ är ofullständiga (saknade poster räknas som 0). Klicka en rad för att välja huset, eller fyll i en offert genom att dubbelklicka posten i byggbudgeten ovan.</div></section>';
+          var hd=husdelEff(ah),mat=matEff(a,hd),matKnown=(!a.lines)||!!a.mat;
+          var aAp=schOn&&ah.sch>0;
+          var matCell=mat==null?'<span class="cmp-q">?</span>':(matKnown?kr(mat):'<span class="schv">≈ '+kr(mat)+'</span>');
+          var inredSch=schOn?ah.inred:0, schBygge=ah.sch-ah.inred;
+          var byggeCell,bg=null;
+          if(mat==null||(!schOn&&schBygge>0)) byggeCell='<span class="cmp-q">?</span>';
+          else { bg=hd-mat-inredSch; byggeCell=(schOn&&(schBygge>0||!matKnown))?'<span class="schv">≈ '+kr(bg)+'</span>':kr(bg); }
+          var inredCell=(a.inredS||'—')+(schOn&&ah.inred?' <span class="schv">≈ '+kr(ah.inred)+'</span>':'');
+          var husCell=ah.unknown?(aAp?'<span class="schv">≈ '+kr(hd)+'</span>':'≥ '+kr(ah.sum)+' <span class="mf-flag mf-komplettera">? '+ah.unknown+'</span>'):kr(hd);
+          var pfx=ah.unknown?(aAp?'≈ ':'≥ '):'';
+          var html='<tr class="'+(a.id===selectedAlt?'on':'')+'" data-alt="'+a.id+'"><td><b>'+esc(a.sup)+'</b> '+esc(a.name)+'<span class="cmp-sub">'+a.kvm+' kvm · '+esc(a.lev)+'</span></td>'
+            +'<td data-l="Husmaterial">'+matCell+'</td>'
+            +'<td data-l="Bygge till klart">'+byggeCell+'</td>'
+            +'<td data-l="Inredning & vitvaror">'+inredCell+'</td>'
+            +'<td data-l="Hus klart">'+husCell+'</td>'
+            +'<td data-l="Totalt inflytt.">'+pfx+kr(ac.vTotal)+'</td>'
+            +'<td data-l="Buffert efter bygge" class="'+(ac.buffert>=0?'pos':'neg')+'">'+pfx+(ac.buffert>=0?kr(ac.buffert):'−'+kr(-ac.buffert))+'</td></tr>';
+          // Sorteringsnycklar (null = okänt → alltid sist). hus/tot/buf följer det som visas.
+          return {html:html,k:{name:(a.sup+" "+a.name).toLowerCase(),mat:mat,bygge:bg,inred:ah.inred,hus:(schOn?hd:(ah.unknown?ah.sum:hd)),tot:ac.vTotal,buf:ac.buffert}};
+        });
+      if(cmpSort&&cmpSort.col){ (function(){ var col=cmpSort.col,dir=cmpSort.dir||1;
+        cmpRows.sort(function(x,y){ var a=x.k[col],b=y.k[col];
+          if(a==null&&b==null)return 0; if(a==null)return 1; if(b==null)return -1;
+          if(typeof a==="string")return a<b?-dir:(a>b?dir:0);
+          return (a-b)*dir; }); })(); }
+      var compareHtml='<section class="mf-card mf-card-wide mf-cmp"><h3>📊 Jämför alla alternativ <span class="mf-tag">samma tomt &amp; lån</span> '+schBtn+'</h3>'
+        +'<div class="cmp-scroll"><table class="cmp-table" id="cmp-main"><thead><tr>'
+        +CMP_COLS.map(function(cc){ var on=cmpSort&&cmpSort.col===cc[0];
+            return '<th data-sort="'+cc[0]+'" title="Klicka för att sortera">'+cc[1]+(on?(cmpSort.dir===1?' ▲':' ▼'):'')+'</th>'; }).join('')
+        +'</tr></thead><tbody>'
+        +cmpRows.map(function(r){return r.html;}).join('')+'</tbody></table></div>'
+        +'<div class="mf-callout mf-callout-warn"><b>Husmaterial</b> = byggsats/modul-priset · <b>Bygge till klart</b> = grund, montage, installationer &amp; finish · <b>Hus klart</b> = färdig husdel (exkl. tomt/anslutningar — samma för alla). <b>?</b> = ej offererat eller går ej att särskilja ur totalpriset. Tryck <b>≈ Schabloner</b> för att fylla ?-poster med realistiska schablonkostnader — de visas i <span class="schv">orange kursiv</span> (nivåer: '+SCH_INFO+' · husmaterial ≈ 45 % där bara totalpris finns). Klicka en kolumnrubrik för att sortera (andra klicket vänder, tredje återgår). Klicka en rad för att välja huset, eller dubbelklicka en ?-post i byggbudgeten för att fylla i riktig offert.</div></section>';
 
       // Inredning & utrustning — jämförelse (kök/vitvaror/bad/golv per alternativ)
-      var FIN_COLS=[["kok","Kök"],["vitvaror","Vitvaror"],["bad","Bad / WC"],["golv","Golv"]];
+      var FIN_COLS=[["kok","Kök"],["vitvaror","Vitvaror"],["bad","Bad / WC"],["golv","Golv"],["varme","Värme"]];
       var finMark=function(v){ return v==="ja"?"✅":(v==="nej"?"➕":"❓"); };
       var finishHtml='<section class="mf-card mf-card-wide mf-cmp" data-collapse="inredning"><h3>🍴 Inredning &amp; utrustning <span class="mf-tag">vad ingår i huspriset</span></h3>'
         +'<div class="cmp-scroll"><table class="cmp-table"><thead><tr><th>Alternativ</th>'+FIN_COLS.map(function(c){return "<th>"+c[1]+"</th>";}).join("")+'</tr></thead><tbody>'
@@ -672,14 +738,14 @@
           return '<tr class="'+(a.id===selectedAlt?"on":"")+'" data-alt="'+a.id+'"><td><b>'+esc(a.sup)+'</b> '+esc(a.name)+'<span class="cmp-sub">'+esc(a.lev)+'</span></td>'
             +FIN_COLS.map(function(c){return '<td data-l="'+c[1]+'">'+finMark(f[c[0]])+'</td>';}).join("")+'</tr>';
         }).join("")+'</tbody></table></div>'
-        +'<div class="mf-callout mf-callout-warn">✅ ingår · ❓ oklart / ofta tillval (bekräfta i offert) · ➕ tillkommer. <b>Sommarnöjen</b> är enda med verifierat allt-inkluderat (kök + Electrolux-vitvaror + WC + massiva trägolv, ur prislistan). Byggsats (Fiskarheden) = bara stomme → kök/vitvaror/bad tillkommer.</div></section>';
+        +'<div class="mf-callout mf-callout-warn">✅ ingår · ❓ oklart / ofta tillval (bekräfta i offert) · ➕ tillkommer. <b>Sommarnöjen</b> har verifierat allt-inkluderat monterat (kök + Electrolux-vitvaror + WC + massiva trägolv, ur prislistan). <b>Fiskarhedens</b> byggsats inkluderar kök + Siemens-vitvaror + badrumsmöbel i materialleveransen (golv/målning/montering tillkommer). <b>Hudikhus</b> byggsats är renodlad materialsats — varken kök, vitvaror, bad, golv eller värmesystem ingår. Tillkommande poster får schablonkostnad i ≈-läget.</div></section>';
 
       document.getElementById("app").innerHTML =
       '<div class="mf-head"><span class="mf-eyebrow">🏡 Familjekalkyl</span><h2>Marias flytt</h2>'
       +'<div class="mf-sub">Karlpers säljs → nytt sommarhus i Vettershaga, Grimvägen säljs, vinterboende hyrs (Frejgatan). Tryck (eller dubbelklicka) på ett belopp för att räkna om. Ändringar är dina egna tills du <b>💾 Sparar till alla</b> — då blir de delade och märks <span class="mf-flag mf-justerad">justerad</span> (originalet spåras alltid — hovra flaggan).</div></div>'
       // Verdict-banner (viktigaste siffran först)
       +'<div class="mf-verdict">'
-      +'<div class="v-item"><div class="v-label">Buffert efter bygge</div><div class="v-num '+(c.buffert>=0?"pos":"neg")+'">'+(c.buffert>=0?kr(c.buffert):"−"+kr(-c.buffert))+'</div></div>'
+      +'<div class="v-item"><div class="v-label">Buffert efter bygge'+(approx?' <span class="schv">≈ inkl. schablon</span>':'')+'</div><div class="v-num '+(c.buffert>=0?"pos":"neg")+'">'+apx+(c.buffert>=0?kr(c.buffert):"−"+kr(-c.buffert))+'</div></div>'
       +'<div class="v-sep"></div>'
       +'<div class="v-item"><div class="v-label">Kvar/mån efter pension</div><div class="v-num '+(c.kvarPension<5000?"warnv":"pos")+'">'+kr(c.kvarPension)+'</div></div>'
       +'<div class="v-take">'+takeaway(c)+'</div>'
@@ -688,8 +754,9 @@
       +'<button class="mf-btn primary" id="btn-save"'+(unsaved?'':' disabled style="opacity:.5;cursor:default"')+'>💾 Spara till alla'+(unsaved?(' ('+unsaved+')'):'')+'</button>'
       +'<button class="mf-btn" id="btn-reset">↺ Ångra mina osparade</button>'
       +'<button class="mf-btn" id="btn-collapse" title="Fäll ihop eller ut alla fällbara sektioner">⊟ Fäll ihop / ut</button>'
+      +'<button class="mf-btn btn-sch" title="Fyll ?-poster (ej offererade) med realistiska schablonkostnader så alla hus blir jämförbara — märks med ≈ i orange kursiv">≈ Schabloner: '+(schOn?'PÅ':'av')+'</button>'
       +'</div>'
-      +'<div class="mf-legend"><span><span class="mf-flag mf-schablon">schablon</span> gissning</span><span><span class="mf-flag mf-komplettera">kompletteras</span> behöver riktig uppgift</span><span>✎ tryck / dubbelklicka ett belopp</span></div>'
+      +'<div class="mf-legend"><span><span class="mf-flag mf-schablon">schablon</span> gissning</span><span><span class="mf-flag mf-komplettera">kompletteras</span> behöver riktig uppgift</span><span><span class="schv">(≈ belopp)</span> schablon på ?-post</span><span>✎ tryck / dubbelklicka ett belopp</span></div>'
       +'<div class="mf-grid">'
       +'<section class="mf-card" data-collapse="karlpers"><h3>🏡 Karlpers <span class="mf-tag">fritidshus · inget uppskov</span></h3><table class="mf-table">'
       +row("Totalpris (båda systrarna)",ed("karlpers.totalpris"))
@@ -734,7 +801,7 @@
       +row("Fondsparande",ed("privatekonomi.fondsparande"))
       +row("= Tillgängligt kapital",kr(c.kapital),{calc:true,strong:true})
       +row("+ Lån på nya huset","+"+kr(c.L),{calc:true})
-      +row("− Nytt hus i Vettershaga","−"+kr(c.vTotal),{calc:true})
+      +row("− Nytt hus i Vettershaga","−"+apx+kr(c.vTotal),{calc:true})
       +row("= Buffert kvar efter bygge",goBadge,{calc:true,strong:true,hi:c.buffert>=0?"ok":"hi"})
       +'</table><h4 class="mf-subh">Månadskassaflöde</h4><table class="mf-table">'
       +row("Pension (netto/mån)",ed("privatekonomi.pensionNetto"))
@@ -805,6 +872,21 @@
         function apply(){ sec.classList.toggle("collapsed",collapsed); var c=h.querySelector(".mf-collchev"); if(c)c.textContent=collapsed?"▸":"▾"; }
         apply();
         h.addEventListener("click",function(e){ if(e.target.closest("a,button,input,.mf-edit,.alt-fill,.alt-q,.mf-revert"))return; collapsed=!collapsed; try{localStorage.setItem(key,collapsed?"1":"0");}catch(_){} apply(); });
+      });
+      // ≈-läget: schablonkostnader på/av (knapp i toolbaren + i jämför-tabellen)
+      Array.prototype.forEach.call(document.querySelectorAll(".btn-sch"),function(b){
+        b.onclick=function(e){ e.stopPropagation(); schOn=!schOn; try{localStorage.setItem("maria_sch",schOn?"1":"0");}catch(_){} draw(); };
+      });
+      // Sortera jämför-tabellen: 1:a klicket sorterar (Buffert: bäst först), 2:a vänder, 3:e återgår till katalogordning
+      Array.prototype.forEach.call(document.querySelectorAll("#cmp-main th[data-sort]"),function(th){
+        th.onclick=function(){
+          var col=th.getAttribute("data-sort"),defDir=col==="buf"?-1:1;
+          if(cmpSort&&cmpSort.col===col&&cmpSort.dir===defDir) cmpSort={col:col,dir:-defDir};
+          else if(cmpSort&&cmpSort.col===col) cmpSort=null;
+          else cmpSort={col:col,dir:defDir};
+          try{localStorage.setItem("maria_cmp_sort",JSON.stringify(cmpSort));}catch(_){}
+          draw();
+        };
       });
       var bc=document.getElementById("btn-collapse");
       if(bc) bc.onclick=function(){
