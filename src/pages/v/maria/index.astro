@@ -505,9 +505,9 @@
     function computeAlt(alt){ var S=clone(work); S.vettershaga=effV(alt); return compute(S); }
 
     // Planlösningar per modell (där nedladdbar; annars länk till leverantören). Läggs sist i galleriet.
-    var PLANS={ametisten:"/maria-hus/ametisten-plan.jpg",sparven:"/maria-hus/sparven-plan.jpg",marsfjall94:"/maria-hus/marsfjall94-plan.jpg",sommar80:"/maria-hus/sommar80-plan.jpg",sommar100:"/maria-hus/sommar100-plan.jpg",sommar120:"/maria-hus/sommar120-plan.jpg",sommar150:"/maria-hus/sommar150-plan.jpg",stella119:"/maria-hus/stella119-plan.jpg",gimmeshelter:"/maria-hus/gimme-plan.jpg",gimme90:"/maria-hus/gimme-plan.jpg"};
-    function altPlan(a){ return PLANS[a.id]||null; }
-    function altGallery(a){ var g=(a.imgs||[]).slice(); if(altPlan(a))g.push(altPlan(a)); return g; }
+    var PLANS={ametisten:"/maria-hus/ametisten-plan.jpg",sparven:"/maria-hus/sparven-plan.jpg",marsfjall94:["/maria-hus/marsfjall94-plan.jpg","/maria-hus/marsfjall94-plan-spegel.jpg"],sommar80:"/maria-hus/sommar80-plan.jpg",sommar100:"/maria-hus/sommar100-plan.jpg",sommar120:"/maria-hus/sommar120-plan.jpg",sommar150:"/maria-hus/sommar150-plan.jpg",stella119:"/maria-hus/stella119-plan.jpg",gimmeshelter:"/maria-hus/gimme-plan.jpg",gimme90:"/maria-hus/gimme-plan.jpg"};
+    function altPlan(a){ return PLANS[a.id]||null; } // sträng ELLER array (t.ex. normal + spegelvänd)
+    function altGallery(a){ var g=(a.imgs||[]).slice(),p=altPlan(a); if(p)g=g.concat(p); return g; }
     // Rum/sovrum per modell (där verifierat; annars hänvisning till leverantör)
     var ROOMS={ametisten:"4 rum · 3 sovrum",sparven:"4 rum · 3 sovrum",marsfjall94:"3 sovrum · 1 badrum (boyta 82, byggyta 100)",sommar80:"3 sovrum + sovloft",sommar100:"3 sovrum + sovloft",sommar120:"3–4 sovrum + sovloft",sommar150:"3–4 sovrum + sovloft · 2 badrum",stella119:"3 sovrum",husverket80:"valbar plan (2–3 sovrum)",husverket100:"valbar plan (~3 sovrum)",gimmeshelter:"3 rum",gimme90:"3 rum"};
     function altRooms(a){ return ROOMS[a.id]||"rum/sovrum: se leverantör"; }
@@ -830,7 +830,7 @@
       // Bildgalleri-badge → öppna lightbox (utan att välja huset)
       Array.prototype.forEach.call(document.querySelectorAll("[data-gallery]"),function(el){ el.onclick=function(e){ e.stopPropagation(); e.preventDefault(); openLightbox(altGallery(altById(el.getAttribute("data-gallery"))),0); }; });
       // "📐 Se planlösning" → öppna lightbox på plan-bilden (sista i galleriet)
-      Array.prototype.forEach.call(document.querySelectorAll("[data-planopen]"),function(el){ el.onclick=function(){ var a=altById(el.getAttribute("data-planopen")); var g=altGallery(a); openLightbox(g,g.length-1); }; });
+      Array.prototype.forEach.call(document.querySelectorAll("[data-planopen]"),function(el){ el.onclick=function(){ var a=altById(el.getAttribute("data-planopen")); openLightbox(altGallery(a),(a.imgs||[]).length); }; });
       // Cover-art-karusell i Vettershaga: tryck på en bild → öppna i lightbox på rätt index
       Array.prototype.forEach.call(document.querySelectorAll("[data-cover]"),function(el){ el.onclick=function(){ var ref=el.getAttribute("data-cover").split(":"); openLightbox(altGallery(altById(ref[0])),+ref[1]); }; });
       // Lokal komplettering av alternativens hus-poster (offert fylls i)
