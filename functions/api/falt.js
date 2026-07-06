@@ -2,11 +2,13 @@
 // Mobilen (PWA på /falt) lämnar anteckningar i falt:inbox; pappen hämtar hem + ackar dem när den
 // är vaken, och pushar läsunderlag till falt:feed. ⚠️ Repo-källan är PUBLIK — lösenordet ligger
 // ALDRIG här utan i env.FALT_PW (Pages-env) eller KV-nyckeln falt:pw (seedas lokalt via REST).
-//   GET  /api/falt?pw=&kind=state             -> { inbox, feed }        (PWA:ns hela vy)
+//   GET  /api/falt?pw=&kind=state             -> { inbox, feed }        (PWA:ns inkorgs-vy)
 //   GET  /api/falt?pw=&kind=pull              -> { items }              (pappen hämtar kön)
+//   GET  /api/falt?pw=&kind=mirror            -> { mirror }             (läs-spegel: To Do/Listor/Agera-snapshot)
 //   POST /api/falt?kind=note  {pw,text}       -> { ok, item }           (mobilen antecknar; IP-rate-limitad)
 //   POST /api/falt?kind=ack   {pw,ids}        -> { ok, left }           (pappen kvitterar hämtat)
 //   POST /api/falt?kind=push  {pw,title,md}   -> { ok, feed }           (pappen pushar läsunderlag)
+//   POST /api/falt?kind=mirror {pw,mirror}    -> { ok, bytes }          (pappen pushar spegel-snapshot)
 
 const nsId = (env) => env.KV_NAMESPACE_ID || env.KV_NAMSPACE_ID;
 const kvOk = (env) => env.CF_ACCOUNT_ID && nsId(env) && env.CF_API_TOKEN;
@@ -26,7 +28,8 @@ async function kvPut(env, key, value, ttl) {
 const clientIp = (req) => req.headers.get("cf-connecting-ip") || (req.headers.get("x-forwarded-for") || "").split(",")[0].trim() || "local";
 const readJson = async (env, k, def) => { try { const v = await kvGet(env, k); return v == null ? def : JSON.parse(v); } catch { return def; } };
 
-const K_IN = "falt:inbox", K_FEED = "falt:feed", K_PW = "falt:pw";
+const K_IN = "falt:inbox", K_FEED = "falt:feed", K_PW = "falt:pw", K_MIR = "falt:mirror";
+const MIR_MAX = 4_000_000;   // spegel-snapshot (To Do/Listor/Agera) — rejält tilltaget, KV tål 25 MB
 const IN_CAP = 200, FEED_CAP = 20, TEXT_MAX = 20000, TITLE_MAX = 120, MD_MAX = 60000;
 const RL_MAX = 60, RL_WINDOW = 600;              // max 60 anteckningar per IP / 10 min
 const rlKey = (ip) => `falt:rl:${ip}`;
@@ -65,6 +68,7 @@ export async function onRequestGet(context) {
   try {
     const kind = u.searchParams.get("kind") || "state";
     if (kind === "pull") return Response.json({ items: await readJson(env, K_IN, []) });
+    if (kind === "mirror") return Response.json({ mirror: await readJson(env, K_MIR, null) });
     const [inbox, feed] = await Promise.all([readJson(env, K_IN, []), readJson(env, K_FEED, [])]);
     return Response.json({ inbox, feed });
   } catch (e) { return Response.json({ error: String(e).slice(0, 200) }, { status: 500 }); }
@@ -112,6 +116,13 @@ export async function onRequestPost(context) {
       if (feed.length > FEED_CAP) feed.length = FEED_CAP;
       await kvPut(env, K_FEED, JSON.stringify(feed));
       return Response.json({ ok: true, feed: feed.map((d) => ({ id: d.id, title: d.title, at: d.at })) });
+    }
+    if (kind === "mirror") {
+      if (!body.mirror || typeof body.mirror !== "object") return Response.json({ error: "no_mirror" }, { status: 400 });
+      const raw = JSON.stringify(body.mirror);
+      if (raw.length > MIR_MAX) return Response.json({ error: "too_big" }, { status: 413 });
+      await kvPut(env, K_MIR, raw);
+      return Response.json({ ok: true, bytes: raw.length });
     }
     return Response.json({ error: "bad kind" }, { status: 400 });
   } catch (e) { return Response.json({ error: String(e).slice(0, 200) }, { status: 500 }); }

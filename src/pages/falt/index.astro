@@ -1,7 +1,9 @@
 ---
-// Fält-pappen — mobil inkorg/utkorg mot Calles lokala PA-app. Medvetet UTAN Layout.astro
-// (ingen PostHog/session-recording på personliga anteckningar). Gate: pw → localStorage,
-// valideras av servern (/api/falt). Design: pappens mörka identitet (design-profile.pa.md).
+// Fält-pappen — mobil inkorg/utkorg + läs-spegel mot Calles lokala PA-app. Medvetet UTAN
+// Layout.astro (ingen PostHog/session-recording på personliga anteckningar). Gate: pw →
+// localStorage, valideras av servern (/api/falt). Design: pappens mörka identitet.
+// Spegel-flikarna (To Do/Listor/Agera) är LÄSVYER av senaste snapshot pappen pushade —
+// alltid "senaste gången Macen var vaken", aldrig redigerbara härifrån.
 ---
 
 <!doctype html>
@@ -21,17 +23,21 @@
   <style is:global>
     :root{
       --bg:#0f1115; --panel:#161922; --panel2:#1d212c; --line:#272c38;
-      --txt:#e6e8ee; --dim:#9aa3b2; --accent:#6c8cff; --ok:#37c184; --warn:#e6b450;
+      --txt:#e6e8ee; --dim:#9aa3b2; --accent:#6c8cff; --ok:#37c184; --warn:#e6b450; --hi:#e0607a;
       --radius:12px;
     }
     *{box-sizing:border-box;margin:0;padding:0}
     body{background:var(--bg);color:var(--txt);font:16px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Inter,sans-serif;min-height:100vh;padding-bottom:env(safe-area-inset-bottom)}
     .wrap{max-width:640px;margin:0 auto;padding:14px 14px 40px}
-    header{display:flex;align-items:center;justify-content:space-between;padding:10px 2px 14px}
+    header{display:flex;align-items:center;justify-content:space-between;padding:10px 2px 10px}
     header h1{font-size:17px;font-weight:700;letter-spacing:.3px}
     header h1 span{color:var(--dim);font-weight:500}
     .refresh{background:transparent;border:1px solid var(--line);color:var(--dim);border-radius:999px;padding:6px 14px;font-size:13px}
     .refresh:active{color:var(--accent);border-color:var(--accent)}
+    .tabbar{display:flex;gap:4px;margin-bottom:12px;position:sticky;top:0;background:var(--bg);padding:6px 0;z-index:10}
+    .tabbar button{flex:1;background:var(--panel);border:1px solid var(--line);color:var(--dim);border-radius:10px;padding:9px 2px;font-size:13px;font-weight:600}
+    .tabbar button.on{color:var(--txt);border-color:var(--accent);background:var(--panel2)}
+    .stamp{font-size:11px;color:var(--dim);margin:0 2px 10px}
     .card{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:14px;margin-bottom:12px}
     h2{font-size:13px;text-transform:uppercase;letter-spacing:1px;color:var(--dim);font-weight:600;margin-bottom:10px}
     textarea{width:100%;min-height:110px;background:var(--panel2);border:1px solid var(--line);border-radius:10px;color:var(--txt);padding:12px;font:16px/1.5 inherit;resize:vertical}
@@ -59,6 +65,33 @@
     .doc-body a{color:var(--accent)}
     .doc-body strong{color:#fff}
     .empty{color:var(--dim);font-size:14px;padding:6px 2px}
+    /* Spegel-grupper (To Do-sektioner / List-tavlor) */
+    .grp{border:1px solid var(--line);border-radius:10px;background:var(--panel);margin-bottom:8px;overflow:hidden}
+    .grp-head{display:flex;align-items:center;gap:8px;padding:12px;cursor:pointer;font-weight:600;font-size:15px}
+    .grp-head .n{margin-left:auto;color:var(--dim);font-size:12px;font-weight:500;border:1px solid var(--line);border-radius:999px;padding:1px 9px;flex-shrink:0}
+    .grp-body{display:none;padding:0 10px 10px}
+    .grp.open .grp-body{display:block}
+    .mrow{border-top:1px solid var(--line);padding:9px 2px;font-size:14px}
+    .mrow-head{display:flex;align-items:baseline;gap:7px;cursor:pointer;min-width:0}
+    .mrow-head .pri{flex-shrink:0}
+    .mrow-head .t{word-break:break-word}
+    .mrow-head .due{margin-left:auto;color:var(--warn);font-size:11px;flex-shrink:0;font-variant-numeric:tabular-nums}
+    .mrow.done .t{color:var(--dim);text-decoration:line-through}
+    .mrow-body{display:none;padding:6px 2px 2px;color:var(--dim);font-size:13px;white-space:pre-wrap;word-break:break-word}
+    .mrow.open .mrow-body{display:block}
+    .mrow-body .cl{margin-top:6px;color:var(--txt)}
+    .mrow-body .cl div{padding:2px 0}
+    .mrow-body a{color:var(--accent)}
+    .showdone{background:transparent;border:none;color:var(--dim);font-size:12px;padding:8px 2px;cursor:pointer;text-decoration:underline}
+    /* Agera */
+    .arow{display:flex;gap:8px;align-items:baseline;border-top:1px solid var(--line);padding:9px 2px;font-size:14px}
+    .arow:first-of-type{border-top:none}
+    .arow .ic{flex-shrink:0}
+    .arow .det{display:block;color:var(--dim);font-size:12px}
+    .arow.now .t{color:#fff;font-weight:600}
+    .cal-ev{display:flex;gap:8px;align-items:baseline;border-top:1px solid var(--line);padding:8px 2px;font-size:14px}
+    .cal-ev:first-of-type{border-top:none}
+    .cal-ev .tid{color:var(--dim);font-size:12px;flex-shrink:0;font-variant-numeric:tabular-nums}
     /* Gate */
     #gate{max-width:340px;margin:26vh auto 0;padding:0 20px;text-align:center}
     #gate p{color:var(--dim);font-size:14px;margin-bottom:14px}
@@ -81,23 +114,46 @@
       <button class="refresh" id="refresh">↻ Uppdatera</button>
     </header>
 
-    <div class="card">
-      <h2>✍️ Nytt ärende</h2>
-      <textarea id="note" placeholder="Anteckna — hämtas av pappen när den är vaken. Diktera gärna (🎙 på tangentbordet)."></textarea>
-      <button class="savebtn" id="save">Spara till pappen</button>
-      <div class="toast" id="toast"></div>
-    </div>
+    <nav class="tabbar">
+      <button data-tab="inkorg" class="on">✍️ Inkorg</button>
+      <button data-tab="todo">✅ To Do</button>
+      <button data-tab="listor">📋 Listor</button>
+      <button data-tab="agera">🎯 Agera</button>
+    </nav>
 
-    <div class="card">
-      <h2>⏳ Väntar på pappen</h2>
-      <div id="queue"><div class="empty">Inget i kön.</div></div>
-      <div class="hint">Ärenden ligger här tills desktop-pappen hämtat dem — då landar de i «📥 Från mobilen» i Agera för verifiering.</div>
-    </div>
+    <section id="tab-inkorg">
+      <div class="card">
+        <h2>✍️ Nytt ärende</h2>
+        <textarea id="note" placeholder="Anteckna — hämtas av pappen när den är vaken. Diktera gärna (🎙 på tangentbordet)."></textarea>
+        <button class="savebtn" id="save">Spara till pappen</button>
+        <div class="toast" id="toast"></div>
+      </div>
+      <div class="card">
+        <h2>⏳ Väntar på pappen</h2>
+        <div id="queue"><div class="empty">Inget i kön.</div></div>
+        <div class="hint">Ärenden ligger här tills desktop-pappen hämtat dem — då landar de i «📥 Från mobilen» i Agera för verifiering.</div>
+      </div>
+      <div class="card">
+        <h2>📖 Läsunderlag från pappen</h2>
+        <div id="feed"><div class="empty">Inget pushat än.</div></div>
+      </div>
+    </section>
 
-    <div class="card">
-      <h2>📖 Läsunderlag från pappen</h2>
-      <div id="feed"><div class="empty">Inget pushat än.</div></div>
-    </div>
+    <section id="tab-todo" hidden>
+      <div class="stamp" id="stamp-todo"></div>
+      <div id="todo"><div class="empty">Hämtar spegel…</div></div>
+    </section>
+
+    <section id="tab-listor" hidden>
+      <div class="stamp" id="stamp-listor"></div>
+      <div id="listor"><div class="empty">Hämtar spegel…</div></div>
+    </section>
+
+    <section id="tab-agera" hidden>
+      <div class="stamp" id="stamp-agera"></div>
+      <div class="card"><h2>📅 Idag</h2><div id="acal"><div class="empty">Ingen kalenderdata.</div></div></div>
+      <div class="card"><h2>🎯 Att agera på</h2><div id="alist"><div class="empty">Inget i speglingen.</div></div></div>
+    </section>
   </div>
 
   <script is:inline>
@@ -105,9 +161,10 @@
       var API = "/api/falt";
       var pw = localStorage.getItem("falt_pw") || "";
       var $ = function (id) { return document.getElementById(id); };
+      var mirror = null;   // senaste hämtade spegel-snapshot (cache tills ↻ eller ny app-öppning)
 
       function esc(s) { return String(s).replace(/[&<>"']/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]; }); }
-      // Mini-markdown: rubriker, **fet**, *kursiv*, [länk](url), punktlistor, stycken. Räcker för läsunderlag.
+      // Mini-markdown: rubriker, **fet**, *kursiv*, [länk](url), punktlistor, stycken.
       function md(src) {
         var lines = String(src).split("\n"), out = [], inUl = false;
         function inline(s) {
@@ -133,6 +190,7 @@
         try { return new Date(iso).toLocaleString("sv-SE", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }); } catch (e) { return ""; }
       }
 
+      // ---------- Inkorg ----------
       function renderQueue(inbox) {
         var q = $("queue");
         if (!inbox || !inbox.length) { q.innerHTML = '<div class="empty">Inget i kön — allt är hämtat. ✅</div>'; return; }
@@ -151,12 +209,102 @@
         });
       }
 
+      // ---------- Spegel (To Do / Listor / Agera) ----------
+      var PRI = { high: "🔴", medium: "🟡", low: "🟢", none: "▫️" };
+      function stamp(el) { el.textContent = mirror && mirror.at ? "Ögonblicksbild från pappen " + fmtAt(mirror.at) + " — läsvy, redigera i desktop-pappen." : ""; }
+
+      function renderTodo() {
+        var host = $("todo"); stamp($("stamp-todo"));
+        var secs = mirror && mirror.tasks && mirror.tasks.sections;
+        if (!secs || !secs.length) { host.innerHTML = '<div class="empty">Ingen spegling än — öppna pappen på datorn en gång.</div>'; return; }
+        host.innerHTML = secs.map(function (s, si) {
+          var open = s.cards.filter(function (c) { return c.status !== "done"; });
+          var done = s.cards.filter(function (c) { return c.status === "done"; });
+          var rows = open.map(function (c, ci) { return cardRow(c, si + ":" + ci, false); }).join("");
+          var doneRows = done.length
+            ? '<button class="showdone" data-sec="' + si + '">visa ' + done.length + ' klara…</button><div class="donewrap" data-sec="' + si + '" hidden>' + done.map(function (c, ci) { return cardRow(c, si + ":d" + ci, true); }).join("") + "</div>"
+            : "";
+          return '<div class="grp"><div class="grp-head"><span>' + esc(s.name) + '</span><span class="n">' + open.length + '</span></div><div class="grp-body">' + (rows || '<div class="empty">Inga öppna kort.</div>') + doneRows + "</div></div>";
+        }).join("");
+        wireGroups(host);
+        host.querySelectorAll(".showdone").forEach(function (b) {
+          b.addEventListener("click", function (e) { e.stopPropagation(); host.querySelector('.donewrap[data-sec="' + b.dataset.sec + '"]').hidden = false; b.remove(); });
+        });
+      }
+      function cardRow(c, key, isDone) {
+        var cl = (c.checklist || []).map(function (p) { return "<div>" + (p.done ? "☑️" : "⬜️") + " " + esc(p.text) + "</div>"; }).join("");
+        var body = (c.description ? esc(c.description) : "") + (cl ? '<div class="cl">' + cl + "</div>" : "");
+        return '<div class="mrow' + (isDone ? " done" : "") + '"><div class="mrow-head"><span class="pri">' + (PRI[c.priority] || "▫️") + '</span><span class="t">' + esc(c.title) + "</span>" + (c.dueDate ? '<span class="due">' + esc(c.dueDate) + "</span>" : "") + "</div>" + (body ? '<div class="mrow-body">' + body + "</div>" : "") + "</div>";
+      }
+      function renderListor() {
+        var host = $("listor"); stamp($("stamp-listor"));
+        var boards = mirror && mirror.listor;
+        if (!boards || !boards.length) { host.innerHTML = '<div class="empty">Ingen spegling än — öppna pappen på datorn en gång.</div>'; return; }
+        host.innerHTML = boards.map(function (b) {
+          var rows = b.items.map(function (i) {
+            var body = (i.note ? md(i.note) : "") + (i.link ? '<p><a href="' + esc(i.link) + '" target="_blank" rel="noopener">🔗 ' + esc(i.link.slice(0, 60)) + "</a></p>" : "");
+            return '<div class="mrow"><div class="mrow-head"><span class="pri">' + (i.starred ? "⭐" : "•") + '</span><span class="t">' + esc(i.title || "(utan titel)") + "</span></div>" + (body ? '<div class="mrow-body">' + body + "</div>" : "") + "</div>";
+          }).join("");
+          return '<div class="grp"><div class="grp-head"><span>' + esc(b.icon + " " + b.label) + '</span><span class="n">' + b.items.length + '</span></div><div class="grp-body">' + rows + "</div></div>";
+        }).join("");
+        wireGroups(host);
+      }
+      function wireGroups(host) {
+        host.querySelectorAll(".grp-head").forEach(function (h) {
+          h.addEventListener("click", function () { h.parentElement.classList.toggle("open"); });
+        });
+        host.querySelectorAll(".mrow-head").forEach(function (h) {
+          h.addEventListener("click", function () { if (h.parentElement.querySelector(".mrow-body")) h.parentElement.classList.toggle("open"); });
+        });
+      }
+      function renderAgera() {
+        stamp($("stamp-agera"));
+        var cal = $("acal"), list = $("alist");
+        var evs = (mirror && mirror.cal) || [];
+        if (evs.length) {
+          cal.innerHTML = evs.map(function (ev) {
+            var tid = ev.allDay ? "hela dagen" : (fmtAt(ev.start).split(" ").pop() + "–" + fmtAt(ev.end).split(" ").pop());
+            return '<div class="cal-ev"><span class="tid">' + esc(tid) + "</span><span>" + esc(ev.title) + (ev.location ? ' <span class="det">📍 ' + esc(ev.location) + "</span>" : "") + "</span></div>";
+          }).join("");
+        } else cal.innerHTML = '<div class="empty">Ingen kalenderdata i speglingen.</div>';
+        var items = (mirror && mirror.agera && mirror.agera.items) || [];
+        if (items.length) {
+          list.innerHTML = items.map(function (i) {
+            return '<div class="arow' + (i.urgency === "now" ? " now" : "") + '"><span class="ic">' + esc(i.icon || "•") + '</span><span><span class="t">' + esc(i.title) + "</span>" + (i.detail ? '<span class="det">' + esc(i.detail) + "</span>" : "") + "</span></div>";
+          }).join("");
+        } else list.innerHTML = '<div class="empty">Inget i speglingen.</div>';
+      }
+
+      async function loadMirror(force) {
+        if (mirror && !force) return;
+        var r = await fetch(API + "?pw=" + encodeURIComponent(pw) + "&kind=mirror");
+        if (!r.ok) throw new Error("http " + r.status);
+        mirror = (await r.json()).mirror;
+      }
+      function renderMirrorTabs() { renderTodo(); renderListor(); renderAgera(); }
+
+      // ---------- Flikar ----------
+      var curTab = "inkorg";
+      function showTab(name) {
+        curTab = name;
+        ["inkorg", "todo", "listor", "agera"].forEach(function (t) { $("tab-" + t).hidden = t !== name; });
+        document.querySelectorAll(".tabbar button").forEach(function (b) { b.classList.toggle("on", b.dataset.tab === name); });
+        if (name !== "inkorg") loadMirror().then(renderMirrorTabs).catch(function () {});
+      }
+      document.querySelectorAll(".tabbar button").forEach(function (b) {
+        b.addEventListener("click", function () { showTab(b.dataset.tab); });
+      });
+
       async function hydrate() {
         var r = await fetch(API + "?pw=" + encodeURIComponent(pw) + "&kind=state");
         if (r.status === 401) throw new Error("pw");
         if (!r.ok) throw new Error("http " + r.status);
         var j = await r.json();
         renderQueue(j.inbox); renderFeed(j.feed);
+      }
+      function refreshAll() {
+        hydrate().catch(function () {});
+        loadMirror(true).then(renderMirrorTabs).catch(function () {});
       }
 
       async function save() {
@@ -191,9 +339,9 @@
       $("gate-go").addEventListener("click", function () { tryOpen($("gate-pw").value.trim()); });
       $("gate-pw").addEventListener("keydown", function (e) { if (e.key === "Enter") tryOpen($("gate-pw").value.trim()); });
       $("save").addEventListener("click", save);
-      $("refresh").addEventListener("click", function () { hydrate().catch(function () {}); });
-      document.addEventListener("visibilitychange", function () { if (!document.hidden && !$("app").hidden) hydrate().catch(function () {}); });
-      // Utkast överlever app-byten/krascher (skrivs var 500 ms, rensas vid lyckad spara).
+      $("refresh").addEventListener("click", refreshAll);
+      document.addEventListener("visibilitychange", function () { if (!document.hidden && !$("app").hidden) refreshAll(); });
+      // Utkast överlever app-byten/krascher (rensas vid lyckad spara).
       $("note").addEventListener("input", function () { localStorage.setItem("falt_draft", $("note").value); });
       var draft = localStorage.getItem("falt_draft"); if (draft) $("note").value = draft;
 
