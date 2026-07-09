@@ -704,26 +704,42 @@
         host.querySelector("#sp-home").addEventListener("click", renderSpelHome);
       }
 
-      // — Emoji-gåtor: välj kategori först (filmer/ord/blandat) + egen valfri ⏱ (oberoende av quiz-timern).
+      // — Emoji-gåtor: välj kategori (film/musik/bok/ord) + svårighetsgrad + egen valfri ⏱.
       // 2+ spelare → turbaserat m. poäng per spelare, annars gemensam räkning.
+      var EMOJI_KIND = { film: "🎬 Gissa filmen", ord: "🧩 Gissa ordet", musik: "🎵 Gissa låten", bok: "📚 Gissa boken" };
       function emojiTimerSec() { return parseInt(localStorage.getItem("falt_timer_emoji") || "0", 10) || 0; }
+      function emojiLvl() { var v = localStorage.getItem("falt_emoji_lvl"); return v === "latt" || v === "mellan" || v === "svar" ? v : "mix"; }
       function startEmoji(kind) {
         var all = (quiz.emoji || []);
         if (!all.length) return;
+        var byKind = function (k) { return all.filter(function (c) { return (c.kind || "film") === k; }); };
         if (!kind) {
-          var nf = all.filter(function (c) { return c.kind !== "ord"; }).length;
           return chooseScreen("🙈 Emoji-gåtor — vad vill ni gissa?", [
-            { key: "film", icon: "🎬", label: "Filmer", sub: "Gissa filmen från emojis (" + nf + " st)" },
-            { key: "ord", icon: "🧩", label: "Sammansatta ord", sub: "Emojis ihop = ett ord (" + (all.length - nf) + " st)" },
-            { key: "mix", icon: "🌀", label: "Blandat", sub: "Både filmer och ord" },
+            { key: "film", icon: "🎬", label: "Filmer", sub: "Gissa filmen (" + byKind("film").length + " st)" },
+            { key: "musik", icon: "🎵", label: "Musik", sub: "Gissa låten — nynna gärna! (" + byKind("musik").length + " st)" },
+            { key: "bok", icon: "📚", label: "Böcker & sagor", sub: "Gissa boken (" + byKind("bok").length + " st)" },
+            { key: "ord", icon: "🧩", label: "Sammansatta ord", sub: "Emojis ihop = ett ord (" + byKind("ord").length + " st)" },
+            { key: "mix", icon: "🌀", label: "Blandat", sub: "Allt huller om buller" },
           ], startEmoji, {
-            html: '<div class="card" style="padding:12px 14px"><div class="sp-setrow" style="margin-top:0"><span>⏱ Tid per gåta (valfritt)</span><select id="sp-etimer">' +
+            html: '<div class="card" style="padding:12px 14px">' +
+              '<div class="sp-setrow" style="margin-top:0"><span>Svårighetsgrad</span><select id="sp-elvl">' +
+              [["mix", "🌀 Blandat"], ["latt", "🟢 Lätt"], ["mellan", "🟡 Mellan"], ["svar", "🔴 Svår"]].map(function (o) { return '<option value="' + o[0] + '"' + (emojiLvl() === o[0] ? " selected" : "") + ">" + o[1] + "</option>"; }).join("") +
+              "</select></div>" +
+              '<div class="sp-setrow"><span>⏱ Tid per gåta (valfritt)</span><select id="sp-etimer">' +
               [0, 10, 20, 30].map(function (s) { return '<option value="' + s + '"' + (emojiTimerSec() === s ? " selected" : "") + ">" + (s ? s + " sek" : "Av") + "</option>"; }).join("") +
               "</select></div></div>",
-            wire: function (h2) { h2.querySelector("#sp-etimer").addEventListener("change", function (e) { localStorage.setItem("falt_timer_emoji", e.target.value); }); },
+            wire: function (h2) {
+              h2.querySelector("#sp-etimer").addEventListener("change", function (e) { localStorage.setItem("falt_timer_emoji", e.target.value); });
+              h2.querySelector("#sp-elvl").addEventListener("change", function (e) { localStorage.setItem("falt_emoji_lvl", e.target.value); });
+            },
           });
         }
-        var pool = kind === "mix" ? all : all.filter(function (c) { return kind === "ord" ? c.kind === "ord" : c.kind !== "ord"; });
+        var pool = kind === "mix" ? all : byKind(kind);
+        var lvl = emojiLvl();
+        if (lvl !== "mix") {
+          var lp = pool.filter(function (c) { return (c.level || "mellan") === lvl; });
+          if (lp.length) pool = lp; // finns inget på nivån i kategorin → behåll hela kategorin
+        }
         if (!pool.length) pool = all;
         var cards = pickFrom(pool, 10, "emoji");
         var ps = roster().map(function (p) { return { name: p.name, score: 0 }; });
@@ -750,7 +766,7 @@
           host.innerHTML = backBtnRow("Gåta " + (i + 1) + " av " + cards.length, topFlags()) +
             (tp ? '<div class="sp-turn">🎲 <b>' + esc(tp.name) + "</b> gissar! (" + tp.score + " p)</div>" : "") +
             '<div id="sp-timer"></div>' +
-            '<div class="sp-q"><span class="sp-cat">' + (c.kind === "ord" ? "🧩 Gissa ordet" : "🎬 Gissa filmen") + '</span><div class="sp-emoji">' + c.emoji + '</div><div id="sp-hintbox"></div><div id="sp-revbox"><button class="sp-ghost" id="sp-hint">💡 Ledtråd</button><button class="sp-next" id="sp-reveal">Visa svaret</button></div></div>';
+            '<div class="sp-q"><span class="sp-cat">' + (LVL_SHORT[c.level] || "") + " " + (EMOJI_KIND[c.kind || "film"] || EMOJI_KIND.film) + '</span><div class="sp-emoji">' + c.emoji + '</div><div id="sp-hintbox"></div><div id="sp-revbox"><button class="sp-ghost" id="sp-hint">💡 Ledtråd</button><button class="sp-next" id="sp-reveal">Visa svaret</button></div></div>';
           wire2(host);
           host.querySelector("#sp-hint").addEventListener("click", function () {
             host.querySelector("#sp-hintbox").innerHTML = '<div class="sp-hint-txt">💡 ' + esc(c.hint || "Ingen ledtråd") + "</div>";
