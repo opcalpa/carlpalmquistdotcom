@@ -487,8 +487,12 @@
 
       var spelHost = null;
       function sp() { if (!spelHost) spelHost = $("spel"); return spelHost; }
+      // Pågår ett spel? Sätts av alla spelskärmar (via wireBack), nollas på spelmenyn.
+      // Upplåsnings-refreshen (visibilitychange → refreshAll) får ALDRIG rita om en pågående runda.
+      var _spInGame = false;
 
       function renderSpelHome() {
+        _spInGame = false;
         var host = sp();
         if (!quiz || !quiz.questions || !quiz.questions.length) {
           host.innerHTML = '<div class="card"><div class="empty">Ingen frågebank än — öppna pappen på datorn, gå till 🎲 Frågesport och tryck «📲 Pusha till mobilen».</div></div>';
@@ -527,7 +531,7 @@
           (flags.lb ? '<button class="sp-back" id="sp-lb" title="Visa ställningen">🏆</button>' : "") +
           '</span><span class="sp-prog">' + (prog || "") + "</span></div>";
       }
-      function wireBack(host) { host.querySelector("#sp-back").addEventListener("click", renderSpelHome); }
+      function wireBack(host) { _spInGame = true; host.querySelector("#sp-back").addEventListener("click", renderSpelHome); }
       function wireTop(host, o) {
         wireBack(host);
         o = o || {};
@@ -934,7 +938,8 @@
       function refreshAll() {
         hydrate().catch(function () {});
         loadMirror(true).then(renderMirrorTabs).catch(function () {});
-        loadQuiz(true).then(function () { if (curTab === "spel") renderSpelHome(); }).catch(function () {});
+        // Rita bara om spelmenyn om inget spel pågår — annars tappas pågående fråga vid skärmlås/upplåsning.
+        loadQuiz(true).then(function () { if (curTab === "spel" && !_spInGame) renderSpelHome(); }).catch(function () {});
       }
 
       async function save() {
