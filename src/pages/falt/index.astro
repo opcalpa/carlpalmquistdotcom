@@ -389,16 +389,22 @@
           host.innerHTML = '<div class="card"><div class="empty">Ingen frågebank än — öppna pappen på datorn, gå till 🎲 Frågesport och tryck «📲 Pusha till mobilen».</div></div>';
           return;
         }
-        var nq = quiz.questions.length, ne = (quiz.emoji || []).length;
+        var nq = quiz.questions.length, ne = (quiz.emoji || []).length, ng = (quiz.gator || []).length;
         host.innerHTML =
           '<button class="sp-mode" data-mode="quiz"><span class="big">🎯</span><span>Frågesport<span class="sub">Skicka mobilen runt — frågor på varje spelares nivå, poäng och vinnare!</span></span></button>' +
           '<button class="sp-mode" data-mode="emoji"><span class="big">🙈</span><span>Emoji-gåtor<span class="sub">Gissa filmen eller ordet från emojis — perfekt på stranden.</span></span></button>' +
+          (ng ? '<button class="sp-mode" data-mode="gator"><span class="big">🧩</span><span>Gåtor<span class="sub">Klassiska kluringar — läs högt och låt alla gissa!</span></span></button>' : "") +
           '<button class="sp-mode" data-mode="sf"><span class="big">⚖️</span><span>Sant eller falskt<span class="sub">Snabba påståenden — ropa svaret tillsammans!</span></span></button>' +
-          '<div class="stamp">Frågebank: ' + nq + ' frågor + ' + ne + ' gåtor' + (quiz.updatedAt ? " · uppdaterad " + fmtAt(quiz.updatedAt) : "") + ' — fyll på i desktop-pappen.</div>';
+          ((quiz.vem || []).length ? '<button class="sp-mode" data-mode="vem"><span class="big">👨‍👩‍👧‍👧</span><span>Vem i familjen?<span class="sub">Läs kortet och peka på varandra — inga poäng, bara skratt.</span></span></button>' : "") +
+          ((quiz.hellre || []).length ? '<button class="sp-mode" data-mode="hellre"><span class="big">🤔</span><span>Skulle du hellre…?<span class="sub">Omöjliga val — alla svarar i tur och ordning och får förklara varför!</span></span></button>' : "") +
+          '<div class="stamp">Frågebank: ' + nq + ' frågor + ' + ne + ' emoji + ' + ng + ' gåtor' + (quiz.updatedAt ? " · uppdaterad " + fmtAt(quiz.updatedAt) : "") + ' — fyll på i desktop-pappen.</div>';
         host.querySelectorAll(".sp-mode").forEach(function (b) {
           b.addEventListener("click", function () {
             if (b.dataset.mode === "quiz") renderQuizSetup();
             else if (b.dataset.mode === "emoji") startEmoji();
+            else if (b.dataset.mode === "gator") startGator();
+            else if (b.dataset.mode === "vem") startDeck("vem", "👨‍👩‍👧‍👧", "Vem i familjen?");
+            else if (b.dataset.mode === "hellre") startDeck("hellre", "🤔", "Skulle du hellre…");
             else startSF();
           });
         });
@@ -556,6 +562,66 @@
             host.querySelector("#sp-yes").addEventListener("click", function () { hits++; i++; draw(); });
             host.querySelector("#sp-no").addEventListener("click", function () { i++; draw(); });
           });
+        }
+        draw();
+      }
+
+      // — Klassiska gåtor: läs högt, alla gissar, ledtråd vid behov —
+      function startGator() {
+        var pool = (quiz.gator || []);
+        if (!pool.length) return;
+        var cards = pickFrom(pool, 8, "gator");
+        var ord = { latt: 0, mellan: 1, svar: 2 };
+        cards.sort(function (a, b) { return (ord[a.level] || 0) - (ord[b.level] || 0); });
+        var i = 0, hits = 0;
+        var host = sp();
+        function draw() {
+          if (i >= cards.length) {
+            host.innerHTML = backBtnRow() + '<div class="card" style="text-align:center"><div class="sp-final">🧩</div><div class="sp-qtext" style="text-align:center">Ni knäckte ' + hits + " av " + cards.length + " gåtor!</div></div>" +
+              '<button class="sp-next" id="sp-again">Fler gåtor!</button><button class="sp-ghost" id="sp-home">Till spelmenyn</button>';
+            wireBack(host);
+            host.querySelector("#sp-again").addEventListener("click", startGator);
+            host.querySelector("#sp-home").addEventListener("click", renderSpelHome);
+            return;
+          }
+          var c = cards[i];
+          host.innerHTML = backBtnRow("Gåta " + (i + 1) + " av " + cards.length) +
+            '<div class="sp-q"><span class="sp-cat">' + (LVL_SHORT[c.level] || "🧩") + ' Gåta</span><div class="sp-qtext">' + esc(c.q) + '</div><div id="sp-hintbox"></div><div id="sp-revbox"><button class="sp-ghost" id="sp-hint">💡 Ledtråd</button><button class="sp-next" id="sp-reveal">Visa svaret</button></div></div>';
+          wireBack(host);
+          host.querySelector("#sp-hint").addEventListener("click", function () {
+            host.querySelector("#sp-hintbox").innerHTML = '<div class="sp-hint-txt">💡 ' + esc(c.hint || "Ingen ledtråd — kämpa på!") + "</div>";
+          });
+          host.querySelector("#sp-reveal").addEventListener("click", function () {
+            host.querySelector("#sp-revbox").innerHTML = '<div class="sp-answer">' + esc(c.answer) + '</div><div class="sp-tally"><button class="yes" id="sp-yes">✅ Vi klarade den!</button><button class="no" id="sp-no">Nästa →</button></div>';
+            host.querySelector("#sp-yes").addEventListener("click", function () { hits++; i++; draw(); });
+            host.querySelector("#sp-no").addEventListener("click", function () { i++; draw(); });
+          });
+        }
+        draw();
+      }
+
+      // — Samtalskortlek (Vem i familjen? / Skulle du hellre…?): bara kort, inga poäng —
+      function startDeck(key, icon, title) {
+        var pool = (quiz[key] || []);
+        if (!pool.length) return;
+        var cards = pickFrom(pool, 12, key);
+        var i = 0;
+        var host = sp();
+        function draw() {
+          if (i >= cards.length) {
+            host.innerHTML = backBtnRow() + '<div class="card" style="text-align:center"><div class="sp-final">' + icon + '</div><div class="sp-qtext" style="text-align:center">Slut på korten den här rundan!</div></div>' +
+              '<button class="sp-next" id="sp-again">En runda till!</button><button class="sp-ghost" id="sp-home">Till spelmenyn</button>';
+            wireBack(host);
+            host.querySelector("#sp-again").addEventListener("click", function () { startDeck(key, icon, title); });
+            host.querySelector("#sp-home").addEventListener("click", renderSpelHome);
+            return;
+          }
+          var c = cards[i];
+          host.innerHTML = backBtnRow("Kort " + (i + 1) + " av " + cards.length) +
+            '<div class="sp-q" style="text-align:center;padding:30px 18px"><span class="sp-cat">' + icon + " " + esc(title) + '</span><div class="sp-qtext" style="font-size:22px">' + esc(c.q) + '</div></div>' +
+            '<button class="sp-next" id="sp-nxt">Nästa kort →</button>';
+          wireBack(host);
+          host.querySelector("#sp-nxt").addEventListener("click", function () { i++; draw(); });
         }
         draw();
       }
