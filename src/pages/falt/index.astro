@@ -95,6 +95,10 @@
     .cal-ev:first-of-type{border-top:none}
     .cal-ev .tid{color:var(--dim);font-size:12px;flex-shrink:0;font-variant-numeric:tabular-nums}
     /* 🎲 Spel — stora tryckytor, lekfullt men i pappens mörka identitet */
+    .sp-roster{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:11px 14px;font-size:14px;margin-bottom:10px}
+    .sp-roster span{color:var(--dim)}
+    .sp-turn{text-align:center;font-size:15px;color:var(--warn);margin-bottom:10px}
+    .sp-player .sp-on{width:18px;height:18px;accent-color:var(--accent);flex-shrink:0}
     .sp-mode{display:flex;align-items:center;gap:12px;width:100%;background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:16px 14px;margin-bottom:10px;color:var(--txt);font-size:16px;font-weight:600;text-align:left;cursor:pointer}
     .sp-mode:active{border-color:var(--accent);background:var(--panel2)}
     .sp-mode .big{font-size:28px;flex-shrink:0}
@@ -379,6 +383,57 @@
         return [{ name: "Mathilde", lvl: "latt" }, { name: "Louisa", lvl: "mellan" }, { name: "Pappa", lvl: "svar" }, { name: "Mamma", lvl: "svar" }];
       }
       function savePlayers(p) { localStorage.setItem("falt_quiz_players", JSON.stringify(p)); }
+      // Globala spelare: EN lista (namn + nivå + "är med idag") som ALLA spel läser.
+      // p.on !== false → med (gamla sparade listor utan on-fält räknas som med).
+      function roster() { return getPlayers().filter(function (p) { return p.on !== false; }); }
+
+      // Delad spelar-skärm: kryss = med idag, nivå per spelare, lägg till/ta bort.
+      // opts: { extraHTML?, wireExtra?, cta, onCta } — Frågesporten skickar med frågor-per-spelare + start.
+      function renderPlayersScreen(opts) {
+        var host = sp();
+        var players = getPlayers();
+        function draw() {
+          host.innerHTML = backBtnRow() +
+            '<div class="card"><h2>👥 Spelare — kryssa i vilka som är med</h2>' +
+            players.map(function (p, i) {
+              return '<div class="sp-player"><input type="checkbox" class="sp-on" data-i="' + i + '"' + (p.on !== false ? " checked" : "") + ' title="Är med idag"><span class="nm">' + esc(p.name) + '</span><select data-i="' + i + '">' +
+                Object.keys(LVL).map(function (l) { return '<option value="' + l + '"' + (p.lvl === l ? " selected" : "") + ">" + LVL[l] + "</option>"; }).join("") +
+                '</select><button class="rm" data-rm="' + i + '" title="Ta bort">✕</button></div>';
+            }).join("") +
+            '<div class="sp-addrow"><input id="sp-newname" placeholder="Lägg till spelare…" maxlength="20"><button id="sp-add">＋</button></div>' +
+            (opts.extraHTML || "") + "</div>" +
+            '<button class="sp-next" id="sp-cta">' + opts.cta + "</button>";
+          wireBack(host);
+          host.querySelectorAll(".sp-on").forEach(function (c) {
+            c.addEventListener("change", function () { players[+c.dataset.i].on = c.checked; savePlayers(players); });
+          });
+          host.querySelectorAll(".sp-player select").forEach(function (s) {
+            s.addEventListener("change", function () { players[+s.dataset.i].lvl = s.value; savePlayers(players); });
+          });
+          host.querySelectorAll(".rm").forEach(function (b) {
+            b.addEventListener("click", function () { players.splice(+b.dataset.rm, 1); savePlayers(players); draw(); });
+          });
+          function addP() {
+            var v = host.querySelector("#sp-newname").value.trim();
+            if (!v) return;
+            players.push({ name: v, lvl: "mellan", on: true }); savePlayers(players); draw();
+          }
+          host.querySelector("#sp-add").addEventListener("click", addP);
+          host.querySelector("#sp-newname").addEventListener("keydown", function (e) { if (e.key === "Enter") addP(); });
+          if (opts.wireExtra) opts.wireExtra(host);
+          host.querySelector("#sp-cta").addEventListener("click", function () { opts.onCta(players); });
+        }
+        draw();
+      }
+      function scoreboardHTML(players, icon) {
+        var sorted = players.slice().sort(function (a, b) { return b.score - a.score; });
+        var top = sorted[0] ? sorted[0].score : 0;
+        return '<div class="card"><div class="sp-final">' + (icon || "🏆") + "</div>" +
+          sorted.map(function (p) {
+            var win = p.score === top && top > 0;
+            return '<div class="sp-score' + (win ? " win" : "") + '"><span>' + (win ? "👑 " : "") + esc(p.name) + '</span><span class="pts">' + p.score + " p</span></div>";
+          }).join("") + "</div>";
+      }
 
       var spelHost = null;
       function sp() { if (!spelHost) spelHost = $("spel"); return spelHost; }
@@ -390,7 +445,9 @@
           return;
         }
         var nq = quiz.questions.length, ne = (quiz.emoji || []).length, ng = (quiz.gator || []).length;
+        var act = roster();
         host.innerHTML =
+          '<div class="card sp-roster"><span>👥 ' + (act.length ? act.map(function (p) { return esc(p.name); }).join(" · ") : "Inga spelare valda") + '</span><button class="sp-back" id="sp-players">Ändra</button></div>' +
           '<button class="sp-mode" data-mode="quiz"><span class="big">🎯</span><span>Frågesport<span class="sub">Skicka mobilen runt — frågor på varje spelares nivå, poäng och vinnare!</span></span></button>' +
           '<button class="sp-mode" data-mode="emoji"><span class="big">🙈</span><span>Emoji-gåtor<span class="sub">Gissa filmen eller ordet från emojis — perfekt på stranden.</span></span></button>' +
           (ng ? '<button class="sp-mode" data-mode="gator"><span class="big">🧩</span><span>Gåtor<span class="sub">Klassiska kluringar — läs högt och låt alla gissa!</span></span></button>' : "") +
@@ -398,6 +455,9 @@
           ((quiz.vem || []).length ? '<button class="sp-mode" data-mode="vem"><span class="big">👨‍👩‍👧‍👧</span><span>Vem i familjen?<span class="sub">Läs kortet och peka på varandra — inga poäng, bara skratt.</span></span></button>' : "") +
           ((quiz.hellre || []).length ? '<button class="sp-mode" data-mode="hellre"><span class="big">🤔</span><span>Skulle du hellre…?<span class="sub">Omöjliga val — alla svarar i tur och ordning och får förklara varför!</span></span></button>' : "") +
           '<div class="stamp">Frågebank: ' + nq + ' frågor + ' + ne + ' emoji + ' + ng + ' gåtor' + (quiz.updatedAt ? " · uppdaterad " + fmtAt(quiz.updatedAt) : "") + ' — fyll på i desktop-pappen.</div>';
+        host.querySelector("#sp-players").addEventListener("click", function () {
+          renderPlayersScreen({ cta: "✔ Klar", onCta: renderSpelHome });
+        });
         host.querySelectorAll(".sp-mode").forEach(function (b) {
           b.addEventListener("click", function () {
             if (b.dataset.mode === "quiz") renderQuizSetup();
@@ -414,41 +474,22 @@
       }
       function wireBack(host) { host.querySelector("#sp-back").addEventListener("click", renderSpelHome); }
 
-      // — Frågesport —
+      // — Frågesport (setup = globala spelar-skärmen + frågor per spelare) —
       var qGame = null;
       function renderQuizSetup() {
-        var host = sp();
-        var players = getPlayers();
         var per = parseInt(localStorage.getItem("falt_quiz_per") || "5", 10);
-        function draw() {
-          host.innerHTML = backBtnRow() +
-            '<div class="card"><h2>👨‍👩‍👧‍👧 Vilka spelar?</h2>' +
-            players.map(function (p, i) {
-              return '<div class="sp-player"><span class="nm">' + esc(p.name) + '</span><select data-i="' + i + '">' +
-                Object.keys(LVL).map(function (l) { return '<option value="' + l + '"' + (p.lvl === l ? " selected" : "") + ">" + LVL[l] + "</option>"; }).join("") +
-                '</select><button class="rm" data-rm="' + i + '" title="Ta bort">✕</button></div>';
-            }).join("") +
-            '<div class="sp-addrow"><input id="sp-newname" placeholder="Lägg till spelare…" maxlength="20"><button id="sp-add">＋</button></div>' +
-            '<div class="sp-setrow"><span>Frågor per spelare</span><select id="sp-per"><option' + (per === 3 ? " selected" : "") + '>3</option><option' + (per === 5 ? " selected" : "") + '>5</option><option' + (per === 7 ? " selected" : "") + '>7</option></select></div></div>' +
-            '<button class="sp-next" id="sp-start" ' + (players.length ? "" : "disabled") + ">🎯 Starta frågesporten!</button>";
-          wireBack(host);
-          host.querySelectorAll(".sp-player select").forEach(function (s) {
-            s.addEventListener("change", function () { players[+s.dataset.i].lvl = s.value; savePlayers(players); });
-          });
-          host.querySelectorAll(".rm").forEach(function (b) {
-            b.addEventListener("click", function () { players.splice(+b.dataset.rm, 1); savePlayers(players); draw(); });
-          });
-          host.querySelector("#sp-add").addEventListener("click", addP);
-          host.querySelector("#sp-newname").addEventListener("keydown", function (e) { if (e.key === "Enter") addP(); });
-          function addP() {
-            var v = host.querySelector("#sp-newname").value.trim();
-            if (!v) return;
-            players.push({ name: v, lvl: "mellan" }); savePlayers(players); draw();
-          }
-          host.querySelector("#sp-per").addEventListener("change", function (e) { per = parseInt(e.target.value, 10); localStorage.setItem("falt_quiz_per", String(per)); });
-          host.querySelector("#sp-start").addEventListener("click", function () { startQuizGame(players, per); });
-        }
-        draw();
+        renderPlayersScreen({
+          extraHTML: '<div class="sp-setrow"><span>Frågor per spelare</span><select id="sp-per"><option' + (per === 3 ? " selected" : "") + '>3</option><option' + (per === 5 ? " selected" : "") + '>5</option><option' + (per === 7 ? " selected" : "") + '>7</option></select></div>',
+          wireExtra: function (host) {
+            host.querySelector("#sp-per").addEventListener("change", function (e) { per = parseInt(e.target.value, 10); localStorage.setItem("falt_quiz_per", String(per)); });
+          },
+          cta: "🎯 Starta frågesporten!",
+          onCta: function (players) {
+            var act = players.filter(function (p) { return p.on !== false; });
+            if (!act.length) return;
+            startQuizGame(act, per);
+          },
+        });
       }
       function startQuizGame(players, per) {
         var qs = quiz.questions;
@@ -534,16 +575,19 @@
         host.querySelector("#sp-home").addEventListener("click", renderSpelHome);
       }
 
-      // — Emoji-gåtor —
+      // — Emoji-gåtor: 2+ spelare → turbaserat m. poäng per spelare, annars gemensam räkning —
       function startEmoji() {
         var pool = (quiz.emoji || []);
         if (!pool.length) return;
         var cards = pickFrom(pool, 10, "emoji");
+        var ps = roster().map(function (p) { return { name: p.name, score: 0 }; });
+        var turns = ps.length >= 2;
         var i = 0, hits = 0;
         var host = sp();
         function draw() {
           if (i >= cards.length) {
-            host.innerHTML = backBtnRow() + '<div class="card" style="text-align:center"><div class="sp-final">🙈</div><div class="sp-qtext" style="text-align:center">Ni klarade ' + hits + " av " + cards.length + "!</div></div>" +
+            host.innerHTML = backBtnRow() +
+              (turns ? scoreboardHTML(ps, "🙈") : '<div class="card" style="text-align:center"><div class="sp-final">🙈</div><div class="sp-qtext" style="text-align:center">Ni klarade ' + hits + " av " + cards.length + "!</div></div>") +
               '<button class="sp-next" id="sp-again">Fler gåtor!</button><button class="sp-ghost" id="sp-home">Till spelmenyn</button>';
             wireBack(host);
             host.querySelector("#sp-again").addEventListener("click", startEmoji);
@@ -551,33 +595,38 @@
             return;
           }
           var c = cards[i];
+          var tp = turns ? ps[i % ps.length] : null;
           host.innerHTML = backBtnRow("Gåta " + (i + 1) + " av " + cards.length) +
+            (tp ? '<div class="sp-turn">🎲 <b>' + esc(tp.name) + "</b> gissar! (" + tp.score + " p)</div>" : "") +
             '<div class="sp-q"><span class="sp-cat">' + (c.kind === "ord" ? "🧩 Gissa ordet" : "🎬 Gissa filmen") + '</span><div class="sp-emoji">' + c.emoji + '</div><div id="sp-hintbox"></div><div id="sp-revbox"><button class="sp-ghost" id="sp-hint">💡 Ledtråd</button><button class="sp-next" id="sp-reveal">Visa svaret</button></div></div>';
           wireBack(host);
           host.querySelector("#sp-hint").addEventListener("click", function () {
             host.querySelector("#sp-hintbox").innerHTML = '<div class="sp-hint-txt">💡 ' + esc(c.hint || "Ingen ledtråd") + "</div>";
           });
           host.querySelector("#sp-reveal").addEventListener("click", function () {
-            host.querySelector("#sp-revbox").innerHTML = '<div class="sp-answer">' + esc(c.answer) + '</div><div class="sp-tally"><button class="yes" id="sp-yes">✅ Vi gissade rätt!</button><button class="no" id="sp-no">Nästa →</button></div>';
-            host.querySelector("#sp-yes").addEventListener("click", function () { hits++; i++; draw(); });
+            host.querySelector("#sp-revbox").innerHTML = '<div class="sp-answer">' + esc(c.answer) + '</div><div class="sp-tally"><button class="yes" id="sp-yes">✅ ' + (tp ? esc(tp.name) + " hade rätt!" : "Vi gissade rätt!") + '</button><button class="no" id="sp-no">Nästa →</button></div>';
+            host.querySelector("#sp-yes").addEventListener("click", function () { if (tp) tp.score++; else hits++; i++; draw(); });
             host.querySelector("#sp-no").addEventListener("click", function () { i++; draw(); });
           });
         }
         draw();
       }
 
-      // — Klassiska gåtor: läs högt, alla gissar, ledtråd vid behov —
+      // — Klassiska gåtor: 2+ spelare → turbaserat m. poäng, annars gemensam räkning —
       function startGator() {
         var pool = (quiz.gator || []);
         if (!pool.length) return;
         var cards = pickFrom(pool, 8, "gator");
         var ord = { latt: 0, mellan: 1, svar: 2 };
         cards.sort(function (a, b) { return (ord[a.level] || 0) - (ord[b.level] || 0); });
+        var ps = roster().map(function (p) { return { name: p.name, score: 0 }; });
+        var turns = ps.length >= 2;
         var i = 0, hits = 0;
         var host = sp();
         function draw() {
           if (i >= cards.length) {
-            host.innerHTML = backBtnRow() + '<div class="card" style="text-align:center"><div class="sp-final">🧩</div><div class="sp-qtext" style="text-align:center">Ni knäckte ' + hits + " av " + cards.length + " gåtor!</div></div>" +
+            host.innerHTML = backBtnRow() +
+              (turns ? scoreboardHTML(ps, "🧩") : '<div class="card" style="text-align:center"><div class="sp-final">🧩</div><div class="sp-qtext" style="text-align:center">Ni knäckte ' + hits + " av " + cards.length + " gåtor!</div></div>") +
               '<button class="sp-next" id="sp-again">Fler gåtor!</button><button class="sp-ghost" id="sp-home">Till spelmenyn</button>';
             wireBack(host);
             host.querySelector("#sp-again").addEventListener("click", startGator);
@@ -585,15 +634,17 @@
             return;
           }
           var c = cards[i];
+          var tp = turns ? ps[i % ps.length] : null;
           host.innerHTML = backBtnRow("Gåta " + (i + 1) + " av " + cards.length) +
+            (tp ? '<div class="sp-turn">🎲 <b>' + esc(tp.name) + "</b> gissar först! (" + tp.score + " p)</div>" : "") +
             '<div class="sp-q"><span class="sp-cat">' + (LVL_SHORT[c.level] || "🧩") + ' Gåta</span><div class="sp-qtext">' + esc(c.q) + '</div><div id="sp-hintbox"></div><div id="sp-revbox"><button class="sp-ghost" id="sp-hint">💡 Ledtråd</button><button class="sp-next" id="sp-reveal">Visa svaret</button></div></div>';
           wireBack(host);
           host.querySelector("#sp-hint").addEventListener("click", function () {
             host.querySelector("#sp-hintbox").innerHTML = '<div class="sp-hint-txt">💡 ' + esc(c.hint || "Ingen ledtråd — kämpa på!") + "</div>";
           });
           host.querySelector("#sp-reveal").addEventListener("click", function () {
-            host.querySelector("#sp-revbox").innerHTML = '<div class="sp-answer">' + esc(c.answer) + '</div><div class="sp-tally"><button class="yes" id="sp-yes">✅ Vi klarade den!</button><button class="no" id="sp-no">Nästa →</button></div>';
-            host.querySelector("#sp-yes").addEventListener("click", function () { hits++; i++; draw(); });
+            host.querySelector("#sp-revbox").innerHTML = '<div class="sp-answer">' + esc(c.answer) + '</div><div class="sp-tally"><button class="yes" id="sp-yes">✅ ' + (tp ? esc(tp.name) + " klarade den!" : "Vi klarade den!") + '</button><button class="no" id="sp-no">Nästa →</button></div>';
+            host.querySelector("#sp-yes").addEventListener("click", function () { if (tp) tp.score++; else hits++; i++; draw(); });
             host.querySelector("#sp-no").addEventListener("click", function () { i++; draw(); });
           });
         }
@@ -617,7 +668,10 @@
             return;
           }
           var c = cards[i];
+          var ps = roster();
+          var tp = ps.length >= 2 ? ps[i % ps.length] : null;
           host.innerHTML = backBtnRow("Kort " + (i + 1) + " av " + cards.length) +
+            (tp ? '<div class="sp-turn">🎴 <b>' + esc(tp.name) + "</b> " + (key === "hellre" ? "svarar först!" : "läser kortet!") + "</div>" : "") +
             '<div class="sp-q" style="text-align:center;padding:30px 18px"><span class="sp-cat">' + icon + " " + esc(title) + '</span><div class="sp-qtext" style="font-size:22px">' + esc(c.q) + '</div></div>' +
             '<button class="sp-next" id="sp-nxt">Nästa kort →</button>';
           wireBack(host);
@@ -626,17 +680,20 @@
         draw();
       }
 
-      // — Sant eller falskt (blandade nivåer, lättast först) —
+      // — Sant eller falskt: 2+ spelare → var sin tur m. poäng, annars gemensam räkning —
       function startSF() {
         var pool = quiz.questions.filter(function (q) { return q.type === "sf"; });
         if (!pool.length) return;
         var ord = { latt: 0, mellan: 1, svar: 2 };
         var cards = pickFrom(pool, 10, "sf").sort(function (a, b) { return (ord[a.level] || 0) - (ord[b.level] || 0); });
+        var ps = roster().map(function (p) { return { name: p.name, score: 0 }; });
+        var turns = ps.length >= 2;
         var i = 0, score = 0;
         var host = sp();
         function draw() {
           if (i >= cards.length) {
-            host.innerHTML = backBtnRow() + '<div class="card" style="text-align:center"><div class="sp-final">⚖️</div><div class="sp-qtext" style="text-align:center">' + score + " av " + cards.length + " rätt!</div></div>" +
+            host.innerHTML = backBtnRow() +
+              (turns ? scoreboardHTML(ps, "⚖️") : '<div class="card" style="text-align:center"><div class="sp-final">⚖️</div><div class="sp-qtext" style="text-align:center">' + score + " av " + cards.length + " rätt!</div></div>") +
               '<button class="sp-next" id="sp-again">En runda till!</button><button class="sp-ghost" id="sp-home">Till spelmenyn</button>';
             wireBack(host);
             host.querySelector("#sp-again").addEventListener("click", startSF);
@@ -644,7 +701,9 @@
             return;
           }
           var q = cards[i];
-          host.innerHTML = backBtnRow("Påstående " + (i + 1) + " av " + cards.length + " · " + score + " rätt") +
+          var tp = turns ? ps[i % ps.length] : null;
+          host.innerHTML = backBtnRow("Påstående " + (i + 1) + " av " + cards.length + (turns ? "" : " · " + score + " rätt")) +
+            (tp ? '<div class="sp-turn">🎲 <b>' + esc(tp.name) + "</b> svarar! (" + tp.score + " p)</div>" : "") +
             '<div class="sp-q"><span class="sp-cat">' + LVL_SHORT[q.level] + " " + esc(q.cat || "") + '</span><div class="sp-qtext">' + esc(q.q) + '</div><div class="sp-sf"><button data-v="true">✅ SANT</button><button data-v="false">❌ FALSKT</button></div><div id="sp-after"></div></div>';
           wireBack(host);
           var done = false;
@@ -652,7 +711,7 @@
             b.addEventListener("click", function () {
               if (done) return; done = true;
               var right = String(q.answer) === b.dataset.v;
-              if (right) { score++; b.classList.add("hit"); }
+              if (right) { if (tp) tp.score++; else score++; b.classList.add("hit"); }
               else {
                 b.classList.add("miss");
                 host.querySelectorAll(".sp-sf button").forEach(function (x) { if (x.dataset.v === String(q.answer)) x.classList.add("hit"); });
