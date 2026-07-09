@@ -104,6 +104,7 @@
     .sp-timerbar{height:6px;background:var(--panel2);border-radius:999px;overflow:hidden;margin-top:4px}
     .sp-timerbar span{display:block;height:100%;background:var(--accent);border-radius:999px;transition:width 1s linear}
     .sp-topbtns{display:flex;gap:6px}
+    .sp-choosett{font-size:15px;font-weight:700;margin:2px 2px 12px}
     /* 🏆 Ställnings-overlay */
     .sp-lbov{position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:60;display:flex;align-items:center;justify-content:center;padding:20px}
     .sp-lbcard{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:18px;width:100%;max-width:380px}
@@ -745,10 +746,33 @@
         draw();
       }
 
-      // — Klassiska gåtor: 2+ spelare → turbaserat m. poäng, annars gemensam räkning —
-      function startGator() {
-        var pool = (quiz.gator || []);
-        if (!pool.length) return;
+      // Liten val-skärm (svårighetsgrad / kortlek) — samma knappstil som spelmenyn.
+      function chooseScreen(title, options, onPick) {
+        var host = sp();
+        host.innerHTML = backBtnRow() + '<div class="sp-choosett">' + title + "</div>" +
+          options.map(function (o) {
+            return '<button class="sp-mode" data-k="' + o.key + '"><span class="big">' + o.icon + "</span><span>" + o.label + (o.sub ? '<span class="sub">' + o.sub + "</span>" : "") + "</span></button>";
+          }).join("");
+        wireBack(host);
+        host.querySelectorAll(".sp-mode").forEach(function (b) {
+          b.addEventListener("click", function () { onPick(b.dataset.k); });
+        });
+      }
+
+      // — Klassiska gåtor: välj svårighetsgrad först; 2+ spelare → turbaserat m. poäng —
+      function startGator(lvl) {
+        var all = (quiz.gator || []);
+        if (!all.length) return;
+        if (!lvl) {
+          return chooseScreen("🧩 Gåtor — välj svårighetsgrad", [
+            { key: "mix", icon: "🌀", label: "Blandat", sub: "Lättast först — hela familjen" },
+            { key: "latt", icon: "🟢", label: "Lätt", sub: "För de yngsta" },
+            { key: "mellan", icon: "🟡", label: "Mellan", sub: "Klurigare" },
+            { key: "svar", icon: "🔴", label: "Svår", sub: "För de vuxna" },
+          ], startGator);
+        }
+        var pool = lvl === "mix" ? all : all.filter(function (g) { return g.level === lvl; });
+        if (!pool.length) pool = all;
         var cards = pickFrom(pool, 8, "gator");
         var ord = { latt: 0, mellan: 1, svar: 2 };
         cards.sort(function (a, b) { return (ord[a.level] || 0) - (ord[b.level] || 0); });
@@ -767,7 +791,7 @@
               (turns ? festiveBoardHTML(ps, "🧩") : festiveSoloHTML("Ni knäckte " + hits + " av " + cards.length + " gåtor!", "🧩")) +
               '<button class="sp-next" id="sp-again">Fler gåtor!</button><button class="sp-ghost" id="sp-home">Till spelmenyn</button>';
             wire2(host);
-            host.querySelector("#sp-again").addEventListener("click", startGator);
+            host.querySelector("#sp-again").addEventListener("click", function () { startGator(lvl); });
             host.querySelector("#sp-home").addEventListener("click", renderSpelHome);
             return;
           }
@@ -792,10 +816,22 @@
         draw();
       }
 
-      // — Samtalskortlek (Vem i familjen? / Skulle du hellre…?): bara kort, inga poäng —
-      function startDeck(key, icon, title) {
-        var pool = (quiz[key] || []);
-        if (!pool.length) return;
+      // — Samtalskortlek (Vem i familjen? / Skulle du hellre…?): bara kort, inga poäng.
+      // Hellre-leken har vuxenkort (c.adult) → välj publik först: familj / vuxet / blandat.
+      function startDeck(key, icon, title, mode) {
+        var all = (quiz[key] || []);
+        if (!all.length) return;
+        if (key === "hellre" && !mode) {
+          return chooseScreen("🤔 Skulle du hellre… — välj kortlek", [
+            { key: "familj", icon: "👨‍👩‍👧‍👧", label: "Familj", sub: "Barnvänliga dilemman" },
+            { key: "vuxen", icon: "🍷", label: "Vuxet", sub: "För vuxensällskapet — kluriga livsval" },
+            { key: "mix", icon: "🌀", label: "Blandat", sub: "Allt i samma lek" },
+          ], function (m) { startDeck(key, icon, title, m); });
+        }
+        var pool = all;
+        if (key === "hellre" && mode === "familj") pool = all.filter(function (c) { return !c.adult; });
+        if (key === "hellre" && mode === "vuxen") pool = all.filter(function (c) { return c.adult; });
+        if (!pool.length) pool = all;
         var cards = pickFrom(pool, 12, key);
         var i = 0;
         var host = sp();
@@ -805,7 +841,7 @@
             host.innerHTML = backBtnRow("", { undo: true }) + festiveSoloHTML("Slut på korten den här rundan!", icon) +
               '<button class="sp-next" id="sp-again">En runda till!</button><button class="sp-ghost" id="sp-home">Till spelmenyn</button>';
             wireTop(host, { onUndo: undo });
-            host.querySelector("#sp-again").addEventListener("click", function () { startDeck(key, icon, title); });
+            host.querySelector("#sp-again").addEventListener("click", function () { startDeck(key, icon, title, mode); });
             host.querySelector("#sp-home").addEventListener("click", renderSpelHome);
             return;
           }
