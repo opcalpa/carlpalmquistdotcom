@@ -94,6 +94,54 @@
     .cal-ev{display:flex;gap:8px;align-items:baseline;border-top:1px solid var(--line);padding:8px 2px;font-size:14px}
     .cal-ev:first-of-type{border-top:none}
     .cal-ev .tid{color:var(--dim);font-size:12px;flex-shrink:0;font-variant-numeric:tabular-nums}
+    /* 🎲 Spel — stora tryckytor, lekfullt men i pappens mörka identitet */
+    .sp-mode{display:flex;align-items:center;gap:12px;width:100%;background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:16px 14px;margin-bottom:10px;color:var(--txt);font-size:16px;font-weight:600;text-align:left;cursor:pointer}
+    .sp-mode:active{border-color:var(--accent);background:var(--panel2)}
+    .sp-mode .big{font-size:28px;flex-shrink:0}
+    .sp-mode .sub{display:block;font-size:12.5px;color:var(--dim);font-weight:400;margin-top:2px}
+    .sp-top{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:10px}
+    .sp-back{background:transparent;border:1px solid var(--line);color:var(--dim);border-radius:999px;padding:6px 14px;font-size:13px}
+    .sp-prog{font-size:12px;color:var(--dim);font-variant-numeric:tabular-nums}
+    .sp-hand{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:34px 18px;text-align:center}
+    .sp-hand .who{font-size:26px;font-weight:800;margin:8px 0 2px}
+    .sp-hand .lvl{color:var(--dim);font-size:13px}
+    .sp-q{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:18px 16px;margin-bottom:10px}
+    .sp-cat{display:inline-block;font-size:11px;color:var(--dim);border:1px solid var(--line);border-radius:999px;padding:2px 10px;margin-bottom:10px}
+    .sp-qtext{font-size:19px;font-weight:700;line-height:1.35}
+    .sp-emoji{font-size:52px;line-height:1.25;text-align:center;padding:14px 0 6px;letter-spacing:6px}
+    .sp-opt{display:block;width:100%;background:var(--panel2);border:1px solid var(--line);border-radius:12px;color:var(--txt);font-size:16px;font-weight:600;text-align:left;padding:14px;margin-top:8px;cursor:pointer}
+    .sp-opt:disabled{opacity:1}
+    .sp-opt.hit{border-color:var(--ok);background:rgba(55,193,132,.14)}
+    .sp-opt.miss{border-color:var(--hi);background:rgba(224,96,122,.12)}
+    .sp-opt.dim{opacity:.45}
+    .sp-fun{margin-top:12px;font-size:14px;color:var(--dim);border-top:1px solid var(--line);padding-top:10px}
+    .sp-fun strong{color:var(--warn)}
+    .sp-next{width:100%;margin-top:12px;background:var(--accent);border:none;color:#fff;font-size:16px;font-weight:700;border-radius:12px;padding:14px;cursor:pointer}
+    .sp-ghost{width:100%;margin-top:8px;background:transparent;border:1px solid var(--line);color:var(--dim);font-size:14px;font-weight:600;border-radius:12px;padding:12px;cursor:pointer}
+    .sp-score{display:flex;justify-content:space-between;align-items:center;border-top:1px solid var(--line);padding:10px 2px;font-size:16px}
+    .sp-score .pts{font-weight:800;font-variant-numeric:tabular-nums}
+    .sp-score.win{color:var(--warn)}
+    .sp-final{font-size:44px;text-align:center;padding:8px 0}
+    .sp-player{display:flex;align-items:center;gap:8px;border-top:1px solid var(--line);padding:9px 2px;font-size:15px}
+    .sp-player:first-of-type{border-top:none}
+    .sp-player .nm{font-weight:600}
+    .sp-player select{margin-left:auto;background:var(--panel2);border:1px solid var(--line);color:var(--txt);border-radius:8px;padding:6px 8px;font-size:13px}
+    .sp-player .rm{background:transparent;border:none;color:var(--dim);font-size:15px;padding:4px 6px;cursor:pointer}
+    .sp-addrow{display:flex;gap:8px;margin-top:10px}
+    .sp-addrow input{flex:1;background:var(--panel2);border:1px solid var(--line);border-radius:10px;color:var(--txt);padding:11px;font-size:15px}
+    .sp-addrow button{background:var(--panel2);border:1px solid var(--line);color:var(--txt);border-radius:10px;padding:0 16px;font-size:20px}
+    .sp-setrow{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:12px;font-size:14px;color:var(--dim)}
+    .sp-setrow select{background:var(--panel2);border:1px solid var(--line);color:var(--txt);border-radius:8px;padding:7px 9px;font-size:14px}
+    .sp-hint-txt{margin-top:10px;font-size:14px;color:var(--warn);text-align:center}
+    .sp-answer{margin-top:10px;font-size:22px;font-weight:800;text-align:center}
+    .sp-tally{display:flex;gap:10px;margin-top:10px}
+    .sp-tally button{flex:1;border-radius:12px;padding:13px;font-size:15px;font-weight:700;cursor:pointer;border:1px solid var(--line)}
+    .sp-tally .yes{background:rgba(55,193,132,.14);color:var(--ok);border-color:var(--ok)}
+    .sp-tally .no{background:rgba(224,96,122,.10);color:var(--hi);border-color:var(--hi)}
+    .sp-sf{display:flex;gap:10px;margin-top:12px}
+    .sp-sf button{flex:1;border-radius:12px;padding:18px 8px;font-size:17px;font-weight:800;cursor:pointer;background:var(--panel2);border:1px solid var(--line);color:var(--txt)}
+    .sp-sf button.hit{border-color:var(--ok);background:rgba(55,193,132,.14)}
+    .sp-sf button.miss{border-color:var(--hi);background:rgba(224,96,122,.12)}
     /* Gate */
     #gate{max-width:340px;margin:26vh auto 0;padding:0 20px;text-align:center}
     #gate p{color:var(--dim);font-size:14px;margin-bottom:14px}
@@ -121,6 +169,7 @@
       <button data-tab="todo">✅ To Do</button>
       <button data-tab="listor">📋 Listor</button>
       <button data-tab="agera">🎯 Agera</button>
+      <button data-tab="spel">🎲 Spel</button>
     </nav>
 
     <section id="tab-inkorg">
@@ -155,6 +204,10 @@
       <div class="stamp" id="stamp-agera"></div>
       <div class="card"><h2>📅 Idag</h2><div id="acal"><div class="empty">Ingen kalenderdata.</div></div></div>
       <div class="card"><h2>🎯 Att agera på</h2><div id="alist"><div class="empty">Inget i speglingen.</div></div></div>
+    </section>
+
+    <section id="tab-spel" hidden>
+      <div id="spel"><div class="empty">Hämtar frågebanken…</div></div>
     </section>
   </div>
 
@@ -292,13 +345,268 @@
       }
       function renderMirrorTabs() { renderTodo(); renderListor(); renderAgera(); }
 
+      // ---------- 🎲 Spel ----------
+      // Frågebanken pushas från desktop-pappen (data/quiz.json → falt:quiz i KV). Tre lägen:
+      // Frågesport (skicka-mobilen-runt, nivå per spelare), Emoji-gåtor och Sant/Falskt.
+      // Rotation: använda fråge-id:n sparas i localStorage så inget upprepas förrän poolen är slut.
+      var quiz = null;
+      var LVL = { latt: "🟢 Lätt (6–7 år)", mellan: "🟡 Mellan (9 år)", svar: "🔴 Svår (vuxen)" };
+      var LVL_SHORT = { latt: "🟢", mellan: "🟡", svar: "🔴" };
+
+      function loadQuiz(force) {
+        if (quiz && !force) return Promise.resolve();
+        return fetch(API + "?pw=" + encodeURIComponent(pw) + "&kind=quiz")
+          .then(function (r) { if (!r.ok) throw new Error("http " + r.status); return r.json(); })
+          .then(function (j) { quiz = j.quiz; });
+      }
+      function shuffle(a) {
+        var arr = a.slice();
+        for (var i = arr.length - 1; i > 0; i--) { var j = Math.floor(Math.random() * (i + 1)); var t = arr[i]; arr[i] = arr[j]; arr[j] = t; }
+        return arr;
+      }
+      function getUsed(k) { try { return JSON.parse(localStorage.getItem("falt_quiz_used_" + k) || "{}"); } catch (e) { return {}; } }
+      function markUsed(k, ids) { var u = getUsed(k); ids.forEach(function (i) { u[i] = 1; }); localStorage.setItem("falt_quiz_used_" + k, JSON.stringify(u)); }
+      function pickFrom(pool, n, k) {
+        var used = getUsed(k);
+        var fresh = pool.filter(function (q) { return !used[q.id]; });
+        if (fresh.length < n) { localStorage.setItem("falt_quiz_used_" + k, "{}"); fresh = pool; } // poolen slut → börja om
+        var picked = shuffle(fresh).slice(0, Math.min(n, fresh.length));
+        markUsed(k, picked.map(function (q) { return q.id; }));
+        return picked;
+      }
+      function getPlayers() {
+        try { var p = JSON.parse(localStorage.getItem("falt_quiz_players") || "null"); if (Array.isArray(p) && p.length) return p; } catch (e) {}
+        return [{ name: "Mathilde", lvl: "latt" }, { name: "Louisa", lvl: "mellan" }, { name: "Pappa", lvl: "svar" }, { name: "Mamma", lvl: "svar" }];
+      }
+      function savePlayers(p) { localStorage.setItem("falt_quiz_players", JSON.stringify(p)); }
+
+      var spelHost = null;
+      function sp() { if (!spelHost) spelHost = $("spel"); return spelHost; }
+
+      function renderSpelHome() {
+        var host = sp();
+        if (!quiz || !quiz.questions || !quiz.questions.length) {
+          host.innerHTML = '<div class="card"><div class="empty">Ingen frågebank än — öppna pappen på datorn, gå till 🎲 Frågesport och tryck «📲 Pusha till mobilen».</div></div>';
+          return;
+        }
+        var nq = quiz.questions.length, ne = (quiz.emoji || []).length;
+        host.innerHTML =
+          '<button class="sp-mode" data-mode="quiz"><span class="big">🎯</span><span>Frågesport<span class="sub">Skicka mobilen runt — frågor på varje spelares nivå, poäng och vinnare!</span></span></button>' +
+          '<button class="sp-mode" data-mode="emoji"><span class="big">🙈</span><span>Emoji-gåtor<span class="sub">Gissa filmen eller ordet från emojis — perfekt på stranden.</span></span></button>' +
+          '<button class="sp-mode" data-mode="sf"><span class="big">⚖️</span><span>Sant eller falskt<span class="sub">Snabba påståenden — ropa svaret tillsammans!</span></span></button>' +
+          '<div class="stamp">Frågebank: ' + nq + ' frågor + ' + ne + ' gåtor' + (quiz.updatedAt ? " · uppdaterad " + fmtAt(quiz.updatedAt) : "") + ' — fyll på i desktop-pappen.</div>';
+        host.querySelectorAll(".sp-mode").forEach(function (b) {
+          b.addEventListener("click", function () {
+            if (b.dataset.mode === "quiz") renderQuizSetup();
+            else if (b.dataset.mode === "emoji") startEmoji();
+            else startSF();
+          });
+        });
+      }
+      function backBtnRow(prog) {
+        return '<div class="sp-top"><button class="sp-back" id="sp-back">← Spelmeny</button><span class="sp-prog">' + (prog || "") + "</span></div>";
+      }
+      function wireBack(host) { host.querySelector("#sp-back").addEventListener("click", renderSpelHome); }
+
+      // — Frågesport —
+      var qGame = null;
+      function renderQuizSetup() {
+        var host = sp();
+        var players = getPlayers();
+        var per = parseInt(localStorage.getItem("falt_quiz_per") || "5", 10);
+        function draw() {
+          host.innerHTML = backBtnRow() +
+            '<div class="card"><h2>👨‍👩‍👧‍👧 Vilka spelar?</h2>' +
+            players.map(function (p, i) {
+              return '<div class="sp-player"><span class="nm">' + esc(p.name) + '</span><select data-i="' + i + '">' +
+                Object.keys(LVL).map(function (l) { return '<option value="' + l + '"' + (p.lvl === l ? " selected" : "") + ">" + LVL[l] + "</option>"; }).join("") +
+                '</select><button class="rm" data-rm="' + i + '" title="Ta bort">✕</button></div>';
+            }).join("") +
+            '<div class="sp-addrow"><input id="sp-newname" placeholder="Lägg till spelare…" maxlength="20"><button id="sp-add">＋</button></div>' +
+            '<div class="sp-setrow"><span>Frågor per spelare</span><select id="sp-per"><option' + (per === 3 ? " selected" : "") + '>3</option><option' + (per === 5 ? " selected" : "") + '>5</option><option' + (per === 7 ? " selected" : "") + '>7</option></select></div></div>' +
+            '<button class="sp-next" id="sp-start" ' + (players.length ? "" : "disabled") + ">🎯 Starta frågesporten!</button>";
+          wireBack(host);
+          host.querySelectorAll(".sp-player select").forEach(function (s) {
+            s.addEventListener("change", function () { players[+s.dataset.i].lvl = s.value; savePlayers(players); });
+          });
+          host.querySelectorAll(".rm").forEach(function (b) {
+            b.addEventListener("click", function () { players.splice(+b.dataset.rm, 1); savePlayers(players); draw(); });
+          });
+          host.querySelector("#sp-add").addEventListener("click", addP);
+          host.querySelector("#sp-newname").addEventListener("keydown", function (e) { if (e.key === "Enter") addP(); });
+          function addP() {
+            var v = host.querySelector("#sp-newname").value.trim();
+            if (!v) return;
+            players.push({ name: v, lvl: "mellan" }); savePlayers(players); draw();
+          }
+          host.querySelector("#sp-per").addEventListener("change", function (e) { per = parseInt(e.target.value, 10); localStorage.setItem("falt_quiz_per", String(per)); });
+          host.querySelector("#sp-start").addEventListener("click", function () { startQuizGame(players, per); });
+        }
+        draw();
+      }
+      function startQuizGame(players, per) {
+        var qs = quiz.questions;
+        var queues = players.map(function (p) {
+          var pool = qs.filter(function (q) { return q.level === p.lvl; });
+          return pickFrom(pool, per, "q_" + p.lvl);
+        });
+        var seq = [];
+        for (var r = 0; r < per; r++) for (var pi = 0; pi < players.length; pi++) { if (queues[pi][r]) seq.push({ pi: pi, q: queues[pi][r] }); }
+        qGame = { players: players.map(function (p) { return { name: p.name, lvl: p.lvl, score: 0 }; }), seq: seq, i: 0 };
+        renderHandover();
+      }
+      function renderHandover() {
+        var host = sp(), g = qGame;
+        if (g.i >= g.seq.length) return renderQuizEnd();
+        var cur = g.seq[g.i], p = g.players[cur.pi];
+        host.innerHTML = backBtnRow("Fråga " + (g.i + 1) + " av " + g.seq.length) +
+          '<div class="sp-hand"><div style="font-size:40px">📱</div><div class="who">' + esc(p.name) + '</div><div class="lvl">' + LVL[p.lvl] + " · " + p.score + ' poäng</div><button class="sp-next" id="sp-ready" style="margin-top:18px">Jag är redo!</button></div>';
+        wireBack(host);
+        host.querySelector("#sp-ready").addEventListener("click", renderQuestion);
+      }
+      function renderQuestion() {
+        var host = sp(), g = qGame, cur = g.seq[g.i], p = g.players[cur.pi], q = cur.q;
+        var body;
+        if (q.type === "sf") {
+          body = '<div class="sp-sf"><button data-v="true">✅ SANT</button><button data-v="false">❌ FALSKT</button></div>';
+        } else {
+          body = q.options.map(function (o, oi) { return '<button class="sp-opt" data-v="' + oi + '">' + esc(o) + "</button>"; }).join("");
+        }
+        host.innerHTML = backBtnRow(esc(p.name) + " · fråga " + (g.i + 1) + " av " + g.seq.length) +
+          '<div class="sp-q"><span class="sp-cat">' + LVL_SHORT[q.level] + " " + esc(q.cat || "") + '</span><div class="sp-qtext">' + esc(q.q) + "</div>" + body + '<div id="sp-after"></div></div>';
+        wireBack(host);
+        var done = false;
+        function answer(correct, btn, allBtns, rightBtn) {
+          if (done) return; done = true;
+          if (correct) { p.score++; btn.classList.add("hit"); }
+          else { btn.classList.add("miss"); if (rightBtn) rightBtn.classList.add("hit"); }
+          allBtns.forEach(function (b) { b.disabled = true; if (b !== btn && !b.classList.contains("hit")) b.classList.add("dim"); });
+          var after = host.querySelector("#sp-after");
+          after.innerHTML = (correct ? '<div class="sp-fun"><strong>🎉 Rätt!</strong>' : '<div class="sp-fun"><strong>Neeej, nära!</strong>') +
+            (q.fun ? " " + esc(q.fun) : "") + "</div>" +
+            '<button class="sp-next" id="sp-nxt">' + (g.i + 1 < g.seq.length ? "Nästa →" : "Se resultatet 🏆") + "</button>";
+          after.querySelector("#sp-nxt").addEventListener("click", function () {
+            g.i++;
+            var nxt = g.seq[g.i];
+            if (!nxt) return renderQuizEnd();
+            if (nxt.pi !== cur.pi) renderHandover(); else renderQuestion();
+          });
+        }
+        if (q.type === "sf") {
+          var sfB = host.querySelectorAll(".sp-sf button");
+          sfB.forEach(function (b) {
+            b.addEventListener("click", function () {
+              var right = String(q.answer) === b.dataset.v;
+              var rightBtn = null;
+              sfB.forEach(function (x) { if (x.dataset.v === String(q.answer)) rightBtn = x; });
+              answer(right, b, Array.prototype.slice.call(sfB), rightBtn);
+            });
+          });
+        } else {
+          var opts = host.querySelectorAll(".sp-opt");
+          opts.forEach(function (b) {
+            b.addEventListener("click", function () {
+              var right = +b.dataset.v === q.answer;
+              answer(right, b, Array.prototype.slice.call(opts), opts[q.answer]);
+            });
+          });
+        }
+      }
+      function renderQuizEnd() {
+        var host = sp(), g = qGame;
+        var sorted = g.players.slice().sort(function (a, b) { return b.score - a.score; });
+        var top = sorted[0] ? sorted[0].score : 0;
+        host.innerHTML = backBtnRow() + '<div class="card"><div class="sp-final">🏆</div>' +
+          sorted.map(function (p) {
+            var win = p.score === top && top > 0;
+            return '<div class="sp-score' + (win ? " win" : "") + '"><span>' + (win ? "👑 " : "") + esc(p.name) + '</span><span class="pts">' + p.score + " p</span></div>";
+          }).join("") + "</div>" +
+          '<button class="sp-next" id="sp-again">🎯 Spela igen (nya frågor)</button>' +
+          '<button class="sp-ghost" id="sp-home">Till spelmenyn</button>';
+        wireBack(host);
+        host.querySelector("#sp-again").addEventListener("click", renderQuizSetup);
+        host.querySelector("#sp-home").addEventListener("click", renderSpelHome);
+      }
+
+      // — Emoji-gåtor —
+      function startEmoji() {
+        var pool = (quiz.emoji || []);
+        if (!pool.length) return;
+        var cards = pickFrom(pool, 10, "emoji");
+        var i = 0, hits = 0;
+        var host = sp();
+        function draw() {
+          if (i >= cards.length) {
+            host.innerHTML = backBtnRow() + '<div class="card" style="text-align:center"><div class="sp-final">🙈</div><div class="sp-qtext" style="text-align:center">Ni klarade ' + hits + " av " + cards.length + "!</div></div>" +
+              '<button class="sp-next" id="sp-again">Fler gåtor!</button><button class="sp-ghost" id="sp-home">Till spelmenyn</button>';
+            wireBack(host);
+            host.querySelector("#sp-again").addEventListener("click", startEmoji);
+            host.querySelector("#sp-home").addEventListener("click", renderSpelHome);
+            return;
+          }
+          var c = cards[i];
+          host.innerHTML = backBtnRow("Gåta " + (i + 1) + " av " + cards.length) +
+            '<div class="sp-q"><span class="sp-cat">' + (c.kind === "ord" ? "🧩 Gissa ordet" : "🎬 Gissa filmen") + '</span><div class="sp-emoji">' + c.emoji + '</div><div id="sp-hintbox"></div><div id="sp-revbox"><button class="sp-ghost" id="sp-hint">💡 Ledtråd</button><button class="sp-next" id="sp-reveal">Visa svaret</button></div></div>';
+          wireBack(host);
+          host.querySelector("#sp-hint").addEventListener("click", function () {
+            host.querySelector("#sp-hintbox").innerHTML = '<div class="sp-hint-txt">💡 ' + esc(c.hint || "Ingen ledtråd") + "</div>";
+          });
+          host.querySelector("#sp-reveal").addEventListener("click", function () {
+            host.querySelector("#sp-revbox").innerHTML = '<div class="sp-answer">' + esc(c.answer) + '</div><div class="sp-tally"><button class="yes" id="sp-yes">✅ Vi gissade rätt!</button><button class="no" id="sp-no">Nästa →</button></div>';
+            host.querySelector("#sp-yes").addEventListener("click", function () { hits++; i++; draw(); });
+            host.querySelector("#sp-no").addEventListener("click", function () { i++; draw(); });
+          });
+        }
+        draw();
+      }
+
+      // — Sant eller falskt (blandade nivåer, lättast först) —
+      function startSF() {
+        var pool = quiz.questions.filter(function (q) { return q.type === "sf"; });
+        if (!pool.length) return;
+        var ord = { latt: 0, mellan: 1, svar: 2 };
+        var cards = pickFrom(pool, 10, "sf").sort(function (a, b) { return (ord[a.level] || 0) - (ord[b.level] || 0); });
+        var i = 0, score = 0;
+        var host = sp();
+        function draw() {
+          if (i >= cards.length) {
+            host.innerHTML = backBtnRow() + '<div class="card" style="text-align:center"><div class="sp-final">⚖️</div><div class="sp-qtext" style="text-align:center">' + score + " av " + cards.length + " rätt!</div></div>" +
+              '<button class="sp-next" id="sp-again">En runda till!</button><button class="sp-ghost" id="sp-home">Till spelmenyn</button>';
+            wireBack(host);
+            host.querySelector("#sp-again").addEventListener("click", startSF);
+            host.querySelector("#sp-home").addEventListener("click", renderSpelHome);
+            return;
+          }
+          var q = cards[i];
+          host.innerHTML = backBtnRow("Påstående " + (i + 1) + " av " + cards.length + " · " + score + " rätt") +
+            '<div class="sp-q"><span class="sp-cat">' + LVL_SHORT[q.level] + " " + esc(q.cat || "") + '</span><div class="sp-qtext">' + esc(q.q) + '</div><div class="sp-sf"><button data-v="true">✅ SANT</button><button data-v="false">❌ FALSKT</button></div><div id="sp-after"></div></div>';
+          wireBack(host);
+          var done = false;
+          host.querySelectorAll(".sp-sf button").forEach(function (b) {
+            b.addEventListener("click", function () {
+              if (done) return; done = true;
+              var right = String(q.answer) === b.dataset.v;
+              if (right) { score++; b.classList.add("hit"); }
+              else {
+                b.classList.add("miss");
+                host.querySelectorAll(".sp-sf button").forEach(function (x) { if (x.dataset.v === String(q.answer)) x.classList.add("hit"); });
+              }
+              host.querySelector("#sp-after").innerHTML = '<div class="sp-fun"><strong>' + (right ? "🎉 Rätt!" : "Neeej!") + "</strong>" + (q.fun ? " " + esc(q.fun) : "") + '</div><button class="sp-next" id="sp-nxt">Nästa →</button>';
+              host.querySelector("#sp-nxt").addEventListener("click", function () { i++; draw(); });
+            });
+          });
+        }
+        draw();
+      }
+
       // ---------- Flikar ----------
       var curTab = "inkorg";
       function showTab(name) {
         curTab = name;
-        ["inkorg", "todo", "listor", "agera"].forEach(function (t) { $("tab-" + t).hidden = t !== name; });
+        ["inkorg", "todo", "listor", "agera", "spel"].forEach(function (t) { $("tab-" + t).hidden = t !== name; });
         document.querySelectorAll(".tabbar button").forEach(function (b) { b.classList.toggle("on", b.dataset.tab === name); });
-        if (name !== "inkorg") loadMirror().then(renderMirrorTabs).catch(function () {});
+        if (name === "spel") loadQuiz().then(renderSpelHome).catch(function () { sp().innerHTML = '<div class="card"><div class="empty">Kunde inte hämta frågebanken (offline?).</div></div>'; });
+        else if (name !== "inkorg") loadMirror().then(renderMirrorTabs).catch(function () {});
       }
       document.querySelectorAll(".tabbar button").forEach(function (b) {
         b.addEventListener("click", function () { showTab(b.dataset.tab); });
@@ -314,6 +622,7 @@
       function refreshAll() {
         hydrate().catch(function () {});
         loadMirror(true).then(renderMirrorTabs).catch(function () {});
+        loadQuiz(true).then(function () { if (curTab === "spel") renderSpelHome(); }).catch(function () {});
       }
 
       async function save() {

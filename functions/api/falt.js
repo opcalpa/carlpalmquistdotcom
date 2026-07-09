@@ -5,6 +5,8 @@
 //   GET  /api/falt?pw=&kind=state             -> { inbox, feed }        (PWA:ns inkorgs-vy)
 //   GET  /api/falt?pw=&kind=pull              -> { items }              (pappen hämtar kön)
 //   GET  /api/falt?pw=&kind=mirror            -> { mirror }             (läs-spegel: To Do/Listor/Agera-snapshot)
+//   GET  /api/falt?pw=&kind=quiz              -> { quiz }               (frågebank för 🎲 Spel-fliken)
+//   POST /api/falt?kind=quiz  {pw,quiz}       -> { ok, bytes }          (pappen pushar frågebanken)
 //   POST /api/falt?kind=note  {pw,text}       -> { ok, item }           (mobilen antecknar; IP-rate-limitad)
 //   POST /api/falt?kind=ack   {pw,ids}        -> { ok, left }           (pappen kvitterar hämtat)
 //   POST /api/falt?kind=push  {pw,title,md}   -> { ok, feed }           (pappen pushar läsunderlag)
@@ -28,8 +30,9 @@ async function kvPut(env, key, value, ttl) {
 const clientIp = (req) => req.headers.get("cf-connecting-ip") || (req.headers.get("x-forwarded-for") || "").split(",")[0].trim() || "local";
 const readJson = async (env, k, def) => { try { const v = await kvGet(env, k); return v == null ? def : JSON.parse(v); } catch { return def; } };
 
-const K_IN = "falt:inbox", K_FEED = "falt:feed", K_PW = "falt:pw", K_MIR = "falt:mirror";
+const K_IN = "falt:inbox", K_FEED = "falt:feed", K_PW = "falt:pw", K_MIR = "falt:mirror", K_QUIZ = "falt:quiz";
 const MIR_MAX = 4_000_000;   // spegel-snapshot (To Do/Listor/Agera) — rejält tilltaget, KV tål 25 MB
+const QUIZ_MAX = 1_000_000;  // frågebanken (🎲 Spel-fliken) — text-JSON, 1 MB räcker långt
 const IN_CAP = 200, FEED_CAP = 20, TEXT_MAX = 20000, TITLE_MAX = 120, MD_MAX = 60000;
 const RL_MAX = 60, RL_WINDOW = 600;              // max 60 anteckningar per IP / 10 min
 const rlKey = (ip) => `falt:rl:${ip}`;
@@ -69,6 +72,7 @@ export async function onRequestGet(context) {
     const kind = u.searchParams.get("kind") || "state";
     if (kind === "pull") return Response.json({ items: await readJson(env, K_IN, []) });
     if (kind === "mirror") return Response.json({ mirror: await readJson(env, K_MIR, null) });
+    if (kind === "quiz") return Response.json({ quiz: await readJson(env, K_QUIZ, null) });
     const [inbox, feed] = await Promise.all([readJson(env, K_IN, []), readJson(env, K_FEED, [])]);
     return Response.json({ inbox, feed });
   } catch (e) { return Response.json({ error: String(e).slice(0, 200) }, { status: 500 }); }
@@ -122,6 +126,13 @@ export async function onRequestPost(context) {
       const raw = JSON.stringify(body.mirror);
       if (raw.length > MIR_MAX) return Response.json({ error: "too_big" }, { status: 413 });
       await kvPut(env, K_MIR, raw);
+      return Response.json({ ok: true, bytes: raw.length });
+    }
+    if (kind === "quiz") {
+      if (!body.quiz || typeof body.quiz !== "object") return Response.json({ error: "no_quiz" }, { status: 400 });
+      const raw = JSON.stringify(body.quiz);
+      if (raw.length > QUIZ_MAX) return Response.json({ error: "too_big" }, { status: 413 });
+      await kvPut(env, K_QUIZ, raw);
       return Response.json({ ok: true, bytes: raw.length });
     }
     return Response.json({ error: "bad kind" }, { status: 400 });
