@@ -704,10 +704,27 @@
         host.querySelector("#sp-home").addEventListener("click", renderSpelHome);
       }
 
-      // — Emoji-gåtor: 2+ spelare → turbaserat m. poäng per spelare, annars gemensam räkning —
-      function startEmoji() {
-        var pool = (quiz.emoji || []);
-        if (!pool.length) return;
+      // — Emoji-gåtor: välj kategori först (filmer/ord/blandat) + egen valfri ⏱ (oberoende av quiz-timern).
+      // 2+ spelare → turbaserat m. poäng per spelare, annars gemensam räkning.
+      function emojiTimerSec() { return parseInt(localStorage.getItem("falt_timer_emoji") || "0", 10) || 0; }
+      function startEmoji(kind) {
+        var all = (quiz.emoji || []);
+        if (!all.length) return;
+        if (!kind) {
+          var nf = all.filter(function (c) { return c.kind !== "ord"; }).length;
+          return chooseScreen("🙈 Emoji-gåtor — vad vill ni gissa?", [
+            { key: "film", icon: "🎬", label: "Filmer", sub: "Gissa filmen från emojis (" + nf + " st)" },
+            { key: "ord", icon: "🧩", label: "Sammansatta ord", sub: "Emojis ihop = ett ord (" + (all.length - nf) + " st)" },
+            { key: "mix", icon: "🌀", label: "Blandat", sub: "Både filmer och ord" },
+          ], startEmoji, {
+            html: '<div class="card" style="padding:12px 14px"><div class="sp-setrow" style="margin-top:0"><span>⏱ Tid per gåta (valfritt)</span><select id="sp-etimer">' +
+              [0, 10, 20, 30].map(function (s) { return '<option value="' + s + '"' + (emojiTimerSec() === s ? " selected" : "") + ">" + (s ? s + " sek" : "Av") + "</option>"; }).join("") +
+              "</select></div></div>",
+            wire: function (h2) { h2.querySelector("#sp-etimer").addEventListener("change", function (e) { localStorage.setItem("falt_timer_emoji", e.target.value); }); },
+          });
+        }
+        var pool = kind === "mix" ? all : all.filter(function (c) { return kind === "ord" ? c.kind === "ord" : c.kind !== "ord"; });
+        if (!pool.length) pool = all;
         var cards = pickFrom(pool, 10, "emoji");
         var ps = roster().map(function (p) { return { name: p.name, score: 0 }; });
         var turns = ps.length >= 2;
@@ -724,7 +741,7 @@
               (turns ? festiveBoardHTML(ps, "🙈") : festiveSoloHTML("Ni klarade " + hits + " av " + cards.length + "!", "🙈")) +
               '<button class="sp-next" id="sp-again">Fler gåtor!</button><button class="sp-ghost" id="sp-home">Till spelmenyn</button>';
             wire2(host);
-            host.querySelector("#sp-again").addEventListener("click", startEmoji);
+            host.querySelector("#sp-again").addEventListener("click", function () { startEmoji(kind); });
             host.querySelector("#sp-home").addEventListener("click", renderSpelHome);
             return;
           }
@@ -744,23 +761,25 @@
             host.querySelector("#sp-yes").addEventListener("click", function () { if (tp) tp.score++; else hits++; advance(); });
             host.querySelector("#sp-no").addEventListener("click", advance);
           });
-          // Tiden ute → visa svaret automatiskt (gissningen fick sin chans).
-          var t = spTimer(host, timerSec(), function () { var rb = host.querySelector("#sp-reveal"); if (rb) rb.click(); });
+          // Tiden ute → visa svaret automatiskt (gissningen fick sin chans). Egen emoji-⏱, ej quiz-timern.
+          var t = spTimer(host, emojiTimerSec(), function () { var rb = host.querySelector("#sp-reveal"); if (rb) rb.click(); });
         }
         draw();
       }
 
-      // Liten val-skärm (svårighetsgrad / kortlek) — samma knappstil som spelmenyn.
-      function chooseScreen(title, options, onPick) {
+      // Liten val-skärm (kategori / svårighetsgrad / kortlek) — samma knappstil som spelmenyn.
+      // extra = { html, wire } lägger valfria inställningar (t.ex. ⏱) under alternativen.
+      function chooseScreen(title, options, onPick, extra) {
         var host = sp();
         host.innerHTML = backBtnRow() + '<div class="sp-choosett">' + title + "</div>" +
           options.map(function (o) {
             return '<button class="sp-mode" data-k="' + o.key + '"><span class="big">' + o.icon + "</span><span>" + o.label + (o.sub ? '<span class="sub">' + o.sub + "</span>" : "") + "</span></button>";
-          }).join("");
+          }).join("") + ((extra && extra.html) || "");
         wireBack(host);
         host.querySelectorAll(".sp-mode").forEach(function (b) {
           b.addEventListener("click", function () { onPick(b.dataset.k); });
         });
+        if (extra && extra.wire) extra.wire(host);
       }
 
       // — Klassiska gåtor: välj svårighetsgrad först; 2+ spelare → turbaserat m. poäng —
