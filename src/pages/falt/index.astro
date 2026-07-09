@@ -98,6 +98,11 @@
     .sp-roster{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:11px 14px;font-size:14px;margin-bottom:10px}
     .sp-roster span{color:var(--dim)}
     .sp-turn{text-align:center;font-size:15px;color:var(--warn);margin-bottom:10px}
+    #sp-timer{min-height:0;margin-bottom:8px}
+    .sp-timernum{text-align:center;font-size:24px;font-weight:800;font-variant-numeric:tabular-nums}
+    .sp-timernum.low{color:var(--hi)}
+    .sp-timerbar{height:6px;background:var(--panel2);border-radius:999px;overflow:hidden;margin-top:4px}
+    .sp-timerbar span{display:block;height:100%;background:var(--accent);border-radius:999px;transition:width 1s linear}
     .sp-player .sp-on{width:18px;height:18px;accent-color:var(--accent);flex-shrink:0}
     .sp-mode{display:flex;align-items:center;gap:12px;width:100%;background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:16px 14px;margin-bottom:10px;color:var(--txt);font-size:16px;font-weight:600;text-align:left;cursor:pointer}
     .sp-mode:active{border-color:var(--accent);background:var(--panel2)}
@@ -401,6 +406,9 @@
                 '</select><button class="rm" data-rm="' + i + '" title="Ta bort">✕</button></div>';
             }).join("") +
             '<div class="sp-addrow"><input id="sp-newname" placeholder="Lägg till spelare…" maxlength="20"><button id="sp-add">＋</button></div>' +
+            '<div class="sp-setrow"><span>⏱ Tidtagare per fråga</span><select id="sp-timersel">' +
+              [0, 10, 20, 30].map(function (s) { return '<option value="' + s + '"' + (timerSec() === s ? " selected" : "") + ">" + (s ? s + " sek" : "Av") + "</option>"; }).join("") +
+            "</select></div>" +
             (opts.extraHTML || "") + "</div>" +
             '<button class="sp-next" id="sp-cta">' + opts.cta + "</button>";
           wireBack(host);
@@ -420,10 +428,32 @@
           }
           host.querySelector("#sp-add").addEventListener("click", addP);
           host.querySelector("#sp-newname").addEventListener("keydown", function (e) { if (e.key === "Enter") addP(); });
+          host.querySelector("#sp-timersel").addEventListener("change", function (e) { localStorage.setItem("falt_quiz_timer", e.target.value); });
           if (opts.wireExtra) opts.wireExtra(host);
           host.querySelector("#sp-cta").addEventListener("click", function () { opts.onCta(players); });
         }
         draw();
+      }
+      // ⏱ Global tidtagare (0 = av). Nedräkning + bar i #sp-timer; självdör om elementet
+      // försvinner ur DOM (navigering) så gamla intervaller aldrig spökar.
+      function timerSec() { return parseInt(localStorage.getItem("falt_quiz_timer") || "0", 10) || 0; }
+      var _spTick = null;
+      function spTimer(host, sec, onOut) {
+        clearInterval(_spTick);
+        var box = host.querySelector("#sp-timer");
+        if (!box || !sec) return { stop: function () {} };
+        var left = sec;
+        function paint() {
+          box.innerHTML = '<div class="sp-timernum' + (left <= 5 ? " low" : "") + '">' + left + '</div><div class="sp-timerbar"><span style="width:' + Math.round(left / sec * 100) + '%"></span></div>';
+        }
+        paint();
+        _spTick = setInterval(function () {
+          if (!document.contains(box)) { clearInterval(_spTick); return; }
+          left--;
+          if (left <= 0) { clearInterval(_spTick); box.innerHTML = '<div class="sp-timernum low">⏰</div>'; onOut(); return; }
+          paint();
+        }, 1000);
+        return { stop: function () { clearInterval(_spTick); if (document.contains(box)) box.innerHTML = ""; } };
       }
       function scoreboardHTML(players, icon) {
         var sorted = players.slice().sort(function (a, b) { return b.score - a.score; });
@@ -520,16 +550,19 @@
           body = q.options.map(function (o, oi) { return '<button class="sp-opt" data-v="' + oi + '">' + esc(o) + "</button>"; }).join("");
         }
         host.innerHTML = backBtnRow(esc(p.name) + " · fråga " + (g.i + 1) + " av " + g.seq.length) +
+          '<div id="sp-timer"></div>' +
           '<div class="sp-q"><span class="sp-cat">' + LVL_SHORT[q.level] + " " + esc(q.cat || "") + '</span><div class="sp-qtext">' + esc(q.q) + "</div>" + body + '<div id="sp-after"></div></div>';
         wireBack(host);
-        var done = false;
+        var done = false, t = null;
+        // btn=null → tiden gick ut (räknas som fel, rätta svaret visas).
         function answer(correct, btn, allBtns, rightBtn) {
           if (done) return; done = true;
-          if (correct) { p.score++; btn.classList.add("hit"); }
-          else { btn.classList.add("miss"); if (rightBtn) rightBtn.classList.add("hit"); }
+          if (t) t.stop();
+          if (correct) { p.score++; if (btn) btn.classList.add("hit"); }
+          else { if (btn) btn.classList.add("miss"); if (rightBtn) rightBtn.classList.add("hit"); }
           allBtns.forEach(function (b) { b.disabled = true; if (b !== btn && !b.classList.contains("hit")) b.classList.add("dim"); });
           var after = host.querySelector("#sp-after");
-          after.innerHTML = (correct ? '<div class="sp-fun"><strong>🎉 Rätt!</strong>' : '<div class="sp-fun"><strong>Neeej, nära!</strong>') +
+          after.innerHTML = '<div class="sp-fun"><strong>' + (correct ? "🎉 Rätt!" : (btn ? "Neeej, nära!" : "⏰ Tiden ute!")) + "</strong>" +
             (q.fun ? " " + esc(q.fun) : "") + "</div>" +
             '<button class="sp-next" id="sp-nxt">' + (g.i + 1 < g.seq.length ? "Nästa →" : "Se resultatet 🏆") + "</button>";
           after.querySelector("#sp-nxt").addEventListener("click", function () {
@@ -558,6 +591,17 @@
             });
           });
         }
+        t = spTimer(host, timerSec(), function () {
+          var all, rightBtn = null;
+          if (q.type === "sf") {
+            all = Array.prototype.slice.call(host.querySelectorAll(".sp-sf button"));
+            all.forEach(function (x) { if (x.dataset.v === String(q.answer)) rightBtn = x; });
+          } else {
+            all = Array.prototype.slice.call(host.querySelectorAll(".sp-opt"));
+            rightBtn = all[q.answer];
+          }
+          answer(false, null, all, rightBtn);
+        });
       }
       function renderQuizEnd() {
         var host = sp(), g = qGame;
@@ -598,16 +642,20 @@
           var tp = turns ? ps[i % ps.length] : null;
           host.innerHTML = backBtnRow("Gåta " + (i + 1) + " av " + cards.length) +
             (tp ? '<div class="sp-turn">🎲 <b>' + esc(tp.name) + "</b> gissar! (" + tp.score + " p)</div>" : "") +
+            '<div id="sp-timer"></div>' +
             '<div class="sp-q"><span class="sp-cat">' + (c.kind === "ord" ? "🧩 Gissa ordet" : "🎬 Gissa filmen") + '</span><div class="sp-emoji">' + c.emoji + '</div><div id="sp-hintbox"></div><div id="sp-revbox"><button class="sp-ghost" id="sp-hint">💡 Ledtråd</button><button class="sp-next" id="sp-reveal">Visa svaret</button></div></div>';
           wireBack(host);
           host.querySelector("#sp-hint").addEventListener("click", function () {
             host.querySelector("#sp-hintbox").innerHTML = '<div class="sp-hint-txt">💡 ' + esc(c.hint || "Ingen ledtråd") + "</div>";
           });
           host.querySelector("#sp-reveal").addEventListener("click", function () {
+            if (t) t.stop();
             host.querySelector("#sp-revbox").innerHTML = '<div class="sp-answer">' + esc(c.answer) + '</div><div class="sp-tally"><button class="yes" id="sp-yes">✅ ' + (tp ? esc(tp.name) + " hade rätt!" : "Vi gissade rätt!") + '</button><button class="no" id="sp-no">Nästa →</button></div>';
             host.querySelector("#sp-yes").addEventListener("click", function () { if (tp) tp.score++; else hits++; i++; draw(); });
             host.querySelector("#sp-no").addEventListener("click", function () { i++; draw(); });
           });
+          // Tiden ute → visa svaret automatiskt (gissningen fick sin chans).
+          var t = spTimer(host, timerSec(), function () { var rb = host.querySelector("#sp-reveal"); if (rb) rb.click(); });
         }
         draw();
       }
@@ -637,16 +685,19 @@
           var tp = turns ? ps[i % ps.length] : null;
           host.innerHTML = backBtnRow("Gåta " + (i + 1) + " av " + cards.length) +
             (tp ? '<div class="sp-turn">🎲 <b>' + esc(tp.name) + "</b> gissar först! (" + tp.score + " p)</div>" : "") +
+            '<div id="sp-timer"></div>' +
             '<div class="sp-q"><span class="sp-cat">' + (LVL_SHORT[c.level] || "🧩") + ' Gåta</span><div class="sp-qtext">' + esc(c.q) + '</div><div id="sp-hintbox"></div><div id="sp-revbox"><button class="sp-ghost" id="sp-hint">💡 Ledtråd</button><button class="sp-next" id="sp-reveal">Visa svaret</button></div></div>';
           wireBack(host);
           host.querySelector("#sp-hint").addEventListener("click", function () {
             host.querySelector("#sp-hintbox").innerHTML = '<div class="sp-hint-txt">💡 ' + esc(c.hint || "Ingen ledtråd — kämpa på!") + "</div>";
           });
           host.querySelector("#sp-reveal").addEventListener("click", function () {
+            if (t) t.stop();
             host.querySelector("#sp-revbox").innerHTML = '<div class="sp-answer">' + esc(c.answer) + '</div><div class="sp-tally"><button class="yes" id="sp-yes">✅ ' + (tp ? esc(tp.name) + " klarade den!" : "Vi klarade den!") + '</button><button class="no" id="sp-no">Nästa →</button></div>';
             host.querySelector("#sp-yes").addEventListener("click", function () { if (tp) tp.score++; else hits++; i++; draw(); });
             host.querySelector("#sp-no").addEventListener("click", function () { i++; draw(); });
           });
+          var t = spTimer(host, timerSec(), function () { var rb = host.querySelector("#sp-reveal"); if (rb) rb.click(); });
         }
         draw();
       }
@@ -704,22 +755,26 @@
           var tp = turns ? ps[i % ps.length] : null;
           host.innerHTML = backBtnRow("Påstående " + (i + 1) + " av " + cards.length + (turns ? "" : " · " + score + " rätt")) +
             (tp ? '<div class="sp-turn">🎲 <b>' + esc(tp.name) + "</b> svarar! (" + tp.score + " p)</div>" : "") +
+            '<div id="sp-timer"></div>' +
             '<div class="sp-q"><span class="sp-cat">' + LVL_SHORT[q.level] + " " + esc(q.cat || "") + '</span><div class="sp-qtext">' + esc(q.q) + '</div><div class="sp-sf"><button data-v="true">✅ SANT</button><button data-v="false">❌ FALSKT</button></div><div id="sp-after"></div></div>';
           wireBack(host);
-          var done = false;
+          var done = false, t = null;
+          // b=null → tiden ute (fel, rätta svaret markeras).
+          function finish(right, b) {
+            if (done) return; done = true;
+            if (t) t.stop();
+            if (right) { if (tp) tp.score++; else score++; if (b) b.classList.add("hit"); }
+            else {
+              if (b) b.classList.add("miss");
+              host.querySelectorAll(".sp-sf button").forEach(function (x) { x.disabled = true; if (x.dataset.v === String(q.answer)) x.classList.add("hit"); });
+            }
+            host.querySelector("#sp-after").innerHTML = '<div class="sp-fun"><strong>' + (right ? "🎉 Rätt!" : (b ? "Neeej!" : "⏰ Tiden ute!")) + "</strong>" + (q.fun ? " " + esc(q.fun) : "") + '</div><button class="sp-next" id="sp-nxt">Nästa →</button>';
+            host.querySelector("#sp-nxt").addEventListener("click", function () { i++; draw(); });
+          }
           host.querySelectorAll(".sp-sf button").forEach(function (b) {
-            b.addEventListener("click", function () {
-              if (done) return; done = true;
-              var right = String(q.answer) === b.dataset.v;
-              if (right) { if (tp) tp.score++; else score++; b.classList.add("hit"); }
-              else {
-                b.classList.add("miss");
-                host.querySelectorAll(".sp-sf button").forEach(function (x) { if (x.dataset.v === String(q.answer)) x.classList.add("hit"); });
-              }
-              host.querySelector("#sp-after").innerHTML = '<div class="sp-fun"><strong>' + (right ? "🎉 Rätt!" : "Neeej!") + "</strong>" + (q.fun ? " " + esc(q.fun) : "") + '</div><button class="sp-next" id="sp-nxt">Nästa →</button>';
-              host.querySelector("#sp-nxt").addEventListener("click", function () { i++; draw(); });
-            });
+            b.addEventListener("click", function () { finish(String(q.answer) === b.dataset.v, b); });
           });
+          t = spTimer(host, timerSec(), function () { finish(false, null); });
         }
         draw();
       }
