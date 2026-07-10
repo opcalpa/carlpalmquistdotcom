@@ -105,6 +105,15 @@
     .sp-timerbar span{display:block;height:100%;background:var(--accent);border-radius:999px;transition:width 1s linear}
     .sp-topbtns{display:flex;gap:6px}
     .sp-choosett{font-size:15px;font-weight:700;margin:2px 2px 12px}
+    /* 🎲 Tärningsresan */
+    .tq-board{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:10px;margin-bottom:10px}
+    .tq-startgoal{display:flex;justify-content:space-between;font-size:11px;color:var(--dim);margin-bottom:6px}
+    .tq-row{display:flex;gap:4px;margin-bottom:4px}
+    .tq-cell{flex:1;aspect-ratio:1;border:1px solid;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:17px;min-width:0;overflow:hidden;transition:background .2s}
+    .tq-cell.has-p{font-size:19px;box-shadow:0 0 0 2px rgba(255,255,255,.15) inset}
+    .tq-legend{display:flex;flex-wrap:wrap;gap:3px 12px;font-size:10.5px;margin-top:8px}
+    .sp-av{background:var(--panel2);border:1px solid var(--line);border-radius:8px;font-size:17px;width:34px;height:34px;flex-shrink:0;cursor:pointer;line-height:1}
+    .sp-av:active{border-color:var(--accent)}
     /* 🏆 Ställnings-overlay */
     .sp-lbov{position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:60;display:flex;align-items:center;justify-content:center;padding:20px}
     .sp-lbcard{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:18px;width:100%;max-width:380px}
@@ -403,10 +412,12 @@
         markUsed(k, picked.map(function (q) { return q.id; }));
         return picked;
       }
+      var AVATARS = ["🦊", "🐸", "🦄", "🐯", "🐙", "🦖", "🐼", "🦁", "🐷", "👾", "🤖", "👑"];
       function getPlayers() {
         try { var p = JSON.parse(localStorage.getItem("falt_quiz_players") || "null"); if (Array.isArray(p) && p.length) return p; } catch (e) {}
-        return [{ name: "Mathilde", lvl: "latt" }, { name: "Louisa", lvl: "mellan" }, { name: "Pappa", lvl: "svar" }, { name: "Mamma", lvl: "svar" }];
+        return [{ name: "Mathilde", lvl: "latt", avatar: "🦄" }, { name: "Louisa", lvl: "mellan", avatar: "🦊" }, { name: "Pappa", lvl: "svar", avatar: "🦖" }, { name: "Mamma", lvl: "svar", avatar: "🐼" }];
       }
+      function playerAvatar(p, i) { return p.avatar || AVATARS[i % AVATARS.length]; }
       function savePlayers(p) { localStorage.setItem("falt_quiz_players", JSON.stringify(p)); }
       // Globala spelare: EN lista (namn + nivå + "är med idag") som ALLA spel läser.
       // p.on !== false → med (gamla sparade listor utan on-fält räknas som med).
@@ -421,7 +432,7 @@
           host.innerHTML = backBtnRow() +
             '<div class="card"><h2>👥 Spelare — kryssa i vilka som är med</h2>' +
             players.map(function (p, i) {
-              return '<div class="sp-player"><input type="checkbox" class="sp-on" data-i="' + i + '"' + (p.on !== false ? " checked" : "") + ' title="Är med idag"><span class="nm">' + esc(p.name) + '</span><select data-i="' + i + '">' +
+              return '<div class="sp-player"><input type="checkbox" class="sp-on" data-i="' + i + '"' + (p.on !== false ? " checked" : "") + ' title="Är med idag"><button class="sp-av" data-i="' + i + '" title="Byt avatar (spelpjäs i Tärningsresan)">' + playerAvatar(p, i) + '</button><span class="nm">' + esc(p.name) + '</span><select data-i="' + i + '">' +
                 Object.keys(LVL).map(function (l) { return '<option value="' + l + '"' + (p.lvl === l ? " selected" : "") + ">" + LVL[l] + "</option>"; }).join("") +
                 '</select><button class="rm" data-rm="' + i + '" title="Ta bort">✕</button></div>';
             }).join("") +
@@ -441,10 +452,19 @@
           host.querySelectorAll(".rm").forEach(function (b) {
             b.addEventListener("click", function () { players.splice(+b.dataset.rm, 1); savePlayers(players); draw(); });
           });
+          host.querySelectorAll(".sp-av").forEach(function (b) {
+            b.addEventListener("click", function () {
+              var i = +b.dataset.i;
+              var cur = AVATARS.indexOf(playerAvatar(players[i], i));
+              players[i].avatar = AVATARS[(cur + 1) % AVATARS.length];
+              savePlayers(players);
+              b.textContent = players[i].avatar;
+            });
+          });
           function addP() {
             var v = host.querySelector("#sp-newname").value.trim();
             if (!v) return;
-            players.push({ name: v, lvl: "mellan", on: true }); savePlayers(players); draw();
+            players.push({ name: v, lvl: "mellan", on: true, avatar: AVATARS[players.length % AVATARS.length] }); savePlayers(players); draw();
           }
           host.querySelector("#sp-add").addEventListener("click", addP);
           host.querySelector("#sp-newname").addEventListener("keydown", function (e) { if (e.key === "Enter") addP(); });
@@ -503,6 +523,7 @@
         host.innerHTML =
           '<div class="card sp-roster"><span>👥 ' + (act.length ? act.map(function (p) { return esc(p.name); }).join(" · ") : "Inga spelare valda") + '</span><button class="sp-back" id="sp-players">Ändra</button></div>' +
           '<button class="sp-mode" data-mode="quiz"><span class="big">🎯</span><span>Frågesport<span class="sub">Skicka mobilen runt — frågor på varje spelares nivå, poäng och vinnare!</span></span></button>' +
+          '<button class="sp-mode" data-mode="tq"><span class="big">🎲</span><span>Tärningsresan<span class="sub">Slå tärningen, flytta din spelpjäs över spelplanen och svara i rutans kategori — först i mål vinner!</span></span></button>' +
           '<button class="sp-mode" data-mode="emoji"><span class="big">🙈</span><span>Emoji-gåtor<span class="sub">Gissa filmen eller ordet från emojis — perfekt på stranden.</span></span></button>' +
           (ng ? '<button class="sp-mode" data-mode="gator"><span class="big">🧩</span><span>Gåtor<span class="sub">Klassiska kluringar — läs högt och låt alla gissa!</span></span></button>' : "") +
           '<button class="sp-mode" data-mode="sf"><span class="big">⚖️</span><span>Sant eller falskt<span class="sub">Snabba påståenden — ropa svaret tillsammans!</span></span></button>' +
@@ -515,6 +536,7 @@
         host.querySelectorAll(".sp-mode").forEach(function (b) {
           b.addEventListener("click", function () {
             if (b.dataset.mode === "quiz") renderQuizSetup();
+            else if (b.dataset.mode === "tq") startTq();
             else if (b.dataset.mode === "emoji") startEmoji();
             else if (b.dataset.mode === "gator") startGator();
             else if (b.dataset.mode === "vem") startDeck("vem", "👨‍👩‍👧‍👧", "Vem i familjen?");
@@ -637,7 +659,10 @@
         if (q.type === "sf") {
           body = '<div class="sp-sf"><button data-v="true">✅ SANT</button><button data-v="false">❌ FALSKT</button></div>';
         } else {
-          body = q.options.map(function (o, oi) { return '<button class="sp-opt" data-v="' + oi + '">' + esc(o) + "</button>"; }).join("");
+          // Blanda alternativens VISNINGSORDNING (data-v behåller original-index) — annars
+          // lär sig alla att rätt svar oftast ligger först i banken.
+          var order = shuffle(q.options.map(function (_, oi) { return oi; }));
+          body = order.map(function (oi) { return '<button class="sp-opt" data-v="' + oi + '">' + esc(q.options[oi]) + "</button>"; }).join("");
         }
         host.innerHTML = backBtnRow(esc(p.name) + " · fråga " + (g.i + 1) + " av " + g.seq.length, quizTop()) +
           '<div id="sp-timer"></div>' +
@@ -678,18 +703,18 @@
           opts.forEach(function (b) {
             b.addEventListener("click", function () {
               var right = +b.dataset.v === q.answer;
-              answer(right, b, Array.prototype.slice.call(opts), opts[q.answer]);
+              answer(right, b, Array.prototype.slice.call(opts), host.querySelector('.sp-opt[data-v="' + q.answer + '"]'));
             });
           });
         }
         t = spTimer(host, timerSec(), function () {
-          var all, rightBtn = null;
+          var all, rightBtn;
           if (q.type === "sf") {
             all = Array.prototype.slice.call(host.querySelectorAll(".sp-sf button"));
-            all.forEach(function (x) { if (x.dataset.v === String(q.answer)) rightBtn = x; });
+            rightBtn = host.querySelector('.sp-sf button[data-v="' + q.answer + '"]');
           } else {
             all = Array.prototype.slice.call(host.querySelectorAll(".sp-opt"));
-            rightBtn = all[q.answer];
+            rightBtn = host.querySelector('.sp-opt[data-v="' + q.answer + '"]');
           }
           answer(false, null, all, rightBtn);
         });
@@ -781,6 +806,166 @@
           var t = spTimer(host, emojiTimerSec(), function () { var rb = host.querySelector("#sp-reveal"); if (rb) rb.click(); });
         }
         draw();
+      }
+
+      // — 🎲 Tärningsresan: fia-med-knuff × Trivial Pursuit. Slå tärning → flytta avatar över
+      // spelplanen (28 rutor, serpentin) → svara i rutans kategori på din nivå. Rätt = stå kvar,
+      // fel = tillbaka där du stod. Först förbi mål (rätt på målfrågan) vinner.
+      var TQ_CATS = [
+        { icon: "🐾", label: "Djur & natur", color: "#37c184", match: { "Djur": 1, "Naturen": 1 } },
+        { icon: "🔬", label: "Smart", color: "#6c8cff", match: { "Rymden": 1, "Vetenskap": 1, "Matte": 1, "Teknik": 1, "Kroppen": 1, "Tid": 1 } },
+        { icon: "🎬", label: "Film & musik", color: "#e0607a", match: { "Film & sagor": 1, "Musik": 1, "Konst": 1 } },
+        { icon: "🌍", label: "Världen", color: "#e6b450", match: { "Geografi": 1, "Sverige": 1, "Historia": 1 } },
+        { icon: "🍕", label: "Sport & mat", color: "#b07cff", match: { "Sport": 1, "Mat": 1, "Färger": 1 } },
+        { icon: "🌀", label: "Blandat", color: "#9aa3b2", match: null },
+      ];
+      var TQ_N = 28, TQ_COLS = 7;
+      var DICE = ["⚀", "⚁", "⚂", "⚃", "⚄", "⚅"];
+      var tq = null; // { cells, players:[{name,lvl,avatar,pos}], turn, hist, winner }
+
+      function startTq() {
+        var ps = roster();
+        if (!ps.length) { renderPlayersScreen({ cta: "✔ Klar", onCta: startTq }); return; }
+        var base = [];
+        for (var i = 0; i < TQ_N; i++) base.push(i % TQ_CATS.length); // jämn fördelning...
+        tq = {
+          cells: shuffle(base), // ...blandad per spelomgång
+          players: ps.map(function (p, i) { return { name: p.name, lvl: p.lvl, avatar: playerAvatar(p, i), pos: -1 }; }),
+          turn: 0, hist: [], winner: null,
+        };
+        tqTurn();
+      }
+      function tqUndo() {
+        var g = tq;
+        if (!g || !g.hist.length) return;
+        var s = g.hist.pop();
+        g.turn = s.turn;
+        g.players.forEach(function (p, i) { p.pos = s.pos[i]; });
+        g.winner = null;
+        tqTurn();
+      }
+      function tqStandings() {
+        return tq.players.map(function (p) { return { name: p.avatar + " " + p.name, score: p.pos + 1 }; });
+      }
+      function tqWire(host) { wireTop(host, { onUndo: tqUndo, players: tqStandings }); }
+      function tqBoardHTML() {
+        var g = tq;
+        var cellsHtml = new Array(TQ_N);
+        for (var i = 0; i < TQ_N; i++) {
+          var cat = TQ_CATS[g.cells[i]];
+          var here = g.players.filter(function (p) { return p.pos === i; }).map(function (p) { return p.avatar; }).join("");
+          cellsHtml[i] = '<div class="tq-cell' + (here ? " has-p" : "") + '" style="background:' + cat.color + (here ? "44" : "22") + ';border-color:' + cat.color + '66">' + (here || cat.icon) + "</div>";
+        }
+        var out = "";
+        for (var r = 0; r * TQ_COLS < TQ_N; r++) {
+          var slice = cellsHtml.slice(r * TQ_COLS, r * TQ_COLS + TQ_COLS);
+          if (r % 2 === 1) slice.reverse(); // serpentin-bana
+          out += '<div class="tq-row">' + slice.join("") + "</div>";
+        }
+        var startAv = g.players.filter(function (p) { return p.pos < 0; }).map(function (p) { return p.avatar; }).join("");
+        return '<div class="tq-board"><div class="tq-startgoal"><span>🏁 Start ' + startAv + "</span><span>Mål 🏆</span></div>" + out +
+          '<div class="tq-legend">' + TQ_CATS.map(function (c) { return '<span style="color:' + c.color + '">' + c.icon + " " + esc(c.label) + "</span>"; }).join("") + "</div></div>";
+      }
+      function tqTurn() {
+        var host = sp(), g = tq;
+        var p = g.players[g.turn];
+        host.innerHTML = backBtnRow("", { undo: g.hist.length > 0, lb: true }) + tqBoardHTML() +
+          '<div class="sp-hand" style="padding:16px"><div style="font-size:34px">' + p.avatar + '</div><div class="who" style="font-size:20px">' + esc(p.name) + '</div><div class="lvl">' + LVL[p.lvl] + " · " + (p.pos < 0 ? "vid start" : "ruta " + (p.pos + 1) + " av " + TQ_N) + '</div><button class="sp-next" id="tq-roll" style="margin-top:12px;font-size:18px">🎲 Slå tärningen!</button></div>';
+        tqWire(host);
+        host.querySelector("#tq-roll").addEventListener("click", tqRoll);
+      }
+      function tqRoll() {
+        var g = tq, host = sp(), p = g.players[g.turn];
+        g.hist.push({ turn: g.turn, pos: g.players.map(function (x) { return x.pos; }) });
+        var btn = host.querySelector("#tq-roll");
+        btn.disabled = true;
+        var n = 1 + Math.floor(Math.random() * 6);
+        var flips = 0;
+        var anim = setInterval(function () {
+          if (!document.contains(btn)) { clearInterval(anim); return; }
+          btn.textContent = DICE[Math.floor(Math.random() * 6)];
+          if (++flips >= 9) {
+            clearInterval(anim);
+            btn.textContent = DICE[n - 1] + "  Du slog " + n + "!";
+            setTimeout(function () { tqMove(p, n); }, 700);
+          }
+        }, 90);
+      }
+      function tqMove(p, steps) {
+        var g = tq;
+        var from = p.pos;
+        var target = Math.min(p.pos + steps, TQ_N); // TQ_N = förbi sista rutan = målförsök
+        var cur = from;
+        var iv = setInterval(function () {
+          cur++;
+          p.pos = Math.min(cur, TQ_N - 1);
+          var b = sp().querySelector(".tq-board");
+          if (!b) { clearInterval(iv); return; }
+          b.outerHTML = tqBoardHTML();
+          if (cur >= target) { clearInterval(iv); setTimeout(function () { tqQuestion(p, from, target); }, 400); }
+        }, 230);
+      }
+      function tqQuestion(p, from, target) {
+        var g = tq, host = sp();
+        var atGoal = target >= TQ_N;
+        var cat = atGoal ? TQ_CATS[5] : TQ_CATS[g.cells[target]];
+        var pool = quiz.questions.filter(function (q) {
+          return (cat.match ? cat.match[q.cat] : true) && q.level === p.lvl;
+        });
+        if (!pool.length) pool = quiz.questions.filter(function (q) { return q.level === p.lvl; });
+        if (!pool.length) pool = quiz.questions;
+        var q = pickFrom(pool, 1, "tq")[0];
+        var body;
+        if (q.type === "sf") {
+          body = '<div class="sp-sf"><button data-v="true">✅ SANT</button><button data-v="false">❌ FALSKT</button></div>';
+        } else {
+          var order = shuffle(q.options.map(function (_, oi) { return oi; }));
+          body = order.map(function (oi) { return '<button class="sp-opt" data-v="' + oi + '">' + esc(q.options[oi]) + "</button>"; }).join("");
+        }
+        host.innerHTML = backBtnRow(p.avatar + " " + esc(p.name) + (atGoal ? " · MÅLFRÅGA!" : " · ruta " + (target + 1)), { undo: true, lb: true }) +
+          '<div class="sp-turn" style="color:' + cat.color + '">' + cat.icon + " " + esc(cat.label) + (atGoal ? " — svara rätt och VINN! 🏆" : "") + "</div>" +
+          '<div id="sp-timer"></div>' +
+          '<div class="sp-q"><span class="sp-cat">' + LVL_SHORT[q.level] + " " + esc(q.cat || "") + '</span><div class="sp-qtext">' + esc(q.q) + "</div>" + body + '<div id="sp-after"></div></div>';
+        tqWire(host);
+        var done = false, t = null;
+        function finish(right, b) {
+          if (done) return; done = true;
+          if (t) t.stop();
+          var allBtns = Array.prototype.slice.call(host.querySelectorAll(q.type === "sf" ? ".sp-sf button" : ".sp-opt"));
+          var sel = q.type === "sf" ? '[data-v="' + q.answer + '"]' : '.sp-opt[data-v="' + q.answer + '"]';
+          var rightBtn = host.querySelector(q.type === "sf" ? ".sp-sf button" + sel : sel);
+          if (right) { if (b) b.classList.add("hit"); }
+          else { if (b) b.classList.add("miss"); if (rightBtn) rightBtn.classList.add("hit"); }
+          allBtns.forEach(function (x) { x.disabled = true; if (x !== b && !x.classList.contains("hit")) x.classList.add("dim"); });
+          var msg;
+          if (right && atGoal) { g.winner = p; msg = "🏆 I MÅL — " + esc(p.name) + " VINNER!"; }
+          else if (right) msg = "🎉 Rätt — du står kvar på ruta " + (target + 1) + "!";
+          else { p.pos = from; msg = (b ? "Neeej!" : "⏰ Tiden ute!") + " Tillbaka till " + (from < 0 ? "start" : "ruta " + (from + 1)) + "."; }
+          host.querySelector("#sp-after").innerHTML = '<div class="sp-fun"><strong>' + msg + "</strong>" + (q.fun ? " " + esc(q.fun) : "") + '</div><button class="sp-next" id="sp-nxt">' + (g.winner ? "Prisceremonin 🏆" : "Nästa spelare →") + "</button>";
+          host.querySelector("#sp-nxt").addEventListener("click", function () {
+            if (g.winner) return tqEnd();
+            g.turn = (g.turn + 1) % g.players.length;
+            tqTurn();
+          });
+        }
+        host.querySelectorAll(q.type === "sf" ? ".sp-sf button" : ".sp-opt").forEach(function (b) {
+          b.addEventListener("click", function () {
+            var right = q.type === "sf" ? String(q.answer) === b.dataset.v : +b.dataset.v === q.answer;
+            finish(right, b);
+          });
+        });
+        t = spTimer(host, timerSec(), function () { finish(false, null); });
+      }
+      function tqEnd() {
+        var g = tq, host = sp();
+        var standings = g.players.map(function (p) {
+          return { name: p.avatar + " " + p.name, score: p === g.winner ? TQ_N : p.pos + 1 };
+        });
+        host.innerHTML = backBtnRow() + festiveBoardHTML(standings, "🎲") +
+          '<button class="sp-next" id="sp-again">🎲 Ny resa!</button><button class="sp-ghost" id="sp-home">Till spelmenyn</button>';
+        wireBack(host);
+        host.querySelector("#sp-again").addEventListener("click", startTq);
+        host.querySelector("#sp-home").addEventListener("click", renderSpelHome);
       }
 
       // Liten val-skärm (kategori / svårighetsgrad / kortlek) — samma knappstil som spelmenyn.
