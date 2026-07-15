@@ -511,8 +511,54 @@
       // Upplåsnings-refreshen (visibilitychange → refreshAll) får ALDRIG rita om en pågående runda.
       var _spInGame = false;
 
+      // ——— Spel-session: en pågående runda överlever omladdning ———
+      // iOS slänger bakgrundsfliken ur minnet (app-byte, skärmlås) och en deploy tvingar
+      // om-laddning → alla minnesvariabler (qGame, tq …) nollas. Därför speglas rundan
+      // till localStorage och kan återuppstå via en «Fortsätt där ni var?»-ruta.
+      //
+      // Lägg till ETT nytt spel så här — då funkar «Fortsätt» automatiskt:
+      //   1. håll rundan i ETT serialiserbart objekt (som qGame / tq),
+      //   2. anropa spSave("nyckel", state) överst i spelets tur-/steg-render,
+      //   3. registrera SP_RESUME["nyckel"] = { label: fn(state)→text, resume: fn(state) },
+      //   4. lägg spClear() i spelets slutskärm (spelmenyn rensar redan automatiskt).
+      var SP_SESSION_KEY = "falt_spel_session";
+      var SP_SESSION_MAXAGE = 12 * 3600 * 1000; // pågående spel äldre än 12h glöms
+      var SP_RESUME = {}; // nyckel → { label, resume }
+      function spSave(key, state) {
+        try { localStorage.setItem(SP_SESSION_KEY, JSON.stringify({ g: key, s: state, ts: Date.now() })); } catch (e) {}
+      }
+      function spClear() { try { localStorage.removeItem(SP_SESSION_KEY); } catch (e) {} }
+      function spLoad() {
+        try {
+          var j = JSON.parse(localStorage.getItem(SP_SESSION_KEY) || "null");
+          if (!j || !j.g || !j.s || !SP_RESUME[j.g]) return null;
+          if (!j.ts || Date.now() - j.ts > SP_SESSION_MAXAGE) { spClear(); return null; }
+          return j;
+        } catch (e) { return null; }
+      }
+      // Visar «Fortsätt där ni var?» om en runda är sparad. true = banner ritad (hoppa över spelmenyn).
+      function spShowResume() {
+        var sess = spLoad();
+        if (!sess) return false;
+        var reg = SP_RESUME[sess.g];
+        _spInGame = true; // skydda bannern från bakgrunds-refreshen tills valet är gjort
+        var host = sp(), label = "ditt spel";
+        try { label = reg.label(sess.s); } catch (e) {}
+        host.innerHTML = '<div class="card" style="text-align:center">' +
+          '<div class="sp-final">↩︎</div><div class="sp-winner">Fortsätt där ni var?</div>' +
+          '<div style="color:#9aa7b4;margin:6px 0 2px">' + esc(label) + '</div>' +
+          '<button class="sp-next" id="sp-resume-yes" style="margin-top:14px">▶︎ Fortsätt spelet</button>' +
+          '<button class="sp-ghost" id="sp-resume-no">Nej — till spelmenyn</button></div>';
+        host.querySelector("#sp-resume-yes").addEventListener("click", function () {
+          try { reg.resume(sess.s); } catch (e) { spClear(); renderSpelHome(); }
+        });
+        host.querySelector("#sp-resume-no").addEventListener("click", function () { spClear(); renderSpelHome(); });
+        return true;
+      }
+
       function renderSpelHome() {
         _spInGame = false;
+        spClear();
         var host = sp();
         if (!quiz || !quiz.questions || !quiz.questions.length) {
           host.innerHTML = '<div class="card"><div class="empty">Ingen frågebank än — öppna pappen på datorn, gå till 🎲 Frågesport och tryck «📲 Pusha till mobilen».</div></div>';
@@ -646,6 +692,7 @@
       function renderHandover() {
         var host = sp(), g = qGame;
         if (g.i >= g.seq.length) return renderQuizEnd();
+        spSave("quiz", g);
         var cur = g.seq[g.i], p = g.players[cur.pi];
         host.innerHTML = backBtnRow("Fråga " + (g.i + 1) + " av " + g.seq.length, quizTop()) +
           '<div class="sp-hand"><div style="font-size:40px">📱</div><div class="who">' + esc(p.name) + '</div><div class="lvl">' + LVL[p.lvl] + " · " + p.score + ' poäng</div><button class="sp-next" id="sp-ready" style="margin-top:18px">Jag är redo!</button></div>';
@@ -655,6 +702,7 @@
       function renderQuestion() {
         var host = sp(), g = qGame, cur = g.seq[g.i], p = g.players[cur.pi], q = cur.q;
         g.curSnap = { i: g.i, scores: g.players.map(function (x) { return x.score; }) };
+        spSave("quiz", g);
         var body;
         if (q.type === "sf") {
           body = '<div class="sp-sf"><button data-v="true">✅ SANT</button><button data-v="false">❌ FALSKT</button></div>';
@@ -721,6 +769,7 @@
       }
       function renderQuizEnd() {
         var host = sp(), g = qGame;
+        spClear(); // spelet är slut → inget att återuppta
         host.innerHTML = backBtnRow("", { undo: g.hist.length > 0 }) + festiveBoardHTML(g.players, "🏆") +
           '<button class="sp-next" id="sp-again">🎯 Spela igen (nya frågor)</button>' +
           '<button class="sp-ghost" id="sp-home">Till spelmenyn</button>';
@@ -728,6 +777,11 @@
         host.querySelector("#sp-again").addEventListener("click", renderQuizSetup);
         host.querySelector("#sp-home").addEventListener("click", renderSpelHome);
       }
+      // «Fortsätt»-stöd: återuppta till frågans handover-skärm (aktuell spelare & fråga).
+      SP_RESUME.quiz = {
+        label: function (s) { return "🎯 Frågesport — fråga " + Math.min((s.i || 0) + 1, s.seq.length) + " av " + s.seq.length; },
+        resume: function (s) { qGame = s; renderHandover(); },
+      };
 
       // — Emoji-gåtor: välj kategori (film/musik/bok/ord) + svårighetsgrad + egen valfri ⏱.
       // 2+ spelare → turbaserat m. poäng per spelare, annars gemensam räkning.
@@ -766,29 +820,31 @@
           if (lp.length) pool = lp; // finns inget på nivån i kategorin → behåll hela kategorin
         }
         if (!pool.length) pool = all;
-        var cards = pickFrom(pool, 10, "emoji");
-        var ps = roster().map(function (p) { return { name: p.name, score: 0 }; });
-        var turns = ps.length >= 2;
-        var i = 0, hits = 0, hist = [], curSnap = null;
-        var host = sp();
-        function advance() { hist.push(curSnap); i++; draw(); }
-        function undo() { if (!hist.length) return; var s = hist.pop(); i = s.i; hits = s.hits; ps.forEach(function (p, k) { p.score = s.scores[k]; }); draw(); }
-        function topFlags() { return { undo: hist.length > 0, lb: turns }; }
-        function wire2(h2) { wireTop(h2, { onUndo: undo, players: turns ? function () { return ps; } : null }); }
+        runEmoji({ kind: kind, cards: pickFrom(pool, 10, "emoji"), ps: roster().map(function (p) { return { name: p.name, score: 0 }; }), i: 0, hits: 0, hist: [], curSnap: null });
+      }
+      function runEmoji(st) {
+        st.turns = st.ps.length >= 2;
+        var cards = st.cards, ps = st.ps, host = sp();
+        function advance() { st.hist.push(st.curSnap); st.i++; draw(); }
+        function undo() { if (!st.hist.length) return; var s = st.hist.pop(); st.i = s.i; st.hits = s.hits; ps.forEach(function (p, k) { p.score = s.scores[k]; }); draw(); }
+        function topFlags() { return { undo: st.hist.length > 0, lb: st.turns }; }
+        function wire2(h2) { wireTop(h2, { onUndo: undo, players: st.turns ? function () { return ps; } : null }); }
         function draw() {
-          curSnap = { i: i, hits: hits, scores: ps.map(function (p) { return p.score; }) };
-          if (i >= cards.length) {
+          st.curSnap = { i: st.i, hits: st.hits, scores: ps.map(function (p) { return p.score; }) };
+          spSave("emoji", st);
+          if (st.i >= cards.length) {
+            spClear();
             host.innerHTML = backBtnRow("", topFlags()) +
-              (turns ? festiveBoardHTML(ps, "🙈") : festiveSoloHTML("Ni klarade " + hits + " av " + cards.length + "!", "🙈")) +
+              (st.turns ? festiveBoardHTML(ps, "🙈") : festiveSoloHTML("Ni klarade " + st.hits + " av " + cards.length + "!", "🙈")) +
               '<button class="sp-next" id="sp-again">Fler gåtor!</button><button class="sp-ghost" id="sp-home">Till spelmenyn</button>';
             wire2(host);
-            host.querySelector("#sp-again").addEventListener("click", function () { startEmoji(kind); });
+            host.querySelector("#sp-again").addEventListener("click", function () { startEmoji(st.kind); });
             host.querySelector("#sp-home").addEventListener("click", renderSpelHome);
             return;
           }
-          var c = cards[i];
-          var tp = turns ? ps[i % ps.length] : null;
-          host.innerHTML = backBtnRow("Gåta " + (i + 1) + " av " + cards.length, topFlags()) +
+          var c = cards[st.i];
+          var tp = st.turns ? ps[st.i % ps.length] : null;
+          host.innerHTML = backBtnRow("Gåta " + (st.i + 1) + " av " + cards.length, topFlags()) +
             (tp ? '<div class="sp-turn">🎲 <b>' + esc(tp.name) + "</b> gissar! (" + tp.score + " p)</div>" : "") +
             '<div id="sp-timer"></div>' +
             '<div class="sp-q"><span class="sp-cat">' + (LVL_SHORT[c.level] || "") + " " + (EMOJI_KIND[c.kind || "film"] || EMOJI_KIND.film) + '</span><div class="sp-emoji">' + c.emoji + '</div><div id="sp-hintbox"></div><div id="sp-revbox"><button class="sp-ghost" id="sp-hint">💡 Ledtråd</button><button class="sp-next" id="sp-reveal">Visa svaret</button></div></div>';
@@ -799,7 +855,7 @@
           host.querySelector("#sp-reveal").addEventListener("click", function () {
             if (t) t.stop();
             host.querySelector("#sp-revbox").innerHTML = '<div class="sp-answer">' + esc(c.answer) + '</div><div class="sp-tally"><button class="yes" id="sp-yes">✅ ' + (tp ? esc(tp.name) + " hade rätt!" : "Vi gissade rätt!") + '</button><button class="no" id="sp-no">Nästa →</button></div>';
-            host.querySelector("#sp-yes").addEventListener("click", function () { if (tp) tp.score++; else hits++; advance(); });
+            host.querySelector("#sp-yes").addEventListener("click", function () { if (tp) tp.score++; else st.hits++; advance(); });
             host.querySelector("#sp-no").addEventListener("click", advance);
           });
           // Tiden ute → visa svaret automatiskt (gissningen fick sin chans). Egen emoji-⏱, ej quiz-timern.
@@ -807,6 +863,10 @@
         }
         draw();
       }
+      SP_RESUME.emoji = {
+        label: function (s) { return "🙈 Emoji-gåtor — gåta " + Math.min((s.i || 0) + 1, s.cards.length) + " av " + s.cards.length; },
+        resume: function (s) { runEmoji(s); },
+      };
 
       // — 🎲 Tärningsresan: fia-med-knuff × Trivial Pursuit. Slå tärning → flytta avatar över
       // spelplanen (28 rutor, serpentin) → svara i rutans kategori på din nivå. Rätt = stå kvar,
@@ -869,6 +929,7 @@
       function tqTurn() {
         var host = sp(), g = tq;
         var p = g.players[g.turn];
+        spSave("tq", g); // turens start = committad ställning (positioner + vems tur)
         host.innerHTML = backBtnRow("", { undo: g.hist.length > 0, lb: true }) + tqBoardHTML() +
           '<div class="sp-hand" style="padding:16px"><div style="font-size:34px">' + p.avatar + '</div><div class="who" style="font-size:20px">' + esc(p.name) + '</div><div class="lvl">' + LVL[p.lvl] + " · " + (p.pos < 0 ? "vid start" : "ruta " + (p.pos + 1) + " av " + TQ_N) + '</div><button class="sp-next" id="tq-roll" style="margin-top:12px;font-size:18px">🎲 Slå tärningen!</button></div>';
         tqWire(host);
@@ -958,6 +1019,7 @@
       }
       function tqEnd() {
         var g = tq, host = sp();
+        spClear(); // resan är slut → inget att återuppta
         var standings = g.players.map(function (p) {
           return { name: p.avatar + " " + p.name, score: p === g.winner ? TQ_N : p.pos + 1 };
         });
@@ -967,6 +1029,14 @@
         host.querySelector("#sp-again").addEventListener("click", startTq);
         host.querySelector("#sp-home").addEventListener("click", renderSpelHome);
       }
+      // «Fortsätt»-stöd: återuppta till aktuell spelares tur (positioner intakta, spelaren slår om).
+      SP_RESUME.tq = {
+        label: function (s) {
+          var avs = (s.players || []).map(function (p) { return p.avatar; }).join("");
+          return "🎲 Tärningsresan — " + (s.players || []).length + " spelare" + (avs ? " " + avs : "");
+        },
+        resume: function (s) { tq = s; tqTurn(); },
+      };
 
       // Liten val-skärm (kategori / svårighetsgrad / kortlek) — samma knappstil som spelmenyn.
       // extra = { html, wire } lägger valfria inställningar (t.ex. ⏱) under alternativen.
@@ -1000,28 +1070,31 @@
         var cards = pickFrom(pool, 8, "gator");
         var ord = { latt: 0, mellan: 1, svar: 2 };
         cards.sort(function (a, b) { return (ord[a.level] || 0) - (ord[b.level] || 0); });
-        var ps = roster().map(function (p) { return { name: p.name, score: 0 }; });
-        var turns = ps.length >= 2;
-        var i = 0, hits = 0, hist = [], curSnap = null;
-        var host = sp();
-        function advance() { hist.push(curSnap); i++; draw(); }
-        function undo() { if (!hist.length) return; var s = hist.pop(); i = s.i; hits = s.hits; ps.forEach(function (p, k) { p.score = s.scores[k]; }); draw(); }
-        function topFlags() { return { undo: hist.length > 0, lb: turns }; }
-        function wire2(h2) { wireTop(h2, { onUndo: undo, players: turns ? function () { return ps; } : null }); }
+        runGator({ lvl: lvl, cards: cards, ps: roster().map(function (p) { return { name: p.name, score: 0 }; }), i: 0, hits: 0, hist: [], curSnap: null });
+      }
+      function runGator(st) {
+        st.turns = st.ps.length >= 2;
+        var cards = st.cards, ps = st.ps, host = sp();
+        function advance() { st.hist.push(st.curSnap); st.i++; draw(); }
+        function undo() { if (!st.hist.length) return; var s = st.hist.pop(); st.i = s.i; st.hits = s.hits; ps.forEach(function (p, k) { p.score = s.scores[k]; }); draw(); }
+        function topFlags() { return { undo: st.hist.length > 0, lb: st.turns }; }
+        function wire2(h2) { wireTop(h2, { onUndo: undo, players: st.turns ? function () { return ps; } : null }); }
         function draw() {
-          curSnap = { i: i, hits: hits, scores: ps.map(function (p) { return p.score; }) };
-          if (i >= cards.length) {
+          st.curSnap = { i: st.i, hits: st.hits, scores: ps.map(function (p) { return p.score; }) };
+          spSave("gator", st);
+          if (st.i >= cards.length) {
+            spClear();
             host.innerHTML = backBtnRow("", topFlags()) +
-              (turns ? festiveBoardHTML(ps, "🧩") : festiveSoloHTML("Ni knäckte " + hits + " av " + cards.length + " gåtor!", "🧩")) +
+              (st.turns ? festiveBoardHTML(ps, "🧩") : festiveSoloHTML("Ni knäckte " + st.hits + " av " + cards.length + " gåtor!", "🧩")) +
               '<button class="sp-next" id="sp-again">Fler gåtor!</button><button class="sp-ghost" id="sp-home">Till spelmenyn</button>';
             wire2(host);
-            host.querySelector("#sp-again").addEventListener("click", function () { startGator(lvl); });
+            host.querySelector("#sp-again").addEventListener("click", function () { startGator(st.lvl); });
             host.querySelector("#sp-home").addEventListener("click", renderSpelHome);
             return;
           }
-          var c = cards[i];
-          var tp = turns ? ps[i % ps.length] : null;
-          host.innerHTML = backBtnRow("Gåta " + (i + 1) + " av " + cards.length, topFlags()) +
+          var c = cards[st.i];
+          var tp = st.turns ? ps[st.i % ps.length] : null;
+          host.innerHTML = backBtnRow("Gåta " + (st.i + 1) + " av " + cards.length, topFlags()) +
             (tp ? '<div class="sp-turn">🎲 <b>' + esc(tp.name) + "</b> gissar först! (" + tp.score + " p)</div>" : "") +
             '<div id="sp-timer"></div>' +
             '<div class="sp-q"><span class="sp-cat">' + (LVL_SHORT[c.level] || "🧩") + ' Gåta</span><div class="sp-qtext">' + esc(c.q) + '</div><div id="sp-hintbox"></div><div id="sp-revbox"><button class="sp-ghost" id="sp-hint">💡 Ledtråd</button><button class="sp-next" id="sp-reveal">Visa svaret</button></div></div>';
@@ -1032,13 +1105,17 @@
           host.querySelector("#sp-reveal").addEventListener("click", function () {
             if (t) t.stop();
             host.querySelector("#sp-revbox").innerHTML = '<div class="sp-answer">' + esc(c.answer) + '</div><div class="sp-tally"><button class="yes" id="sp-yes">✅ ' + (tp ? esc(tp.name) + " klarade den!" : "Vi klarade den!") + '</button><button class="no" id="sp-no">Nästa →</button></div>';
-            host.querySelector("#sp-yes").addEventListener("click", function () { if (tp) tp.score++; else hits++; advance(); });
+            host.querySelector("#sp-yes").addEventListener("click", function () { if (tp) tp.score++; else st.hits++; advance(); });
             host.querySelector("#sp-no").addEventListener("click", advance);
           });
           var t = spTimer(host, timerSec(), function () { var rb = host.querySelector("#sp-reveal"); if (rb) rb.click(); });
         }
         draw();
       }
+      SP_RESUME.gator = {
+        label: function (s) { return "🧩 Gåtor — gåta " + Math.min((s.i || 0) + 1, s.cards.length) + " av " + s.cards.length; },
+        resume: function (s) { runGator(s); },
+      };
 
       // — Samtalskortlek (Vem i familjen? / Skulle du hellre…?): bara kort, inga poäng.
       // Hellre-leken har vuxenkort (c.adult) → välj publik först: familj / vuxet / blandat.
@@ -1056,31 +1133,38 @@
         if (key === "hellre" && mode === "familj") pool = all.filter(function (c) { return !c.adult; });
         if (key === "hellre" && mode === "vuxen") pool = all.filter(function (c) { return c.adult; });
         if (!pool.length) pool = all;
-        var cards = pickFrom(pool, 12, key);
-        var i = 0;
-        var host = sp();
-        function undo() { if (i > 0) { i--; draw(); } }
+        runDeck({ key: key, icon: icon, title: title, mode: mode, cards: pickFrom(pool, 12, key), i: 0 });
+      }
+      function runDeck(st) {
+        var cards = st.cards, icon = st.icon, title = st.title, host = sp();
+        function undo() { if (st.i > 0) { st.i--; draw(); } }
         function draw() {
-          if (i >= cards.length) {
+          spSave("deck", st);
+          if (st.i >= cards.length) {
+            spClear();
             host.innerHTML = backBtnRow("", { undo: true }) + festiveSoloHTML("Slut på korten den här rundan!", icon) +
               '<button class="sp-next" id="sp-again">En runda till!</button><button class="sp-ghost" id="sp-home">Till spelmenyn</button>';
             wireTop(host, { onUndo: undo });
-            host.querySelector("#sp-again").addEventListener("click", function () { startDeck(key, icon, title, mode); });
+            host.querySelector("#sp-again").addEventListener("click", function () { startDeck(st.key, st.icon, st.title, st.mode); });
             host.querySelector("#sp-home").addEventListener("click", renderSpelHome);
             return;
           }
-          var c = cards[i];
+          var c = cards[st.i];
           var ps = roster();
-          var tp = ps.length >= 2 ? ps[i % ps.length] : null;
-          host.innerHTML = backBtnRow("Kort " + (i + 1) + " av " + cards.length, { undo: i > 0 }) +
-            (tp ? '<div class="sp-turn">🎴 <b>' + esc(tp.name) + "</b> " + (key === "hellre" ? "svarar först!" : "läser kortet!") + "</div>" : "") +
+          var tp = ps.length >= 2 ? ps[st.i % ps.length] : null;
+          host.innerHTML = backBtnRow("Kort " + (st.i + 1) + " av " + cards.length, { undo: st.i > 0 }) +
+            (tp ? '<div class="sp-turn">🎴 <b>' + esc(tp.name) + "</b> " + (st.key === "hellre" ? "svarar först!" : "läser kortet!") + "</div>" : "") +
             '<div class="sp-q" style="text-align:center;padding:30px 18px"><span class="sp-cat">' + icon + " " + esc(title) + '</span><div class="sp-qtext" style="font-size:22px">' + esc(c.q) + '</div></div>' +
             '<button class="sp-next" id="sp-nxt">Nästa kort →</button>';
           wireTop(host, { onUndo: undo });
-          host.querySelector("#sp-nxt").addEventListener("click", function () { i++; draw(); });
+          host.querySelector("#sp-nxt").addEventListener("click", function () { st.i++; draw(); });
         }
         draw();
       }
+      SP_RESUME.deck = {
+        label: function (s) { return (s.icon || "🎴") + " " + (s.title || "Kortlek") + " — kort " + Math.min((s.i || 0) + 1, s.cards.length) + " av " + s.cards.length; },
+        resume: function (s) { runDeck(s); },
+      };
 
       // — Sant eller falskt: 2+ spelare → var sin tur m. poäng, annars gemensam räkning —
       function startSF() {
@@ -1088,28 +1172,31 @@
         if (!pool.length) return;
         var ord = { latt: 0, mellan: 1, svar: 2 };
         var cards = pickFrom(pool, 10, "sf").sort(function (a, b) { return (ord[a.level] || 0) - (ord[b.level] || 0); });
-        var ps = roster().map(function (p) { return { name: p.name, score: 0 }; });
-        var turns = ps.length >= 2;
-        var i = 0, score = 0, hist = [], curSnap = null;
-        var host = sp();
-        function advance() { hist.push(curSnap); i++; draw(); }
-        function undo() { if (!hist.length) return; var s = hist.pop(); i = s.i; score = s.hits; ps.forEach(function (p, k) { p.score = s.scores[k]; }); draw(); }
-        function topFlags() { return { undo: hist.length > 0, lb: turns }; }
-        function wire2(h2) { wireTop(h2, { onUndo: undo, players: turns ? function () { return ps; } : null }); }
+        runSF({ cards: cards, ps: roster().map(function (p) { return { name: p.name, score: 0 }; }), i: 0, score: 0, hist: [], curSnap: null });
+      }
+      function runSF(st) {
+        st.turns = st.ps.length >= 2;
+        var cards = st.cards, ps = st.ps, host = sp();
+        function advance() { st.hist.push(st.curSnap); st.i++; draw(); }
+        function undo() { if (!st.hist.length) return; var s = st.hist.pop(); st.i = s.i; st.score = s.hits; ps.forEach(function (p, k) { p.score = s.scores[k]; }); draw(); }
+        function topFlags() { return { undo: st.hist.length > 0, lb: st.turns }; }
+        function wire2(h2) { wireTop(h2, { onUndo: undo, players: st.turns ? function () { return ps; } : null }); }
         function draw() {
-          curSnap = { i: i, hits: score, scores: ps.map(function (p) { return p.score; }) };
-          if (i >= cards.length) {
+          st.curSnap = { i: st.i, hits: st.score, scores: ps.map(function (p) { return p.score; }) };
+          spSave("sf", st);
+          if (st.i >= cards.length) {
+            spClear();
             host.innerHTML = backBtnRow("", topFlags()) +
-              (turns ? festiveBoardHTML(ps, "⚖️") : festiveSoloHTML(score + " av " + cards.length + " rätt!", "⚖️")) +
+              (st.turns ? festiveBoardHTML(ps, "⚖️") : festiveSoloHTML(st.score + " av " + cards.length + " rätt!", "⚖️")) +
               '<button class="sp-next" id="sp-again">En runda till!</button><button class="sp-ghost" id="sp-home">Till spelmenyn</button>';
             wire2(host);
             host.querySelector("#sp-again").addEventListener("click", startSF);
             host.querySelector("#sp-home").addEventListener("click", renderSpelHome);
             return;
           }
-          var q = cards[i];
-          var tp = turns ? ps[i % ps.length] : null;
-          host.innerHTML = backBtnRow("Påstående " + (i + 1) + " av " + cards.length + (turns ? "" : " · " + score + " rätt"), topFlags()) +
+          var q = cards[st.i];
+          var tp = st.turns ? ps[st.i % ps.length] : null;
+          host.innerHTML = backBtnRow("Påstående " + (st.i + 1) + " av " + cards.length + (st.turns ? "" : " · " + st.score + " rätt"), topFlags()) +
             (tp ? '<div class="sp-turn">🎲 <b>' + esc(tp.name) + "</b> svarar! (" + tp.score + " p)</div>" : "") +
             '<div id="sp-timer"></div>' +
             '<div class="sp-q"><span class="sp-cat">' + LVL_SHORT[q.level] + " " + esc(q.cat || "") + '</span><div class="sp-qtext">' + esc(q.q) + '</div><div class="sp-sf"><button data-v="true">✅ SANT</button><button data-v="false">❌ FALSKT</button></div><div id="sp-after"></div></div>';
@@ -1119,7 +1206,7 @@
           function finish(right, b) {
             if (done) return; done = true;
             if (t) t.stop();
-            if (right) { if (tp) tp.score++; else score++; if (b) b.classList.add("hit"); }
+            if (right) { if (tp) tp.score++; else st.score++; if (b) b.classList.add("hit"); }
             else {
               if (b) b.classList.add("miss");
               host.querySelectorAll(".sp-sf button").forEach(function (x) { x.disabled = true; if (x.dataset.v === String(q.answer)) x.classList.add("hit"); });
@@ -1134,6 +1221,10 @@
         }
         draw();
       }
+      SP_RESUME.sf = {
+        label: function (s) { return "⚖️ Sant eller falskt — påstående " + Math.min((s.i || 0) + 1, s.cards.length) + " av " + s.cards.length; },
+        resume: function (s) { runSF(s); },
+      };
 
       // ---------- Flikar ----------
       var curTab = "inkorg";
@@ -1141,7 +1232,7 @@
         curTab = name;
         ["inkorg", "todo", "listor", "agera", "spel"].forEach(function (t) { $("tab-" + t).hidden = t !== name; });
         document.querySelectorAll(".tabbar button").forEach(function (b) { b.classList.toggle("on", b.dataset.tab === name); });
-        if (name === "spel") loadQuiz().then(renderSpelHome).catch(function () { sp().innerHTML = '<div class="card"><div class="empty">Kunde inte hämta frågebanken (offline?).</div></div>'; });
+        if (name === "spel") loadQuiz().then(function () { if (!spShowResume()) renderSpelHome(); }).catch(function () { sp().innerHTML = '<div class="card"><div class="empty">Kunde inte hämta frågebanken (offline?).</div></div>'; });
         else if (name !== "inkorg") loadMirror().then(renderMirrorTabs).catch(function () {});
       }
       document.querySelectorAll(".tabbar button").forEach(function (b) {
@@ -1180,7 +1271,7 @@
         btn.disabled = false;
       }
 
-      function openApp() { $("gate").hidden = true; $("app").hidden = false; hydrate().catch(function () {}); }
+      function openApp() { $("gate").hidden = true; $("app").hidden = false; hydrate().catch(function () {}); if (spLoad()) showTab("spel"); }
 
       async function tryOpen(code) {
         pw = code;
