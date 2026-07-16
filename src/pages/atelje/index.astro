@@ -1,6 +1,6 @@
 ---
 // Modeateljén — fristående mobil klädspel-sida (carlpalmquist.com/atelje). Del av spel-sviten.
-// Self-contained: state + garderob + pågående session i localStorage (överlever hard refresh/stängd flik).
+// Karaktärsväljare (Flux-dockor i /public/dolls) + vektor-rita-själv. State/garderob/session i localStorage.
 ---
 <!doctype html>
 <html lang="sv">
@@ -9,7 +9,6 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
   <meta name="theme-color" content="#fbeef3" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
-  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
 <title>Modeateljén — slot-prototyp</title>
 <style is:global>
   :root{
@@ -29,7 +28,13 @@
     overflow:hidden; margin:8px 0; box-shadow:0 10px 30px rgba(120,60,90,.18); touch-action:none;
     background:linear-gradient(160deg,#ffd9e6,#ffeef4 55%,#e9f7f4); transition:background .5s ease;}
   .stage .bd-emoji{position:absolute; font-size:28px; opacity:.7; pointer-events:none; user-select:none;}
+  #charimg{position:absolute; inset:0; width:100%; height:100%; object-fit:contain; object-position:center bottom; pointer-events:none;}
   #doll{position:absolute; inset:0; width:100%; height:100%; display:block;}
+  .charcard{border:2px solid var(--line); border-radius:12px; overflow:hidden; cursor:pointer; background:#fff; text-align:center;}
+  .charcard.sel{border-color:var(--accent); box-shadow:0 0 0 3px rgba(232,111,166,.22);}
+  .charcard img{width:100%; aspect-ratio:1; object-fit:cover; object-position:center top; display:block;}
+  .charcard .drawher{aspect-ratio:1; display:flex; align-items:center; justify-content:center; font-size:28px; background:#faf1f6;}
+  .charcard span{display:block; font-size:11px; padding:3px 2px; color:#6a5560;}
   .acc{position:absolute; transform:translate(-50%,-50%); font-size:32px; cursor:grab; touch-action:none;
     user-select:none; filter:drop-shadow(0 2px 3px rgba(0,0,0,.25)); transition:transform .08s;}
   .acc.drag{cursor:grabbing; transform:translate(-50%,-50%) scale(1.18);}
@@ -98,6 +103,7 @@
 </header>
 
 <div class="stage" id="stage">
+  <img id="charimg" alt="" hidden />
   <svg id="doll" viewBox="0 0 240 420" aria-label="docka">
     <defs>
       <pattern id="fabTop" patternUnits="userSpaceOnUse" width="34" height="34"><g id="tileTop"></g></pattern>
@@ -154,7 +160,8 @@
 
 <div class="drawer">
   <div class="tabs" id="tabs">
-    <button data-tab="huvud" class="on">💇 Huvud</button>
+    <button data-tab="docka" class="on">💃 Docka</button>
+    <button data-tab="huvud">💇 Huvud</button>
     <button data-tab="top">👚 Överkropp</button>
     <button data-tab="bottom">👖 Underkropp</button>
     <button data-tab="feet">👠 Fötter</button>
@@ -242,8 +249,25 @@
     top:{shape:"tshirt",pat:"prickar",color:"#e7b6cf",fg:"#fff",mat:"matt"},
     bot:{shape:"kjol",pat:"slat",color:"#8ec5e8",fg:"#fff",mat:"denim"},
     feet:{shape:"ballerina",pat:"slat",color:"#c9738f",fg:"#fff"},
-    acc:[], bd:"catwalk"
+    acc:[], bd:"catwalk", char:""
   };
+
+  // Flux-genererade karaktärer (public/dolls). char="" = rita-själv-vektordockan.
+  var CHARS=[
+    {id:"",name:"✏️ Rita själv"},
+    {id:"01-nadia",name:"Nadia"},{id:"02-elsa",name:"Elsa"},{id:"03-mira",name:"Mira"},
+    {id:"04-zoe",name:"Zoe"},{id:"05-vera",name:"Vera"},{id:"06-lin",name:"Lin"},
+    {id:"07-ada",name:"Ada"},{id:"08-noor",name:"Noor"},{id:"09-stella",name:"Stella"},{id:"10-amara",name:"Amara"}
+  ];
+  function applyChar(){
+    var img=$("charimg"), doll=$("doll");
+    if(state.char){ img.src="/dolls/"+state.char+".jpg"; img.hidden=false; doll.style.display="none"; }
+    else { img.hidden=true; img.removeAttribute("src"); doll.style.display=""; }
+    // I karaktärsläge är hon redan klädd/ritad → dölj plagg-flikarna, behåll Pynt + Bakgrund.
+    ["huvud","top","bottom","feet"].forEach(function(t){
+      var b=document.querySelector('#tabs [data-tab="'+t+'"]'); if(b) b.style.display=state.char?"none":"";
+    });
+  }
 
   // ===== Render docka =====
   function draw(){
@@ -299,6 +323,16 @@
     bind(".chip","click",function(el){s.color=el.dataset.c;draw();garmentPanel(slot,shapes);flashStage();});
   }
   var TAB={
+    docka:function(){
+      var h='<div class="sect"><div class="lbl">Välj docka</div><div class="grid" style="grid-template-columns:repeat(auto-fill,minmax(70px,1fr))">';
+      CHARS.forEach(function(c){
+        h+='<div class="charcard'+(state.char===c.id?" sel":"")+'" data-char="'+c.id+'">'+
+           (c.id?'<img src="/dolls/'+c.id+'.jpg" alt="'+c.name+'"/>':'<div class="drawher">✏️</div>')+
+           '<span>'+c.name+'</span></div>';
+      });
+      $("panelbody").innerHTML=h+'</div><p class="hint">Välj en färdig karaktär och pynta henne, eller "Rita själv" för att designa plaggen från grunden.</p>';
+      bind(".charcard","click",function(el){ state.char=el.dataset.char; applyChar(); saveCurrent(); TAB.docka(); });
+    },
     huvud:function(){
       var s=state.hair;
       var h='<div class="sect"><div class="lbl">Frisyr</div><div class="rowsc">';
@@ -388,10 +422,10 @@
 
   // ===== Session-sparning: pågående docka överlever att webbläsaren stängs =====
   var CKEY="atelje_current_v1";
-  function saveCurrent(){ try{localStorage.setItem(CKEY,JSON.stringify({top:state.top,bot:state.bot,feet:state.feet,hair:state.hair,bd:state.bd,acc:snapAcc()}));}catch(e){} }
+  function saveCurrent(){ try{localStorage.setItem(CKEY,JSON.stringify({top:state.top,bot:state.bot,feet:state.feet,hair:state.hair,bd:state.bd,acc:snapAcc(),char:state.char}));}catch(e){} }
   function restoreCurrent(){
     try{ var c=JSON.parse(localStorage.getItem(CKEY)||"null"); if(!c) return;
-      if(c.top)state.top=c.top; if(c.bot)state.bot=c.bot; if(c.feet)state.feet=c.feet; if(c.hair)state.hair=c.hair; if(c.bd)state.bd=c.bd;
+      if(c.top)state.top=c.top; if(c.bot)state.bot=c.bot; if(c.feet)state.feet=c.feet; if(c.hair)state.hair=c.hair; if(c.bd)state.bd=c.bd; if(c.char!==undefined)state.char=c.char;
       (c.acc||[]).forEach(function(a){var el=document.createElement("div");el.className="acc";el.textContent=a.e;setPos(el,a.x,a.y);$("stage").appendChild(el);makeDraggable(el);});
     }catch(e){}
   }
@@ -401,7 +435,7 @@
   function snapAcc(){return Array.prototype.slice.call(document.querySelectorAll(".acc")).map(function(el){return {e:el.textContent,x:el._x,y:el._y};});}
   function saveLook(){
     var wardrobe=load();
-    wardrobe.push({top:Object.assign({},state.top),bot:Object.assign({},state.bot),feet:Object.assign({},state.feet),hair:Object.assign({},state.hair),bd:state.bd,acc:snapAcc(),name:"Look "+(wardrobe.length+1)});
+    wardrobe.push({top:Object.assign({},state.top),bot:Object.assign({},state.bot),feet:Object.assign({},state.feet),hair:Object.assign({},state.hair),bd:state.bd,acc:snapAcc(),char:state.char,name:"Look "+(wardrobe.length+1)});
     try{localStorage.setItem(WKEY,JSON.stringify(wardrobe));}catch(e){}
     renderWardrobe();
   }
@@ -411,7 +445,9 @@
     list.forEach(function(s,i){
       var t=document.createElement("div"); t.className="wthumb"; t.style.background=BACKDROPS[s.bd].css;
       var pid="tp"+i;
-      t.innerHTML='<svg viewBox="0 0 34 44" preserveAspectRatio="xMidYMid slice"><defs><pattern id="'+pid+'" patternUnits="userSpaceOnUse" width="34" height="34">'+PATTERNS[s.top.pat].tile(s.top.color,s.top.fg)+'</pattern></defs><rect width="34" height="44" fill="url(#'+pid+')"/></svg>'+
+      var base=s.char ? '<img src="/dolls/'+s.char+'.jpg" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:center top">'
+        : '<svg viewBox="0 0 34 44" preserveAspectRatio="xMidYMid slice"><defs><pattern id="'+pid+'" patternUnits="userSpaceOnUse" width="34" height="34">'+PATTERNS[s.top.pat].tile(s.top.color,s.top.fg)+'</pattern></defs><rect width="34" height="44" fill="url(#'+pid+')"/></svg>';
+      t.innerHTML=base+
         s.acc.map(function(a){return '<span style="position:absolute;left:'+a.x+'%;top:'+a.y+'%;transform:translate(-50%,-50%);font-size:12px">'+a.e+'</span>';}).join("")+
         '<div class="wname">'+s.name+'</div>';
       t.addEventListener("click",function(){loadLook(s);});
@@ -419,10 +455,10 @@
     });
   }
   function loadLook(s){
-    state.top=Object.assign({},s.top); state.bot=Object.assign({},s.bot); state.feet=Object.assign({},s.feet); state.hair=Object.assign({},s.hair); state.bd=s.bd;
+    state.top=Object.assign({},s.top); state.bot=Object.assign({},s.bot); state.feet=Object.assign({},s.feet); state.hair=Object.assign({},s.hair); state.bd=s.bd; state.char=s.char||"";
     document.querySelectorAll(".acc").forEach(function(e){e.remove();});
     (s.acc||[]).forEach(function(a){var el=document.createElement("div");el.className="acc";el.textContent=a.e;setPos(el,a.x,a.y);$("stage").appendChild(el);makeDraggable(el);});
-    draw(); setBackdrop(); toast("👗 "+s.name+" laddad");
+    applyChar(); draw(); setBackdrop(); toast("👗 "+s.name+" laddad");
   }
 
   // ===== Firande =====
@@ -445,7 +481,7 @@
   $("reset").addEventListener("click",function(){document.querySelectorAll(".acc").forEach(function(e){e.remove();});state.acc=[];state.top={shape:"tshirt",pat:"prickar",color:"#e7b6cf",fg:"#fff",mat:"matt"};state.bot={shape:"kjol",pat:"slat",color:"#8ec5e8",fg:"#fff",mat:"denim"};draw();toast("↺ Ren docka!");});
 
   // init — återställ pågående docka (överlever stängd webbläsare), sen rita
-  restoreCurrent(); draw(); setBackdrop(); renderWardrobe(); TAB.huvud();
+  restoreCurrent(); applyChar(); draw(); setBackdrop(); renderWardrobe(); TAB.docka();
 })();
 </script>
 </body>
