@@ -1,0 +1,532 @@
+---
+// Logikspel — fristående mobil Mensa/Alva-matrisspel (carlpalmquist.com/logik). Del av spel-sviten.
+// Motor portad ur pappens app-assessments.js. Session i localStorage (överlever hard refresh 7 dgr).
+---
+<!doctype html>
+<html lang="sv">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+  <meta name="theme-color" content="#141026" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<title>🧠 Logikspel</title>
+<style is:global>
+  :root{--bg:#141026;--card:#1e1a38;--tile:#26214a;--line:#352d5e;--ink:#eae7ff;--muted:#a79fce;
+    --cyan:#4fd1e0;--lime:#b6ff5a;--violet:#a78bfa;--ok:#5ce089;--bad:#ff6b8b;--gold:#ffd24a;}
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+  html,body{margin:0;height:100%;}
+  body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;background:
+    radial-gradient(1200px 600px at 50% -10%,#2a2150,transparent),var(--bg);color:var(--ink);
+    display:flex;flex-direction:column;align-items:center;min-height:100dvh;overflow-x:hidden;padding:0 12px 28px;}
+  .wrap{width:100%;max-width:480px;}
+  header{text-align:center;padding:14px 0 6px;}
+  header h1{margin:0;font-size:21px;letter-spacing:.3px;}
+  header .sub{margin:3px 0 0;font-size:12px;color:var(--muted);}
+
+  .hud{display:flex;align-items:center;gap:8px;margin:10px 0 8px;font-size:13px;font-weight:700;}
+  .hud .pill{background:var(--card);border:1px solid var(--line);border-radius:999px;padding:5px 11px;}
+  .hud .pill.score{color:var(--lime);} .hud .pill.streak{color:var(--gold);}
+  .hud .grow{flex:1;} .hud .lvl{color:var(--cyan);}
+  .bar{height:7px;background:var(--card);border-radius:999px;overflow:hidden;margin:0 0 12px;}
+  .bar > span{display:block;height:100%;background:linear-gradient(90deg,var(--cyan),var(--violet));transition:width .3s;}
+
+  .card{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:16px;}
+  .matrix{display:grid;grid-template-columns:repeat(3,1fr);gap:7px;justify-items:center;margin:2px auto 14px;max-width:250px;}
+  .mcell{width:100%;aspect-ratio:1;background:var(--tile);border:1px solid var(--line);border-radius:11px;
+    display:flex;align-items:center;justify-content:center;}
+  .mcell.q{border-color:var(--violet);box-shadow:0 0 0 2px rgba(167,139,250,.3) inset;}
+  .mcell svg{width:78%;height:78%;}
+  .ask{text-align:center;font-size:14px;color:var(--muted);margin:0 0 10px;}
+  .opts{display:grid;grid-template-columns:repeat(3,1fr);gap:9px;}
+  .opt{aspect-ratio:1;background:var(--tile);border:2px solid var(--line);border-radius:12px;cursor:pointer;
+    display:flex;align-items:center;justify-content:center;transition:transform .08s,border-color .12s;}
+  .opt svg{width:80%;height:80%;}
+  .opt:active{transform:scale(.95);}
+  .opt.ok{border-color:var(--ok);box-shadow:0 0 0 3px rgba(92,224,137,.28);}
+  .opt.bad{border-color:var(--bad);box-shadow:0 0 0 3px rgba(255,107,139,.28);}
+  .opt.dim{opacity:.4;}
+
+  .fb{margin-top:14px;border-radius:14px;padding:13px 14px;font-size:13.5px;line-height:1.45;}
+  .fb.ok{background:rgba(92,224,137,.12);border:1px solid rgba(92,224,137,.4);}
+  .fb.bad{background:rgba(255,107,139,.1);border:1px solid rgba(255,107,139,.4);}
+  .fb b{color:var(--ink);} .fb .rule{color:var(--muted);margin-top:5px;display:block;}
+  .fb .plus{float:right;font-weight:800;color:var(--lime);}
+
+  .btn{display:block;width:100%;border:0;border-radius:14px;padding:14px;font-size:16px;font-weight:800;cursor:pointer;margin-top:14px;
+    background:linear-gradient(90deg,var(--cyan),var(--violet));color:#0d0a1e;}
+  .btn.ghost{background:transparent;border:1px solid var(--line);color:var(--muted);font-weight:600;font-size:14px;padding:11px;}
+
+  .modes{display:flex;flex-direction:column;gap:10px;}
+  .mode{display:flex;align-items:center;gap:12px;background:var(--tile);border:1px solid var(--line);border-radius:14px;padding:13px 14px;cursor:pointer;text-align:left;}
+  .mode:active{transform:scale(.99);} .mode .em{font-size:26px;}
+  .mode .t{font-size:15px;font-weight:700;} .mode .d{font-size:12px;color:var(--muted);margin-top:2px;}
+  .levbtns{display:flex;gap:8px;margin-top:4px;} .levbtns button{flex:1;background:var(--tile);border:1px solid var(--line);color:var(--ink);border-radius:11px;padding:10px 0;font-weight:700;cursor:pointer;font-size:14px;}
+
+  .final{text-align:center;}
+  .rankbig{font-size:60px;line-height:1;margin:6px 0;}
+  .rankname{font-size:24px;font-weight:800;}
+  .rankname.new{color:var(--gold);}
+  .stats{display:flex;justify-content:center;gap:18px;margin:14px 0;font-size:13px;color:var(--muted);}
+  .stats b{display:block;font-size:20px;color:var(--ink);}
+  .confetti{position:fixed;inset:0;pointer-events:none;overflow:hidden;z-index:40;}
+  .conf{position:absolute;top:-20px;animation:fall linear forwards;}@keyframes fall{to{transform:translateY(110vh) rotate(540deg);}}
+  .pop{animation:pop .3s cubic-bezier(.2,1.5,.4,1);}@keyframes pop{0%{transform:scale(.6);}100%{transform:scale(1);}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header><h1>🧠 Logikspel</h1><p class="sub">Vilken bricka fortsätter mönstret? Träna som ett Mensa-test.</p></header>
+  <div id="app"></div>
+</div>
+<div class="confetti" id="confetti" hidden></div>
+<script is:inline>
+(function(){
+  var $=function(id){return document.getElementById(id);};
+  var app=$("app");
+// ==== Portad logik-motor från pappens app-assessments.js (Alva/Mensa-matriser) ====
+function cellSVG(c, size = 60) {
+  const s = size, mid = s / 2;
+  if (!c || c.t === "empty") return `<svg width="${s}" height="${s}"></svg>`;
+  if (c.t === "q") return `<svg width="${s}" height="${s}"><text x="${mid}" y="${mid + 8}" text-anchor="middle" font-size="26" fill="#6c8cff">?</text></svg>`;
+  if (c.t === "dots") {
+    const n = c.n, r = 6, pts = [];
+    const cols = Math.ceil(Math.sqrt(n));
+    for (let i = 0; i < n; i++) {
+      const cx = mid + ((i % cols) - (cols - 1) / 2) * 16;
+      const cy = mid + (Math.floor(i / cols) - (Math.ceil(n / cols) - 1) / 2) * 16;
+      pts.push(`<circle cx="${cx}" cy="${cy}" r="${r}" fill="#e6e8ee"/>`);
+    }
+    return `<svg width="${s}" height="${s}">${pts.join("")}</svg>`;
+  }
+  if (c.t === "arrow") {
+    return `<svg width="${s}" height="${s}"><g transform="rotate(${c.rot || 0} ${mid} ${mid})">
+      <line x1="${mid}" y1="${s - 12}" x2="${mid}" y2="12" stroke="#e6e8ee" stroke-width="3"/>
+      <polyline points="${mid - 8},22 ${mid},10 ${mid + 8},22" fill="none" stroke="#e6e8ee" stroke-width="3"/></g></svg>`;
+  }
+  if (c.t === "poly") {
+    const sides = c.sides, R = s * 0.38 * (c.sc || 1), pts = [];
+    for (let i = 0; i < sides; i++) {
+      const a = -Math.PI / 2 + (i * 2 * Math.PI) / sides;
+      pts.push(`${(mid + R * Math.cos(a)).toFixed(1)},${(mid + R * Math.sin(a)).toFixed(1)}`);
+    }
+    return `<svg width="${s}" height="${s}"><polygon points="${pts.join(" ")}" fill="${c.fill ? "#e6e8ee" : "none"}" stroke="#e6e8ee" stroke-width="2.5"/></svg>`;
+  }
+  if (c.t === "pos") {
+    const off = [[-1, -1], [0, -1], [1, -1], [1, 0], [1, 1], [0, 1], [-1, 1], [-1, 0]][c.p] || [0, 0];
+    const m = s * 0.06, fr = s - 2 * m, dx = off[0] * fr * 0.32, dy = off[1] * fr * 0.32;
+    return `<svg width="${s}" height="${s}"><rect x="${m}" y="${m}" width="${fr}" height="${fr}" rx="4" fill="none" stroke="#3a4255" stroke-width="2"/><circle cx="${mid + dx}" cy="${mid + dy}" r="${s * 0.1}" fill="#e6e8ee"/></svg>`;
+  }
+  if (c.t === "pie") { // cirkel uppdelad i 3 sektorer, mask 0-7 för vilka som är fyllda (AssessmentDay-stil)
+    const R = s * 0.36, out = [];
+    for (let i = 0; i < 3; i++) {
+      const a0 = -Math.PI / 2 + i * 2 * Math.PI / 3, a1 = a0 + 2 * Math.PI / 3;
+      const x0 = (mid + R * Math.cos(a0)).toFixed(1), y0 = (mid + R * Math.sin(a0)).toFixed(1);
+      const x1 = (mid + R * Math.cos(a1)).toFixed(1), y1 = (mid + R * Math.sin(a1)).toFixed(1);
+      const fill = (c.mask >> i) & 1 ? "#e6e8ee" : "none";
+      out.push(`<path d="M${mid} ${mid} L${x0} ${y0} A${R} ${R} 0 0 1 ${x1} ${y1} Z" fill="${fill}" stroke="#e6e8ee" stroke-width="1.5"/>`);
+    }
+    return `<svg width="${s}" height="${s}">${out.join("")}</svg>`;
+  }
+  if (c.t === "duo") { // två markörer i 8-positions-ring (multi-motion)
+    const R = s * 0.34, pr = s * 0.095, m = s * 0.06, fr = s - 2 * m, out = [];
+    out.push(`<rect x="${m}" y="${m}" width="${fr}" height="${fr}" rx="4" fill="none" stroke="#3a4255" stroke-width="2"/>`);
+    for (const p of [c.p1, c.p2]) {
+      const a = -Math.PI / 2 + p * Math.PI / 4;
+      out.push(`<circle cx="${(mid + R * Math.cos(a)).toFixed(1)}" cy="${(mid + R * Math.sin(a)).toFixed(1)}" r="${pr}" fill="#e6e8ee"/>`);
+    }
+    return `<svg width="${s}" height="${s}">${out.join("")}</svg>`;
+  }
+  if (c.t === "ring") { // 8 pärlor i en cirkel, svart om biten är satt (necklace)
+    const R = s * 0.34, pr = s * 0.075, b = [];
+    for (let i = 0; i < 8; i++) {
+      const a = -Math.PI / 2 + i * Math.PI / 4, cx = mid + R * Math.cos(a), cy = mid + R * Math.sin(a), on = (c.mask >> i) & 1;
+      b.push(`<circle cx="${cx.toFixed(1)}" cy="${cy.toFixed(1)}" r="${pr}" fill="${on ? "#e6e8ee" : "none"}" stroke="#e6e8ee" stroke-width="1.5"/>`);
+    }
+    return `<svg width="${s}" height="${s}">${b.join("")}</svg>`;
+  }
+  if (c.t === "seg") { // delmängd av 6 linjesegment i en kvadrat (overlay/symmetrisk differens)
+    const m = s * 0.18, M = s - m, L = {
+      0: [m, m, M, m], 1: [M, m, M, M], 2: [m, M, M, M], 3: [m, m, m, M], 4: [m, m, M, M], 5: [M, m, m, M]
+    }, out = [];
+    // tunna ankarpunkter i fyra hörn så ögat lätt ser kvadratramen och vilka segment som dragits
+    const ap = 1.2;
+    for (const [x, y] of [[m, m], [M, m], [M, M], [m, M]]) out.push(`<circle cx="${x}" cy="${y}" r="${ap}" fill="#3a4255"/>`);
+    for (let i = 0; i < 6; i++) if ((c.mask >> i) & 1) { const [x1, y1, x2, y2] = L[i]; out.push(`<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="#e6e8ee" stroke-width="3" stroke-linecap="round"/>`); }
+    return `<svg width="${s}" height="${s}">${out.join("")}</svg>`;
+  }
+  return `<svg width="${s}" height="${s}"></svg>`;
+}
+
+function sample(arr, k) {
+  const a = arr.slice();
+  for (let i = a.length - 1; i > 0; i--) { const j = (Math.random() * (i + 1)) | 0; [a[i], a[j]] = [a[j], a[i]]; }
+  return a.slice(0, k);
+}
+
+// ---- logik-generator (rollanpassad svårighet, oändlig övning) ----
+function lcEq(a, b) {
+  return a.t === b.t && (a.n || 0) === (b.n || 0) && (a.sides || 0) === (b.sides || 0) &&
+    (a.fill || 0) === (b.fill || 0) && (a.rot || 0) === (b.rot || 0) &&
+    (a.sc || 1) === (b.sc || 1) && (a.p == null ? -1 : a.p) === (b.p == null ? -1 : b.p) &&
+    (a.mask == null ? -1 : a.mask) === (b.mask == null ? -1 : b.mask) &&
+    (a.p1 == null ? -1 : a.p1) === (b.p1 == null ? -1 : b.p1) &&
+    (a.p2 == null ? -1 : a.p2) === (b.p2 == null ? -1 : b.p2);
+}
+const ARW = r => ({ t: "arrow", rot: ((r % 360) + 360) % 360 });
+const DOT = n => ({ t: "dots", n });
+const POL = (s, f, sc) => ({ t: "poly", sides: s, fill: f ? 1 : 0, sc: sc || 1 });
+const MARK = p => ({ t: "pos", p: ((p % 8) + 8) % 8 });
+const RING = m => ({ t: "ring", mask: m & 255 });
+const SEG = m => ({ t: "seg", mask: m & 63 });
+const DUO = (a, b) => { a = ((a % 8) + 8) % 8; b = ((b % 8) + 8) % 8; return { t: "duo", p1: Math.min(a, b), p2: Math.max(a, b) }; };
+const PIE = m => ({ t: "pie", mask: m & 7 });
+const QC = { t: "q" };
+const popcount = m => { let n = 0; while (m) { n += m & 1; m >>= 1; } return n; };
+function distract(ans) {
+  const out = [], push = c => { if (!lcEq(c, ans) && !out.some(o => lcEq(o, c))) out.push(c); };
+  if (ans.t === "arrow") sample([0, 45, 90, 135, 180, 225, 270, 315], 8).forEach(r => push(ARW(r)));
+  else if (ans.t === "dots") { [-2, -1, 1, 2, 3, -3, 4].forEach(d => { const n = ans.n + d; if (n >= 1 && n <= 9) push(DOT(n)); }); for (let n = 1; n <= 9; n++) push(DOT(n)); }
+  else if (ans.t === "pos") { for (let p = 0; p < 8; p++) push(MARK(p)); }
+  else if (ans.t === "duo") { for (let i = 0; i < 8; i++) { if (i !== ans.p2) push(DUO(i, ans.p2)); if (i !== ans.p1) push(DUO(ans.p1, i)); } }
+  else if (ans.t === "pie") { for (const m of [0b001, 0b010, 0b100, 0b011, 0b101, 0b110, 0b111]) push(PIE(m)); }
+  else if (ans.t === "ring") { for (let i = 0; i < 8; i++) push(RING(ans.mask ^ (1 << i))); for (let r = 1; r < 8; r++) push(RING(((ans.mask << r) | (ans.mask >> (8 - r))) & 255)); }
+  else if (ans.t === "seg") { for (let i = 0; i < 6; i++) push(SEG(ans.mask ^ (1 << i))); }
+  else { // poly: variera sidor, fyllning och storlek runt svaret
+    for (let s = 3; s <= 7; s++) for (const f of [0, 1]) push(POL(s, f, ans.sc));
+    for (const sc of [0.65, 1, 1.35]) push(POL(ans.sides, ans.fill, sc));
+    for (const f of [0, 1]) push(POL(ans.sides, f, ans.sc));
+  }
+  return sample(out, 5);
+}
+function finalizeLogic(g) {
+  const opts = sample([g.answer, ...distract(g.answer)], 6);
+  return { grid: g.grid, options: opts, answer: opts.findIndex(o => lcEq(o, g.answer)), rule: g.rule, explain: g.explain };
+}
+function grid8(fn) { const g = []; for (let r = 0; r < 3; r++) for (let c = 0; c < 3; c++) g.push((r === 2 && c === 2) ? QC : fn(r, c)); return g; }
+// Latinsk kvadrat: varje rad OCH kolumn innehåller alla tre värden exakt en gång (Raven/Alva-klassiker).
+function latin(vals) {
+  const p = sample(vals, 3), a = Math.random() < 0.5 ? 1 : 2, b = Math.random() < 0.5 ? 1 : 2, off = (Math.random() * 3) | 0;
+  return (r, c) => p[((a * r + b * c + off) % 3 + 3) % 3];
+}
+
+// ---- 1. PROGRESSION (en regel, en riktning) ----
+function gRotate(step, base) { base = base || 0; return { grid: grid8((r, c) => ARW(base + c * step)), answer: ARW(base + 2 * step), rule: `Pilen roterar ${step}° per kolumn (samma i varje rad).`, explain: `Sista kolumnen = ${((base + 2 * step) % 360 + 360) % 360}°.` }; }
+function gCount(start, step) { return { grid: grid8((r, c) => DOT(start + c * step)), answer: DOT(start + 2 * step), rule: `Antal prickar ${step < 0 ? "minskar" : "ökar"} med ${Math.abs(step)} per kolumn.`, explain: `Sista = ${start + 2 * step} prickar.` }; }
+function gSides(start, step) { return { grid: grid8((r, c) => POL(start + c * step, 0)), answer: POL(start + 2 * step, 0), rule: `Polygonens sidor ${step < 0 ? "minskar" : "ökar"} med ${Math.abs(step)} per kolumn.`, explain: `Sista = ${start + 2 * step} sidor.` }; }
+function gFillCol() { const a = Math.round(Math.random()), pat = [a, 1 - a, a]; return { grid: grid8((r, c) => POL(4, pat[c])), answer: POL(4, pat[2]), rule: "Fyllningen växlar per kolumn (kvadrat).", explain: `Kolumn 3 → ${pat[2] ? "fylld" : "ofylld"}.` }; }
+
+// ---- 2. DISTRIBUTION AV TRE (latinsk kvadrat) ----
+function gDistribPoly() { const f = latin([3, 4, 5, 6]); return { grid: grid8((r, c) => POL(f(r, c), 0)), answer: POL(f(2, 2), 0), rule: "Tre former fördelas så varje rad och kolumn har alla tre exakt en gång.", explain: `Raden/kolumnen saknar formen med ${f(2, 2)} sidor.` }; }
+function gDistribArrow() { const f = latin([0, 90, 180, 270]); return { grid: grid8((r, c) => ARW(f(r, c))), answer: ARW(f(2, 2)), rule: "Tre riktningar fördelas så varje rad och kolumn har alla tre exakt en gång.", explain: `Saknad riktning = ${f(2, 2)}°.` }; }
+function gDistribDots() { const f = latin([1, 3, 5, 7]); return { grid: grid8((r, c) => DOT(f(r, c))), answer: DOT(f(2, 2)), rule: "Tre antal fördelas så varje rad och kolumn har alla tre exakt en gång.", explain: `Saknat antal = ${f(2, 2)} prickar.` }; }
+
+// ---- 3. TVÅ REGLER SAMTIDIGT (rad + kolumn interagerar) ----
+function gSidesColFillRow() { const s0 = 3 + Math.round(Math.random()), fr = [0, 1, 0]; return { grid: grid8((r, c) => POL(s0 + c, fr[r])), answer: POL(s0 + 2, fr[2]), rule: "Kolumn styr antal sidor, rad styr fyllning (mittenraden fylld).", explain: `Kolumn 3 → ${s0 + 2} sidor, rad 3 → ofylld.` }; }
+function gRotColRow() { return { grid: grid8((r, c) => ARW(c * 90 + r * 45)), answer: ARW(2 * 90 + 2 * 45), rule: "Rotation = kolumn×90° + rad×45°.", explain: `2×90 + 2×45 = ${(2 * 90 + 2 * 45) % 360}°.` }; }
+function gSizeRowSidesCol() { const s0 = 3 + (Math.random() * 2 | 0), sc = [0.6, 0.9, 1.25]; return { grid: grid8((r, c) => POL(s0 + c, 0, sc[r])), answer: POL(s0 + 2, 0, sc[2]), rule: "Kolumn styr antal sidor, rad styr storlek (växer nedåt).", explain: `Kolumn 3 → ${s0 + 2} sidor, rad 3 → största storleken.` }; }
+function gXorFill() {
+  const sb = sample([3, 4, 5, 6], 3);
+  // Säkerställ att åtminstone en rad har A[r] != B[r] så XOR-regeln syns; och att inte alla rader är A==B.
+  let A, B;
+  do {
+    A = [Math.round(Math.random()), Math.round(Math.random()), Math.round(Math.random())];
+    B = [Math.round(Math.random()), Math.round(Math.random()), Math.round(Math.random())];
+  } while (A.every((a, i) => a === B[i])); // regenerera om alla rader har identiska A,B (degenererat fall)
+  const g = [];
+  for (let r = 0; r < 3; r++) for (let c = 0; c < 3; c++) {
+    if (r === 2 && c === 2) { g.push(QC); continue; }
+    const f = c === 0 ? A[r] : c === 1 ? B[r] : (A[r] ^ B[r]);
+    g.push(POL(sb[r], f));
+  }
+  return { grid: g, answer: POL(sb[2], A[2] ^ B[2]), rule: "Kolumn 3 är fylld om exakt en av kolumn 1 och 2 är fylld (XOR). Formen byts per rad.", explain: `Rad 3: ${A[2] ^ B[2] ? "fylld" : "ofylld"} ${sb[2]}-hörning.` };
+}
+// MOTION: pricken rör sig runt ramen, steg per kolumn och rad (mod 8).
+function gMotion(sc, sr) { const b = (Math.random() * 8) | 0; const f = (r, c) => MARK(b + c * sc + r * sr); return { grid: grid8(f), answer: MARK(b + 2 * sc + 2 * sr), rule: `Pricken flyttar ${sc} steg medurs per kolumn och ${sr} steg per rad (runt ramen, 8 lägen).`, explain: `Sista läget = position ${(((b + 2 * sc + 2 * sr) % 8) + 8) % 8}.` }; }
+
+// ---- 4. ARITMETIK & MODULO (kolumn 3 = funktion av kolumn 1 och 2) ----
+function gAddCols() { let ans = DOT(1); const g = []; for (let r = 0; r < 3; r++) { const a = 1 + (Math.random() * 4 | 0), b = 1 + (Math.random() * 4 | 0); for (let c = 0; c < 3; c++) { if (r === 2 && c === 2) { g.push(QC); ans = DOT(a + b); } else g.push(c === 0 ? DOT(a) : c === 1 ? DOT(b) : DOT(a + b)); } } return { grid: g, answer: ans, rule: "Kolumn 3 = kolumn 1 + kolumn 2 (prickar).", explain: `Rad 3: ${ans.n} prickar.` }; }
+function gAbsDiff() { let ans = DOT(1); const g = []; for (let r = 0; r < 3; r++) { let a = 1 + (Math.random() * 6 | 0), b = 1 + (Math.random() * 6 | 0); if (a === b) b = (b % 6) + 1; const d = Math.abs(a - b) || 1; for (let c = 0; c < 3; c++) { if (r === 2 && c === 2) { g.push(QC); ans = DOT(d); } else g.push(c === 0 ? DOT(a) : c === 1 ? DOT(b) : DOT(d)); } } return { grid: g, answer: ans, rule: "Kolumn 3 = |kolumn 1 − kolumn 2|.", explain: `Rad 3: skillnaden = ${ans.n}.` }; }
+function gSidesAdd() { let ans = POL(3, 0); const g = []; for (let r = 0; r < 3; r++) { const a = 3 + (Math.random() * 3 | 0), b = 3 + (Math.random() * 3 | 0); const s3 = (a + b - 6) % 6 + 3; for (let c = 0; c < 3; c++) { if (r === 2 && c === 2) { g.push(QC); ans = POL(s3, 0); } else g.push(POL(c === 0 ? a : c === 1 ? b : s3, 0)); } } return { grid: g, answer: ans, rule: "Sidor i kolumn 3 = (sidor1 + sidor2 − 6) mod 6 + 3.", explain: `Rad 3 → ${ans.sides} sidor efter modulo.` }; }
+// SNAKE-mönster (AssessmentDay-stil): en regel löper sekventiellt genom alla 9 celler i läsordning.
+function gSnakeRotate() {
+  const start = (Math.random() * 8 | 0) * 45;
+  const step = [45, 90][Math.random() < 0.5 ? 0 : 1];
+  const rotAt = k => (start + k * step) % 360;
+  return {
+    grid: grid8((r, c) => ARW(rotAt(r * 3 + c))),
+    answer: ARW(rotAt(8)),
+    rule: `Pilen roterar ${step}° medurs per cell i läsordning (vänster→höger, sedan nästa rad).`,
+    explain: `Cell 9 = ${rotAt(8)}° (startposition ${start}°, ${step}° × 8 steg, mod 360).`
+  };
+}
+function gSnakeMotion() {
+  const start = (Math.random() * 8) | 0;
+  const step = [1, 3][Math.random() < 0.5 ? 0 : 1];
+  const posAt = k => ((start + k * step) % 8 + 8) % 8;
+  return {
+    grid: grid8((r, c) => MARK(posAt(r * 3 + c))),
+    answer: MARK(posAt(8)),
+    rule: `Pricken flyttar ${step} steg medurs runt ramen per cell i läsordning (vänster→höger, sedan nästa rad).`,
+    explain: `Cell 9 = position ${posAt(8)} (startposition ${start}, 8 × ${step} steg).`
+  };
+}
+// Distribution-av-tre på antal fyllda sektorer (Q3-stil från AssessmentDay).
+function gPieDistrib() {
+  const PIE_CANON = { 1: 0b001, 2: 0b011, 3: 0b111 };
+  const cnts = latin([1, 2, 3]);
+  return {
+    grid: grid8((r, c) => PIE(PIE_CANON[cnts(r, c)])),
+    answer: PIE(PIE_CANON[cnts(2, 2)]),
+    rule: "Varje rad och varje kolumn har en cirkel med 1 fylld sektor, en med 2 och en med 3.",
+    explain: `Rad 3 och kolumn 3 saknar varianten med ${cnts(2, 2)} fyllda sektorer.`
+  };
+}
+// Tre attribut samtidigt: form (kolumn), fyllning (rad), storlek (latinsk distribution).
+function gPolyTriple() {
+  const s0 = 3 + (Math.random() * 2 | 0); // 3 eller 4
+  const scF = latin([0.7, 1.0, 1.3]);
+  const fr = [0, 1, 0];
+  return {
+    grid: grid8((r, c) => POL(s0 + c, fr[r], scF(r, c))),
+    answer: POL(s0 + 2, fr[2], scF(2, 2)),
+    rule: "Tre attribut samtidigt: kolumn styr antal sidor, rad styr fyllning (mittenraden fylld), storlek fördelas så varje rad och kolumn har alla tre storlekarna.",
+    explain: `Kolumn 3 → ${s0 + 2} sidor, rad 3 → ofylld, storlek = den som saknas i rad 3 och kolumn 3.`
+  };
+}
+// Två prickar rör sig oberoende runt 8-ringen (multi-motion, expert).
+function gDuoMotion() {
+  for (let tries = 0; tries < 40; tries++) {
+    const b1 = (Math.random() * 8) | 0, b2 = (Math.random() * 8) | 0;
+    if (b1 === b2) continue;
+    const sa = 1, sb = 3, sa2 = 2, sb2 = 5;
+    const f1 = (r, c) => ((b1 + c * sa + r * sb) % 8 + 8) % 8;
+    const f2 = (r, c) => ((b2 + c * sa2 + r * sb2) % 8 + 8) % 8;
+    let collide = false;
+    for (let r = 0; r < 3 && !collide; r++) for (let c = 0; c < 3; c++) if (f1(r, c) === f2(r, c)) { collide = true; break; }
+    if (collide) continue;
+    return {
+      grid: grid8((r, c) => DUO(f1(r, c), f2(r, c))),
+      answer: DUO(f1(2, 2), f2(2, 2)),
+      rule: "Två prickar runt ramen (8 lägen). Prick A: +1/kolumn och +3/rad. Prick B: +2/kolumn och +5/rad. Allt mod 8.",
+      explain: `Slutläget: prick A på position ${f1(2, 2)}, prick B på position ${f2(2, 2)}.`
+    };
+  }
+  return gNecklace(); // fallback om alla starter kolliderar (osannolikt)
+}
+// Rad OCH kolumn styr + modulo: går inte att lösa genom att kopiera en rad/kolumn.
+function gRotDouble() {
+  const f = (r, c) => ARW((45 * Math.pow(2, c) + 135 * r) % 360);
+  return { grid: grid8(f), answer: ARW((45 * 4 + 135 * 2) % 360),
+    rule: "Rotation = 45° × 2^kolumn + 135° × rad (mod 360).",
+    explain: `Sista cellen: 45×4 + 135×2 = ${45 * 4 + 135 * 2}° → ${(45 * 4 + 135 * 2) % 360}° efter mod 360.` };
+}
+// Necklace: 8 pärlor roterar medurs per rad, en svart blir vit per kolumn (iPrep-exempel 1).
+function gRingRotate() {
+  const m0 = sample([0b10110100, 0b11010010, 0b10101100, 0b11001010], 1)[0];
+  const f = (r) => ((m0 << r) | (m0 >> (8 - r))) & 255;
+  return { grid: grid8((r) => RING(f(r))), answer: RING(f(2)),
+    rule: "Pärlmönstret roterar ett steg medurs för varje rad nedåt.",
+    explain: "Rad 3 = mönstret roterat två steg medurs." };
+}
+function gNecklace() {
+  let m0 = 0b11101010; // 5 svarta pärlor
+  const clearLow = (m, k) => { for (let i = 0; i < k; i++) m &= m - 1; return m; };
+  const f = (r, c) => clearLow(((m0 << r) | (m0 >> (8 - r))) & 255, c);
+  return { grid: grid8((r, c) => RING(f(r, c))), answer: RING(f(2, 2)),
+    rule: "Pärlorna roteras ett steg medurs per rad; en svart pärla blir vit per kolumn.",
+    explain: `Sista cellen: mönstret roterat 2 steg, sedan 2 svarta borttagna → ${popcount(f(2, 2))} svarta kvar.` };
+}
+// Overlay: kolumn 3 = linjesegment som finns i exakt en av kolumn 1 och 2 (symmetrisk differens, iPrep-exempel 2).
+function gSegXor() {
+  // Tightad: A och B per rad ska ha 2-4 segment vardera, dela 1-2 segment (delade som "försvinner"),
+  // och XOR ska ha 2-4 segment så svaret är visuellt distinkt (inte 0, inte överfullt).
+  const pick = () => (Math.random() * 64) | 0;
+  const rowPair = () => {
+    for (let tries = 0; tries < 200; tries++) {
+      const a = pick() & 63, b = pick() & 63;
+      const shared = popcount(a & b), x = a ^ b;
+      if (popcount(a) >= 2 && popcount(a) <= 4 && popcount(b) >= 2 && popcount(b) <= 4 &&
+        shared >= 1 && popcount(x) >= 2 && popcount(x) <= 4) return [a, b];
+    }
+    return [0b001100, 0b000011]; // fallback: L vs ⌐
+  };
+  const A = [], B = [], g = [];
+  for (let r = 0; r < 3; r++) { const [a, b] = rowPair(); A.push(a); B.push(b); }
+  for (let r = 0; r < 3; r++) for (let c = 0; c < 3; c++) {
+    if (r === 2 && c === 2) { g.push(QC); continue; }
+    g.push(SEG(c === 0 ? A[r] : c === 1 ? B[r] : (A[r] ^ B[r])));
+  }
+  return { grid: g, answer: SEG(A[2] ^ B[2]),
+    rule: "Kolumn 3 = linjer som finns i exakt en av kolumn 1 och 2 (delade linjer försvinner).",
+    explain: `Rad 3: kolumn 1 och 2 delar ${popcount(A[2] & B[2])} linje(r) (försvinner). Kvar: ${popcount(A[2] ^ B[2])} linje(r).` };
+}
+// Reflektion (12minprep "Frequency"): kolumn 1-2 visar formen, kolumn 3 är spegelvänd. Per rad.
+function gSegMirror() {
+  const mir = m => { let r = m & 0b000101; if (m & 2) r |= 8; if (m & 8) r |= 2; if (m & 16) r |= 32; if (m & 32) r |= 16; return r & 63; };
+  const pick = () => { let m = 0; while (popcount(m) < 2 || m === mir(m)) m = (Math.random() * 64) | 0; return m & 63; };
+  // Säkerställ att alla tre rader är olika så ingen rad är identisk med en annan.
+  const B = [];
+  while (B.length < 3) { const m = pick(); if (!B.includes(m)) B.push(m); }
+  const g = [];
+  for (let r = 0; r < 3; r++) for (let c = 0; c < 3; c++) {
+    if (r === 2 && c === 2) { g.push(QC); continue; }
+    g.push(SEG(c === 2 ? mir(B[r]) : B[r]));
+  }
+  return { grid: g, answer: SEG(mir(B[2])),
+    rule: "Kolumn 1 och 2 visar samma figur, kolumn 3 är den vänsterspeglade versionen.",
+    explain: "Rad 3: spegelvänd den figur som står i kolumn 1 och 2." };
+}
+// Construction (practice4me): kolumn 1 + kolumn 2 läggs ihop till kolumn 3 (union av segment).
+function gSegUnion() {
+  const pick = () => (Math.random() * 64) | 0;
+  const rowPair = () => {
+    for (let tries = 0; tries < 200; tries++) {
+      const a = pick() & 63, b = pick() & 63;
+      if (popcount(a) >= 2 && popcount(a) <= 3 && popcount(b) >= 2 && popcount(b) <= 3 && !(a & b) && popcount(a | b) <= 5) return [a, b];
+    }
+    return [0b000011, 0b001100];
+  };
+  const g = [], A = [], B = [];
+  for (let r = 0; r < 3; r++) {
+    const [a, b] = rowPair();
+    A.push(a); B.push(b);
+    for (let c = 0; c < 3; c++) {
+      if (r === 2 && c === 2) { g.push(QC); continue; }
+      g.push(SEG(c === 0 ? a : c === 1 ? b : (a | b)));
+    }
+  }
+  return { grid: g, answer: SEG(A[2] | B[2]),
+    rule: "Kolumn 3 = kolumn 1 och kolumn 2 hopslagna (alla linjer från båda).",
+    explain: `Rad 3: ${popcount(A[2] | B[2])} linjer totalt när figurerna läggs ihop.` };
+}
+function genLogic(level, count) {
+  const pools = {
+    1: [() => gRotate(45), () => gCount(1, 1), () => gSides(3, 1), () => gFillCol()],
+    2: [() => gRotate(90), () => gCount(5, -2), () => gSides(4, 2), () => gDistribPoly(), () => gDistribArrow(), () => gDistribDots(), () => gRingRotate(), () => gSegUnion(), () => gSnakeRotate(), () => gSnakeMotion()],
+    3: [() => gSidesColFillRow(), () => gRotColRow(), () => gSizeRowSidesCol(), () => gXorFill(), () => gSegXor(), () => gSegMirror(), () => gMotion(1, 3), () => gPieDistrib()],
+    4: [() => gAddCols(), () => gAbsDiff(), () => gSidesAdd(), () => gRotDouble(), () => gNecklace(), () => gMotion(3, 5), () => gPolyTriple(), () => gDuoMotion()],
+  };
+  const pool = pools[level] || pools[1], out = [];
+  for (let i = 0; i < count; i++) out.push(finalizeLogic(pool[(Math.random() * pool.length) | 0]()));
+  return out;
+}
+
+  // ===== Spel-lager =====
+  var SKEY="logik_session_v1", HKEY="logik_highscore_v1";
+  var RANKS=[
+    {min:0,name:"Lärling",icon:"🌱"},{min:34,name:"Tänkare",icon:"🧩"},{min:52,name:"Skarp hjärna",icon:"🧠"},
+    {min:68,name:"Snille",icon:"⭐"},{min:84,name:"Geni",icon:"👑"},{min:95,name:"Mensa-mästare",icon:"🏆"}
+  ];
+  function rankFor(pct){var r=RANKS[0];RANKS.forEach(function(x){if(pct>=x.min)r=x;});return r;}
+  var st=null;
+  function save(){if(st){st.ts=Date.now();try{localStorage.setItem(SKEY,JSON.stringify(st));}catch(e){}}}
+  function clearSession(){try{localStorage.removeItem(SKEY);}catch(e){}}
+  function loadSession(){try{var j=JSON.parse(localStorage.getItem(SKEY)||"null");if(j&&j.qi<j.total&&Date.now()-(j.ts||0)<7*864e5)return j;}catch(e){}return null;}
+  function hi(){try{return JSON.parse(localStorage.getItem(HKEY)||"null");}catch(e){return null;}}
+
+  function curLevel(){return st.mode==="adapt"?st.level:st.mode;}
+  function start(mode,total){
+    st={mode:mode,total:total,qi:0,score:0,streak:0,best:0,correct:0,level:mode==="adapt"?2:mode,puzzle:null,answered:false,chosen:-1};
+    nextPuzzle();
+  }
+  function nextPuzzle(){st.puzzle=genLogic(curLevel(),1)[0];st.answered=false;st.chosen=-1;save();render();}
+
+  function grid(cells,size,cls){
+    return '<div class="matrix">'+cells.map(function(c){
+      return '<div class="mcell'+(c&&c.t==="q"?" q":"")+'">'+cellSVG(c,size)+'</div>';
+    }).join("")+'</div>';
+  }
+  function render(){
+    var p=st.puzzle, pct=Math.round(st.qi/st.total*100);
+    var h='<div class="hud"><span class="pill">Fråga '+(st.qi+1)+'/'+st.total+'</span>'+
+      '<span class="pill lvl">Nivå '+curLevel()+'</span><span class="grow"></span>'+
+      '<span class="pill streak">🔥 '+st.streak+'</span><span class="pill score">🧠 '+st.score+'</span></div>'+
+      '<div class="bar"><span style="width:'+pct+'%"></span></div>';
+    h+='<div class="card">'+grid(p.grid,60)+'<p class="ask">Vilken bricka kommer istället för ❓?</p>'+
+       '<div class="opts">'+p.options.map(function(o,k){return '<div class="opt" data-k="'+k+'">'+cellSVG(o,54)+'</div>';}).join("")+'</div>'+
+       '<div id="fbslot"></div></div>';
+    app.innerHTML=h;
+    if(st.answered){ paintAnswer(); }
+    else app.querySelectorAll(".opt").forEach(function(el){el.onclick=function(){answer(+el.dataset.k);};});
+  }
+  function answer(k){
+    st.answered=true; st.chosen=k;
+    var correct=k===st.puzzle.answer;
+    if(correct){var pts=100*curLevel()+st.streak*25; st.score+=pts; st.lastPts=pts; st.streak++; st.correct++; if(st.mode==="adapt"&&st.level<4)st.level++;}
+    else{st.lastPts=0; st.streak=0; if(st.mode==="adapt"&&st.level>1)st.level--;}
+    save(); paintAnswer(true);
+  }
+  function paintAnswer(animate){
+    var p=st.puzzle, correct=st.chosen===p.answer;
+    var opts=app.querySelectorAll(".opt");
+    opts.forEach(function(el,k){
+      el.onclick=null;
+      if(k===p.answer)el.classList.add("ok");
+      else if(k===st.chosen)el.classList.add("bad");
+      else el.classList.add("dim");
+    });
+    var last=(st.qi+1>=st.total);
+    $("fbslot").innerHTML='<div class="fb '+(correct?"ok":"bad")+'">'+
+      (correct?'<span class="plus">+'+st.lastPts+'</span><b>🎉 Rätt!</b>':'<b>🙈 Inte riktigt.</b>')+
+      '<span class="rule">Regel: '+p.rule+' '+p.explain+'</span></div>'+
+      '<button class="btn" id="next">'+(last?"Se resultatet 🏆":"Nästa fråga →")+'</button>';
+    if(animate)$("fbslot").firstChild.classList.add("pop");
+    $("next").onclick=function(){ st.qi++; if(st.qi>=st.total) end(); else nextPuzzle(); };
+  }
+  function end(){
+    clearSession();
+    var pct=Math.round(st.correct/st.total*100), rank=rankFor(pct);
+    var prev=hi(), isNew=!prev||st.score>prev.score;
+    if(isNew)try{localStorage.setItem(HKEY,JSON.stringify({score:st.score,rank:rank.name,pct:pct}));}catch(e){}
+    burst();
+    app.innerHTML='<div class="card final">'+
+      '<div class="rankbig pop">'+rank.icon+'</div>'+
+      '<div class="rankname'+(isNew?" new":"")+'">'+rank.name+'</div>'+
+      (isNew?'<div style="color:var(--gold);font-size:13px;margin-top:4px">✨ Nytt rekord!</div>':'')+
+      '<div class="stats"><div>Rätt<b>'+st.correct+'/'+st.total+'</b></div><div>Poäng<b>'+st.score+'</b></div><div>Träffsäkerhet<b>'+pct+'%</b></div></div>'+
+      '<button class="btn" id="again">🧠 Spela igen</button>'+
+      '<button class="btn ghost" id="menu">Till start</button></div>';
+    $("again").onclick=function(){start(st.mode,st.total);};
+    $("menu").onclick=home;
+  }
+  function burst(){
+    var c=$("confetti");c.hidden=false;c.innerHTML="";var em=["🎉","✨","🧠","⭐","💫","🏆"];
+    for(var i=0;i<38;i++){var s=document.createElement("div");s.className="conf";s.textContent=em[i%6];
+      s.style.left=((i*97+11)%100)+"%";s.style.animationDuration=(1.7+((i%5)*.3))+"s";s.style.fontSize=(14+(i%4)*7)+"px";c.appendChild(s);}
+    setTimeout(function(){c.hidden=true;},2800);
+  }
+
+  // ===== Start / meny =====
+  var QCOUNT=10;
+  function home(){
+    var best=hi();
+    app.innerHTML='<div class="card">'+
+      '<div class="modes">'+
+      '<button class="mode" data-mode="adapt"><span class="em">🧗</span><span><span class="t">Äventyret</span><span class="d">Rätt svar → svårare. Klättra så högt du kan!</span></span></button>'+
+      '<button class="mode" data-mode="lev"><span class="em">🎯</span><span><span class="t">Välj nivå</span><span class="d">Öva på en bestämd svårighet (1 lätt → 4 klurig).</span></span></button>'+
+      '</div>'+
+      '<div id="levpick"></div>'+
+      (best?'<p class="ask" style="margin-top:14px">🏆 Rekord: '+best.score+' p ('+best.rank+')</p>':'')+
+      '</div>';
+    app.querySelector('[data-mode="adapt"]').onclick=function(){start("adapt",QCOUNT);};
+    app.querySelector('[data-mode="lev"]').onclick=function(){
+      $("levpick").innerHTML='<div class="ask" style="margin-top:14px">Vilken nivå?</div><div class="levbtns">'+
+        [1,2,3,4].map(function(n){return '<button data-lev="'+n+'">'+n+'</button>';}).join("")+'</div>';
+      $("levpick").querySelectorAll("[data-lev]").forEach(function(b){b.onclick=function(){start(+b.dataset.lev,QCOUNT);};});
+    };
+  }
+  function resumeOrHome(){
+    var s=loadSession();
+    if(!s){home();return;}
+    app.innerHTML='<div class="card final"><div class="rankbig">↩︎</div><div class="rankname">Fortsätt där du var?</div>'+
+      '<p class="ask" style="margin-top:8px">Fråga '+(s.qi+1)+'/'+s.total+' · '+s.score+' poäng</p>'+
+      '<button class="btn" id="res">▶︎ Fortsätt</button><button class="btn ghost" id="new">Nej, börja om</button></div>';
+    $("res").onclick=function(){st=s;render();};
+    $("new").onclick=function(){clearSession();home();};
+  }
+  resumeOrHome();
+})();
+</script>
+</body>
+</html>
