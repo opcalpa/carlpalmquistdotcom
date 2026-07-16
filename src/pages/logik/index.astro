@@ -1,6 +1,7 @@
 ---
-// Logikspel — fristående mobil Mensa/Alva-matrisspel (carlpalmquist.com/logik). Del av spel-sviten.
-// Motor portad ur pappens app-assessments.js. Session i localStorage (överlever hard refresh 7 dgr).
+// Hjärngympa — fristående mobil hjärn-spel (carlpalmquist.com/logik). Del av spel-sviten.
+// 3 spel: Logik (Alva/Mensa-matriser, motor ur pappens app-assessments.js) + Matte + Bokstäver/Ord.
+// Åldersnivåer (Mathilde 7 / Louisa 9). Session i localStorage (överlever hard refresh 7 dgr).
 ---
 <!doctype html>
 <html lang="sv">
@@ -9,8 +10,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
   <meta name="theme-color" content="#141026" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-<title>🧠 Logikspel</title>
+<title>🧠 Hjärngympa</title>
 <style is:global>
   :root{--bg:#141026;--card:#1e1a38;--tile:#26214a;--line:#352d5e;--ink:#eae7ff;--muted:#a79fce;
     --cyan:#4fd1e0;--lime:#b6ff5a;--violet:#a78bfa;--ok:#5ce089;--bad:#ff6b8b;--gold:#ffd24a;}
@@ -33,15 +33,17 @@
 
   .card{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:16px;}
   .matrix{display:grid;grid-template-columns:repeat(3,1fr);gap:7px;justify-items:center;margin:2px auto 14px;max-width:250px;}
-  .mcell{width:100%;aspect-ratio:1;background:var(--tile);border:1px solid var(--line);border-radius:11px;
-    display:flex;align-items:center;justify-content:center;}
+  .mcell{width:100%;aspect-ratio:1;background:var(--tile);border:1px solid var(--line);border-radius:11px;display:flex;align-items:center;justify-content:center;}
   .mcell.q{border-color:var(--violet);box-shadow:0 0 0 2px rgba(167,139,250,.3) inset;}
   .mcell svg{width:78%;height:78%;}
   .ask{text-align:center;font-size:14px;color:var(--muted);margin:0 0 10px;}
+  .qtext{text-align:center;font-size:40px;font-weight:800;margin:8px 0 4px;line-height:1.15;}
+  .qsub{text-align:center;font-size:16px;color:var(--muted);margin:0 0 14px;}
   .opts{display:grid;grid-template-columns:repeat(3,1fr);gap:9px;}
-  .opt{aspect-ratio:1;background:var(--tile);border:2px solid var(--line);border-radius:12px;cursor:pointer;
-    display:flex;align-items:center;justify-content:center;transition:transform .08s,border-color .12s;}
+  .opts.txt{grid-template-columns:repeat(2,1fr);}
+  .opt{aspect-ratio:1;background:var(--tile);border:2px solid var(--line);border-radius:12px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:transform .08s,border-color .12s;}
   .opt svg{width:80%;height:80%;}
+  .opt.txt{aspect-ratio:auto;min-height:58px;font-size:26px;font-weight:800;padding:8px;}
   .opt:active{transform:scale(.95);}
   .opt.ok{border-color:var(--ok);box-shadow:0 0 0 3px rgba(92,224,137,.28);}
   .opt.bad{border-color:var(--bad);box-shadow:0 0 0 3px rgba(255,107,139,.28);}
@@ -53,20 +55,17 @@
   .fb b{color:var(--ink);} .fb .rule{color:var(--muted);margin-top:5px;display:block;}
   .fb .plus{float:right;font-weight:800;color:var(--lime);}
 
-  .btn{display:block;width:100%;border:0;border-radius:14px;padding:14px;font-size:16px;font-weight:800;cursor:pointer;margin-top:14px;
-    background:linear-gradient(90deg,var(--cyan),var(--violet));color:#0d0a1e;}
-  .btn.ghost{background:transparent;border:1px solid var(--line);color:var(--muted);font-weight:600;font-size:14px;padding:11px;}
+  .btn{display:block;width:100%;border:0;border-radius:14px;padding:14px;font-size:16px;font-weight:800;cursor:pointer;margin-top:14px;background:linear-gradient(90deg,var(--cyan),var(--violet));color:#0d0a1e;}
+  .btn.ghost{background:transparent;border:1px solid var(--line);color:var(--muted);font-weight:600;font-size:14px;padding:11px;margin-top:0;}
 
   .modes{display:flex;flex-direction:column;gap:10px;}
-  .mode{display:flex;align-items:center;gap:12px;background:var(--tile);border:1px solid var(--line);border-radius:14px;padding:13px 14px;cursor:pointer;text-align:left;}
-  .mode:active{transform:scale(.99);} .mode .em{font-size:26px;}
+  .mode{display:flex;align-items:center;gap:12px;background:var(--tile);border:1px solid var(--line);border-radius:14px;padding:13px 14px;cursor:pointer;text-align:left;color:var(--ink);}
+  .mode:active{transform:scale(.99);} .mode .em{font-size:26px;flex-shrink:0;}
   .mode .t{font-size:15px;font-weight:700;} .mode .d{font-size:12px;color:var(--muted);margin-top:2px;}
-  .levbtns{display:flex;gap:8px;margin-top:4px;} .levbtns button{flex:1;background:var(--tile);border:1px solid var(--line);color:var(--ink);border-radius:11px;padding:10px 0;font-weight:700;cursor:pointer;font-size:14px;}
 
   .final{text-align:center;}
   .rankbig{font-size:60px;line-height:1;margin:6px 0;}
-  .rankname{font-size:24px;font-weight:800;}
-  .rankname.new{color:var(--gold);}
+  .rankname{font-size:24px;font-weight:800;} .rankname.new{color:var(--gold);}
   .stats{display:flex;justify-content:center;gap:18px;margin:14px 0;font-size:13px;color:var(--muted);}
   .stats b{display:block;font-size:20px;color:var(--ink);}
   .confetti{position:fixed;inset:0;pointer-events:none;overflow:hidden;z-index:40;}
@@ -76,7 +75,7 @@
 </head>
 <body>
 <div class="wrap">
-  <header><h1>🧠 Logikspel</h1><p class="sub">Vilken bricka fortsätter mönstret? Träna som ett Mensa-test.</p></header>
+  <header><h1>🧠 Hjärngympa</h1><p class="sub">Logik, matte och bokstäver — lär dig medan du spelar.</p></header>
   <div id="app"></div>
 </div>
 <div class="confetti" id="confetti" hidden></div>
@@ -412,12 +411,57 @@ function genLogic(level, count) {
   return out;
 }
 
-  // ===== Spel-lager =====
-  var SKEY="logik_session_v1", HKEY="logik_highscore_v1";
-  var RANKS=[
-    {min:0,name:"Lärling",icon:"🌱"},{min:34,name:"Tänkare",icon:"🧩"},{min:52,name:"Skarp hjärna",icon:"🧠"},
-    {min:68,name:"Snille",icon:"⭐"},{min:84,name:"Geni",icon:"👑"},{min:95,name:"Mensa-mästare",icon:"🏆"}
+  // ===== små hjälpare =====
+  function rnd(n){return Math.floor(Math.random()*n);}
+  function shuf(a){return sample(a,a.length);}
+
+  // ===== Matte-generator =====
+  function numOpts(ans){
+    var set={}; set[ans]=true; var deltas=[-1,1,-2,2,3,-3,10,-10,5], t=0;
+    while(Object.keys(set).length<4 && t<60){ var v=ans+deltas[rnd(deltas.length)]; if(v>=0) set[v]=true; t++; }
+    var arr=Object.keys(set).map(Number); if(arr.indexOf(ans)<0) arr[0]=ans; arr=shuf(arr).slice(0,4);
+    if(arr.indexOf(ans)<0){ arr[0]=ans; arr=shuf(arr); }
+    return {options:arr.map(String), answer:arr.indexOf(ans)};
+  }
+  function genMath(level){
+    var a,b,op,ans;
+    if(level<=1){ a=1+rnd(9); b=1+rnd(9); if(Math.random()<0.5){op="+";ans=a+b;} else {if(a<b){var t=a;a=b;b=t;} op="−";ans=a-b;} }
+    else if(level===2){ a=2+rnd(18); b=2+rnd(18); if(Math.random()<0.5){op="+";ans=a+b;} else {if(a<b){var t=a;a=b;b=t;} op="−";ans=a-b;} }
+    else if(level===3){ if(Math.random()<0.6){a=2+rnd(8);b=2+rnd(8);op="×";ans=a*b;} else {a=10+rnd(40);b=5+rnd(40);if(Math.random()<0.5){op="+";ans=a+b;}else{if(a<b){var t=a;a=b;b=t;}op="−";ans=a-b;}} }
+    else { if(Math.random()<0.5){ a=5+rnd(30); ans=2+rnd(20); var c=a+ans; var o=numOpts(ans); return {kind:"text",prompt:a+" + ❓ = "+c,sub:"Vilket tal saknas?",options:o.options,answer:o.answer,explain:a+" + "+ans+" = "+c}; }
+            a=3+rnd(9); b=3+rnd(9); op="×"; ans=a*b; }
+    var o=numOpts(ans);
+    return {kind:"text", prompt:a+" "+op+" "+b+" = ❓", options:o.options, answer:o.answer, explain:a+" "+op+" "+b+" = "+ans};
+  }
+
+  // ===== Bokstäver & ord =====
+  var WORDS=[
+    {e:"🐶",w:"HUND"},{e:"🐱",w:"KATT"},{e:"☀️",w:"SOL"},{e:"🚗",w:"BIL"},{e:"⚽",w:"BOLL"},
+    {e:"🍎",w:"ÄPPLE"},{e:"🐟",w:"FISK"},{e:"🏠",w:"HUS"},{e:"🌸",w:"BLOMMA"},{e:"⭐",w:"STJÄRNA"},
+    {e:"🚂",w:"TÅG"},{e:"🐭",w:"MUS"},{e:"🐮",w:"KO"},{e:"🐷",w:"GRIS"},{e:"📕",w:"BOK"},
+    {e:"⛵",w:"BÅT"},{e:"🌳",w:"TRÄD"},{e:"🌙",w:"MÅNE"},{e:"❤️",w:"HJÄRTA"},{e:"🍦",w:"GLASS"},
+    {e:"🎈",w:"BALLONG"},{e:"🧀",w:"OST"},{e:"🥕",w:"MOROT"},{e:"🐝",w:"BI"},{e:"🌈",w:"REGNBÅGE"}
   ];
+  var AB="ABCDEFGHIJKLMNOPRSTUVÄÖ";
+  function letterOpts(correct){ var set={}; set[correct]=true; while(Object.keys(set).length<4){ set[AB[rnd(AB.length)]]=true; } var arr=shuf(Object.keys(set)); return {options:arr, answer:arr.indexOf(correct)}; }
+  function genLetters(level){
+    var it=WORDS[rnd(WORDS.length)];
+    if(level<=1){ var o=letterOpts(it.w[0]); return {kind:"text", prompt:it.e, sub:it.w+" börjar på vilken bokstav?", options:o.options, answer:o.answer, explain:it.w+" börjar på "+it.w[0]+"."}; }
+    if(level===2){ var wrongs=shuf(WORDS.filter(function(x){return x.w!==it.w;})).slice(0,3).map(function(x){return x.w;}); var all=shuf([it.w].concat(wrongs)); return {kind:"text", prompt:it.e, sub:"Vilket ord är det?", options:all, answer:all.indexOf(it.w), explain:"Det är "+it.w+"."}; }
+    var pos=rnd(it.w.length), miss=it.w[pos], m=it.w.split(""); m[pos]="_"; var o=letterOpts(miss);
+    return {kind:"text", prompt:it.e+"  "+m.join(" "), sub:"Vilken bokstav saknas?", options:o.options, answer:o.answer, explain:"Ordet är "+it.w+"."};
+  }
+
+  function genQuestion(game, level){
+    if(game==="matte") return genMath(level);
+    if(game==="bokstaver") return genLetters(level);
+    var q=genLogic(level,1)[0]; q.kind="grid"; return q;
+  }
+  var GAMES={logik:{icon:"🧠",name:"Logik"},matte:{icon:"🔢",name:"Matte"},bokstaver:{icon:"🔤",name:"Bokstäver"}};
+
+  // ===== Spel-lager =====
+  var SKEY="hjarngympa_session_v1", HKEY="logik_highscore_v1", QCOUNT=10;
+  var RANKS=[{min:0,name:"Lärling",icon:"🌱"},{min:34,name:"Tänkare",icon:"🧩"},{min:52,name:"Skarp hjärna",icon:"🧠"},{min:68,name:"Snille",icon:"⭐"},{min:84,name:"Geni",icon:"👑"},{min:95,name:"Mästare",icon:"🏆"}];
   function rankFor(pct){var r=RANKS[0];RANKS.forEach(function(x){if(pct>=x.min)r=x;});return r;}
   var st=null;
   function save(){if(st){st.ts=Date.now();try{localStorage.setItem(SKEY,JSON.stringify(st));}catch(e){}}}
@@ -426,102 +470,88 @@ function genLogic(level, count) {
   function hi(){try{return JSON.parse(localStorage.getItem(HKEY)||"null");}catch(e){return null;}}
 
   function curLevel(){return st.mode==="adapt"?st.level:st.mode;}
-  function start(mode,total){
-    st={mode:mode,total:total,qi:0,score:0,streak:0,best:0,correct:0,level:mode==="adapt"?2:mode,puzzle:null,answered:false,chosen:-1};
+  function start(game,mode,total){
+    st={game:game,mode:mode,total:total,qi:0,score:0,streak:0,correct:0,level:mode==="adapt"?2:mode,puzzle:null,answered:false,chosen:-1};
     nextPuzzle();
   }
-  function nextPuzzle(){st.puzzle=genLogic(curLevel(),1)[0];st.answered=false;st.chosen=-1;save();render();}
+  function nextPuzzle(){st.puzzle=genQuestion(st.game,curLevel());st.answered=false;st.chosen=-1;save();render();}
 
-  function grid(cells,size,cls){
-    return '<div class="matrix">'+cells.map(function(c){
-      return '<div class="mcell'+(c&&c.t==="q"?" q":"")+'">'+cellSVG(c,size)+'</div>';
-    }).join("")+'</div>';
-  }
+  function gridHTML(cells){return '<div class="matrix">'+cells.map(function(c){return '<div class="mcell'+(c&&c.t==="q"?" q":"")+'">'+cellSVG(c,60)+'</div>';}).join("")+'</div>';}
   function render(){
     var p=st.puzzle, pct=Math.round(st.qi/st.total*100);
-    var h='<div class="hud"><span class="pill">Fråga '+(st.qi+1)+'/'+st.total+'</span>'+
+    var h='<div class="hud"><span class="pill">'+GAMES[st.game].icon+' '+(st.qi+1)+'/'+st.total+'</span>'+
       '<span class="pill lvl">Nivå '+curLevel()+'</span><span class="grow"></span>'+
-      '<span class="pill streak">🔥 '+st.streak+'</span><span class="pill score">🧠 '+st.score+'</span></div>'+
+      '<span class="pill streak">🔥 '+st.streak+'</span><span class="pill score">'+st.score+' p</span></div>'+
       '<div class="bar"><span style="width:'+pct+'%"></span></div>';
-    h+='<div class="card">'+grid(p.grid,60)+'<p class="ask">Vilken bricka kommer istället för ❓?</p>'+
-       '<div class="opts">'+p.options.map(function(o,k){return '<div class="opt" data-k="'+k+'">'+cellSVG(o,54)+'</div>';}).join("")+'</div>'+
-       '<div id="fbslot"></div></div>';
+    if(p.kind==="grid"){
+      h+='<div class="card">'+gridHTML(p.grid)+'<p class="ask">Vilken bricka kommer istället för ❓?</p>'+
+         '<div class="opts">'+p.options.map(function(o,k){return '<div class="opt" data-k="'+k+'">'+cellSVG(o,54)+'</div>';}).join("")+'</div><div id="fbslot"></div></div>';
+    } else {
+      h+='<div class="card"><div class="qtext">'+p.prompt+'</div>'+(p.sub?'<div class="qsub">'+p.sub+'</div>':'')+
+         '<div class="opts txt">'+p.options.map(function(o,k){return '<div class="opt txt" data-k="'+k+'">'+o+'</div>';}).join("")+'</div><div id="fbslot"></div></div>';
+    }
     app.innerHTML=h;
-    if(st.answered){ paintAnswer(); }
+    if(st.answered) paintAnswer();
     else app.querySelectorAll(".opt").forEach(function(el){el.onclick=function(){answer(+el.dataset.k);};});
   }
   function answer(k){
     st.answered=true; st.chosen=k;
     var correct=k===st.puzzle.answer;
-    if(correct){var pts=100*curLevel()+st.streak*25; st.score+=pts; st.lastPts=pts; st.streak++; st.correct++; if(st.mode==="adapt"&&st.level<4)st.level++;}
-    else{st.lastPts=0; st.streak=0; if(st.mode==="adapt"&&st.level>1)st.level--;}
+    if(correct){var pts=100*curLevel()+st.streak*25;st.score+=pts;st.lastPts=pts;st.streak++;st.correct++;if(st.mode==="adapt"&&st.level<4)st.level++;}
+    else{st.lastPts=0;st.streak=0;if(st.mode==="adapt"&&st.level>1)st.level--;}
     save(); paintAnswer(true);
   }
   function paintAnswer(animate){
-    var p=st.puzzle, correct=st.chosen===p.answer;
-    var opts=app.querySelectorAll(".opt");
-    opts.forEach(function(el,k){
-      el.onclick=null;
-      if(k===p.answer)el.classList.add("ok");
-      else if(k===st.chosen)el.classList.add("bad");
-      else el.classList.add("dim");
-    });
+    var p=st.puzzle, correct=st.chosen===p.answer, opts=app.querySelectorAll(".opt");
+    opts.forEach(function(el,k){el.onclick=null;if(k===p.answer)el.classList.add("ok");else if(k===st.chosen)el.classList.add("bad");else el.classList.add("dim");});
     var last=(st.qi+1>=st.total);
     $("fbslot").innerHTML='<div class="fb '+(correct?"ok":"bad")+'">'+
       (correct?'<span class="plus">+'+st.lastPts+'</span><b>🎉 Rätt!</b>':'<b>🙈 Inte riktigt.</b>')+
-      '<span class="rule">Regel: '+p.rule+' '+p.explain+'</span></div>'+
-      '<button class="btn" id="next">'+(last?"Se resultatet 🏆":"Nästa fråga →")+'</button>';
+      '<span class="rule">'+(p.rule?"Regel: "+p.rule+" ":"")+(p.explain||"")+'</span></div>'+
+      '<button class="btn" id="next">'+(last?"Se resultatet 🏆":"Nästa →")+'</button>';
     if(animate)$("fbslot").firstChild.classList.add("pop");
-    $("next").onclick=function(){ st.qi++; if(st.qi>=st.total) end(); else nextPuzzle(); };
+    $("next").onclick=function(){st.qi++;if(st.qi>=st.total)end();else nextPuzzle();};
   }
   function end(){
     clearSession();
-    var pct=Math.round(st.correct/st.total*100), rank=rankFor(pct);
-    var prev=hi(), isNew=!prev||st.score>prev.score;
+    var pct=Math.round(st.correct/st.total*100), rank=rankFor(pct), prev=hi(), isNew=!prev||st.score>prev.score;
     if(isNew)try{localStorage.setItem(HKEY,JSON.stringify({score:st.score,rank:rank.name,pct:pct}));}catch(e){}
     burst();
-    app.innerHTML='<div class="card final">'+
-      '<div class="rankbig pop">'+rank.icon+'</div>'+
-      '<div class="rankname'+(isNew?" new":"")+'">'+rank.name+'</div>'+
+    app.innerHTML='<div class="card final"><div class="rankbig pop">'+rank.icon+'</div><div class="rankname'+(isNew?" new":"")+'">'+rank.name+'</div>'+
       (isNew?'<div style="color:var(--gold);font-size:13px;margin-top:4px">✨ Nytt rekord!</div>':'')+
       '<div class="stats"><div>Rätt<b>'+st.correct+'/'+st.total+'</b></div><div>Poäng<b>'+st.score+'</b></div><div>Träffsäkerhet<b>'+pct+'%</b></div></div>'+
-      '<button class="btn" id="again">🧠 Spela igen</button>'+
-      '<button class="btn ghost" id="menu">Till start</button></div>';
-    $("again").onclick=function(){start(st.mode,st.total);};
+      '<button class="btn" id="again">Spela igen</button><button class="btn ghost" id="menu" style="margin-top:10px">Till start</button></div>';
+    $("again").onclick=function(){start(st.game,st.mode,st.total);};
     $("menu").onclick=home;
   }
-  function burst(){
-    var c=$("confetti");c.hidden=false;c.innerHTML="";var em=["🎉","✨","🧠","⭐","💫","🏆"];
-    for(var i=0;i<38;i++){var s=document.createElement("div");s.className="conf";s.textContent=em[i%6];
-      s.style.left=((i*97+11)%100)+"%";s.style.animationDuration=(1.7+((i%5)*.3))+"s";s.style.fontSize=(14+(i%4)*7)+"px";c.appendChild(s);}
-    setTimeout(function(){c.hidden=true;},2800);
-  }
+  function burst(){var c=$("confetti");c.hidden=false;c.innerHTML="";var em=["🎉","✨","🧠","⭐","💫","🏆"];for(var i=0;i<38;i++){var s=document.createElement("div");s.className="conf";s.textContent=em[i%6];s.style.left=((i*97+11)%100)+"%";s.style.animationDuration=(1.7+((i%5)*.3))+"s";s.style.fontSize=(14+(i%4)*7)+"px";c.appendChild(s);}setTimeout(function(){c.hidden=true;},2800);}
 
-  // ===== Start / meny =====
-  var QCOUNT=10;
+  // ===== Start =====
+  function gbtn(g){return '<button class="mode" data-game="'+g+'"><span class="em">'+GAMES[g].icon+'</span><span><span class="t">'+GAMES[g].name+'</span><span class="d">'+GAMES[g].d+'</span></span></button>';}
+  GAMES.logik.d="Mönster & matriser — kluriga hjärngåtor."; GAMES.matte.d="Räkna ut svaret och välj rätt."; GAMES.bokstaver.d="Lär dig bokstäver och börja läsa.";
   function home(){
     var best=hi();
-    app.innerHTML='<div class="card">'+
-      '<div class="modes">'+
-      '<button class="mode" data-mode="adapt"><span class="em">🧗</span><span><span class="t">Äventyret</span><span class="d">Rätt svar → svårare. Klättra så högt du kan!</span></span></button>'+
-      '<button class="mode" data-mode="lev"><span class="em">🎯</span><span><span class="t">Välj nivå</span><span class="d">Öva på en bestämd svårighet (1 lätt → 4 klurig).</span></span></button>'+
-      '</div>'+
-      '<div id="levpick"></div>'+
-      (best?'<p class="ask" style="margin-top:14px">🏆 Rekord: '+best.score+' p ('+best.rank+')</p>':'')+
-      '</div>';
-    app.querySelector('[data-mode="adapt"]').onclick=function(){start("adapt",QCOUNT);};
-    app.querySelector('[data-mode="lev"]').onclick=function(){
-      $("levpick").innerHTML='<div class="ask" style="margin-top:14px">Vilken nivå?</div><div class="levbtns">'+
-        [1,2,3,4].map(function(n){return '<button data-lev="'+n+'">'+n+'</button>';}).join("")+'</div>';
-      $("levpick").querySelectorAll("[data-lev]").forEach(function(b){b.onclick=function(){start(+b.dataset.lev,QCOUNT);};});
-    };
+    app.innerHTML='<div class="card"><div class="modes">'+gbtn("logik")+gbtn("matte")+gbtn("bokstaver")+'</div>'+
+      (best?'<p class="ask" style="margin-top:14px">🏆 Rekord: '+best.score+' p ('+best.rank+')</p>':'')+'</div>';
+    app.querySelectorAll("[data-game]").forEach(function(b){b.onclick=function(){pickLevel(b.dataset.game);};});
+  }
+  function pickLevel(game){
+    var rows='';
+    if(game==="logik") rows+='<button class="mode" data-mode="adapt"><span class="em">🧗</span><span><span class="t">Äventyret</span><span class="d">Rätt svar → svårare. Klättra så högt du kan!</span></span></button>';
+    [[1,"🐣","Lätt","För de yngsta (Mathilde)"],[2,"🐥","Mellan","Lite klurigare"],[3,"🦉","Klurig","Tänk till (Louisa)"],[4,"🧠","Svår","För proffs"]].forEach(function(L){
+      rows+='<button class="mode" data-lev="'+L[0]+'"><span class="em">'+L[1]+'</span><span><span class="t">'+L[2]+'</span><span class="d">'+L[3]+'</span></span></button>';
+    });
+    app.innerHTML='<div class="card"><button class="btn ghost" id="back" style="margin-bottom:12px">← Välj spel</button><div class="ask" style="text-align:left;margin:0 2px 8px">'+GAMES[game].icon+' '+GAMES[game].name+' — välj svårighet</div><div class="modes">'+rows+'</div></div>';
+    $("back").onclick=home;
+    app.querySelectorAll("[data-mode]").forEach(function(b){b.onclick=function(){start(game,b.dataset.mode,QCOUNT);};});
+    app.querySelectorAll("[data-lev]").forEach(function(b){b.onclick=function(){start(game,+b.dataset.lev,QCOUNT);};});
   }
   function resumeOrHome(){
     var s=loadSession();
     if(!s){home();return;}
     app.innerHTML='<div class="card final"><div class="rankbig">↩︎</div><div class="rankname">Fortsätt där du var?</div>'+
-      '<p class="ask" style="margin-top:8px">Fråga '+(s.qi+1)+'/'+s.total+' · '+s.score+' poäng</p>'+
-      '<button class="btn" id="res">▶︎ Fortsätt</button><button class="btn ghost" id="new">Nej, börja om</button></div>';
+      '<p class="ask" style="margin-top:8px">'+(GAMES[s.game]?GAMES[s.game].icon+" "+GAMES[s.game].name+" · ":"")+'Fråga '+(s.qi+1)+'/'+s.total+' · '+s.score+' poäng</p>'+
+      '<button class="btn" id="res">▶︎ Fortsätt</button><button class="btn ghost" id="new" style="margin-top:10px">Nej, börja om</button></div>';
     $("res").onclick=function(){st=s;render();};
     $("new").onclick=function(){clearSession();home();};
   }
