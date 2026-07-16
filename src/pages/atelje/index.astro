@@ -1,6 +1,6 @@
 ---
-// Modeateljén — fristående mobil klädspel-sida (carlpalmquist.com/atelje). Del av spel-sviten.
-// Karaktärsväljare (Flux-dockor i /public/dolls) + vektor-rita-själv m. form-skuggade plagg.
+// Modeateljén — fristående mobil klädspel-sida (carlpalmquist.com/atelje).
+// Karaktärsväljare (Flux-dockor) + vektor-rita-själv m. form-skuggade plagg.
 ---
 <!doctype html>
 <html lang="sv">
@@ -24,7 +24,7 @@
   header h1{margin:0; font-size:19px;} header h1 .doll{color:var(--accent);}
   header .sub{margin:2px 0 0; font-size:12px; color:var(--muted);}
 
-  .stage{position:relative; width:100%; max-width:520px; aspect-ratio:3/4; border-radius:22px;
+  .stage{position:relative; width:100%; max-width:520px; aspect-ratio:3/4; min-height:64vh; flex:0 0 auto; border-radius:22px;
     overflow:hidden; margin:8px 0; box-shadow:0 10px 30px rgba(120,60,90,.18); touch-action:none;
     background:linear-gradient(160deg,#ffd9e6,#ffeef4 55%,#e9f7f4); transition:background .5s ease;}
   .stage .bd-emoji{position:absolute; font-size:28px; opacity:.7; pointer-events:none; user-select:none;}
@@ -331,7 +331,7 @@
   }
   var TAB={
     docka:function(){
-      var h='<div class="sect"><div class="lbl">Välj docka</div><div class="grid" style="grid-template-columns:repeat(auto-fill,minmax(70px,1fr))">';
+      var h='<div class="sect"><div class="lbl">Välj docka</div><div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(66px,1fr));gap:8px">';
       CHARS.forEach(function(c){
         h+='<div class="charcard'+(state.char===c.id?" sel":"")+'" data-char="'+c.id+'">'+
            (c.id?'<img src="/dolls/'+c.id+'.jpg" alt="'+c.name+'"/>':'<div class="drawher">✏️</div>')+
