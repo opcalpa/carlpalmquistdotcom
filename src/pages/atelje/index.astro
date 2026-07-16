@@ -1,6 +1,6 @@
 ---
 // Modeateljén — fristående mobil klädspel-sida (carlpalmquist.com/atelje).
-// Karaktärsväljare (Flux-dockor) + vektor-rita-själv m. slimmad mannekäng + form-skuggade plagg.
+// Karaktärsväljare (transparenta Flux-dockor via birefnet) + vektor-rita-själv + 10 Flux-bakgrunder.
 ---
 <!doctype html>
 <html lang="sv">
@@ -35,6 +35,10 @@
   .charcard img{width:100%; aspect-ratio:1; object-fit:cover; object-position:center top; display:block;}
   .charcard .drawher{aspect-ratio:1; display:flex; align-items:center; justify-content:center; font-size:28px; background:#faf1f6;}
   .charcard span{display:block; font-size:11px; padding:3px 2px; color:#6a5560;}
+  .bgcard{border:2px solid var(--line); border-radius:12px; overflow:hidden; cursor:pointer; background:#fff; text-align:center;}
+  .bgcard.sel{border-color:var(--accent); box-shadow:0 0 0 3px rgba(232,111,166,.22);}
+  .bgcard img{width:100%; aspect-ratio:3/4; object-fit:cover; display:block;}
+  .bgcard span{display:block; font-size:10.5px; padding:2px; color:#6a5560;}
   .acc{position:absolute; transform:translate(-50%,-50%); font-size:32px; cursor:grab; touch-action:none;
     user-select:none; filter:drop-shadow(0 2px 3px rgba(0,0,0,.25)); transition:transform .08s;}
   .acc.drag{cursor:grabbing; transform:translate(-50%,-50%) scale(1.18);}
@@ -246,10 +250,16 @@
     {name:"Louisa Original",vibe:"Din helt egna look!",top:{shape:"klanning",pat:"stjarnor",color:"#e7b6cf",fg:"#fff3a0",mat:"paljett"},bot:{shape:"ingen",pat:"slat",color:"#e7b6cf",fg:"#fff",mat:"matt"},acc:["⭐","🎀"]}
   ];
   var BACKDROPS={
-    catwalk:{name:"Catwalk",css:"linear-gradient(160deg,#2a2140,#4a3a63 60%,#e0c3d6)",emoji:[["✨",10,12],["✨",82,20],["💡",50,6]]},
-    tradgard:{name:"Trädgård",css:"linear-gradient(160deg,#bfe3b0,#e6f6dc 60%,#fef3c7)",emoji:[["🌸",8,80],["🌿",86,74],["🦋",78,18],["🌷",14,20]]},
-    strand:{name:"Strand",css:"linear-gradient(160deg,#8ecbe8,#d9f0f7 55%,#f6e4b8)",emoji:[["☀️",82,12],["🌊",10,82],["🐚",80,82],["⛱️",16,72]]},
-    bal:{name:"Bal",css:"linear-gradient(160deg,#1c1440,#3a2a63 55%,#6b4a8a)",emoji:[["⭐",12,14],["⭐",80,24],["🌙",78,10],["✨",46,20]]}
+    catwalk:{name:"Catwalk",img:"/bg/01-catwalk.jpg"},
+    tradgard:{name:"Trädgård",img:"/bg/02-tradgard.jpg"},
+    strand:{name:"Strand",img:"/bg/03-strand.jpg"},
+    bal:{name:"Bal",img:"/bg/04-bal.jpg"},
+    rum:{name:"Rum",img:"/bg/05-rum.jpg"},
+    skog:{name:"Skog",img:"/bg/06-skog.jpg"},
+    vinter:{name:"Vinter",img:"/bg/07-vinter.jpg"},
+    ang:{name:"Äng",img:"/bg/08-ang.jpg"},
+    stad:{name:"Stad",img:"/bg/09-stad.jpg"},
+    slott:{name:"Slott",img:"/bg/10-slott.jpg"}
   };
 
   // ===== State =====
@@ -263,14 +273,14 @@
 
   // Flux-genererade karaktärer (public/dolls). char="" = rita-själv-vektordockan.
   var CHARS=[
-    {id:"",name:"✏️ Rita själv"},
-    {id:"01-nadia",name:"Nadia"},{id:"02-elsa",name:"Elsa"},{id:"03-mira",name:"Mira"},
-    {id:"04-zoe",name:"Zoe"},{id:"05-vera",name:"Vera"},{id:"06-lin",name:"Lin"},
-    {id:"07-ada",name:"Ada"},{id:"08-noor",name:"Noor"},{id:"09-stella",name:"Stella"},{id:"10-amara",name:"Amara"}
+    {id:"",name:"✏️ Rita själv",bg:"catwalk"},
+    {id:"01-nadia",name:"Nadia",bg:"tradgard"},{id:"02-elsa",name:"Elsa",bg:"bal"},{id:"03-mira",name:"Mira",bg:"stad"},
+    {id:"04-zoe",name:"Zoe",bg:"strand"},{id:"05-vera",name:"Vera",bg:"skog"},{id:"06-lin",name:"Lin",bg:"slott"},
+    {id:"07-ada",name:"Ada",bg:"rum"},{id:"08-noor",name:"Noor",bg:"ang"},{id:"09-stella",name:"Stella",bg:"catwalk"},{id:"10-amara",name:"Amara",bg:"vinter"}
   ];
   function applyChar(){
     var img=$("charimg"), doll=$("doll");
-    if(state.char){ img.src="/dolls/"+state.char+".jpg"; img.hidden=false; doll.style.display="none"; }
+    if(state.char){ img.src="/dolls/"+state.char+".png"; img.hidden=false; doll.style.display="none"; }
     else { img.hidden=true; img.removeAttribute("src"); doll.style.display=""; }
     // I karaktärsläge är hon redan klädd/ritad → dölj plagg-flikarna, behåll Pynt + Bakgrund.
     ["huvud","top","bottom","feet"].forEach(function(t){
@@ -302,9 +312,9 @@
     var d=$("doll"); d.classList.remove("flash"); void d.offsetWidth; d.classList.add("flash");
   }
   function setBackdrop(){
-    var bd=BACKDROPS[state.bd]; $("stage").style.background=bd.css;
+    var bd=BACKDROPS[state.bd]||BACKDROPS.catwalk, st=$("stage");
+    st.style.backgroundImage="url('"+bd.img+"')"; st.style.backgroundSize="cover"; st.style.backgroundPosition="center";
     Array.prototype.slice.call(document.querySelectorAll(".bd-emoji")).forEach(function(e){e.remove();});
-    bd.emoji.forEach(function(e){var s=document.createElement("div");s.className="bd-emoji";s.textContent=e[0];s.style.left=e[1]+"%";s.style.top=e[2]+"%";$("stage").insertBefore(s,$("doll"));});
   }
   function sparkleAt(px,py){var s=document.createElement("div");s.className="spark";s.textContent="✨";s.style.left=px+"px";s.style.top=py+"px";$("stage").appendChild(s);setTimeout(function(){s.remove();},700);}
   function flashStage(){var r=$("stage").getBoundingClientRect();sparkleAt(r.width*.5,r.height*.35);}
@@ -336,11 +346,11 @@
       var h='<div class="sect"><div class="lbl">Välj docka</div><div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(66px,1fr));gap:8px">';
       CHARS.forEach(function(c){
         h+='<div class="charcard'+(state.char===c.id?" sel":"")+'" data-char="'+c.id+'">'+
-           (c.id?'<img src="/dolls/'+c.id+'.jpg" alt="'+c.name+'"/>':'<div class="drawher">✏️</div>')+
+           (c.id?'<img src="/dolls/'+c.id+'.png" alt="'+c.name+'"/>':'<div class="drawher">✏️</div>')+
            '<span>'+c.name+'</span></div>';
       });
       $("panelbody").innerHTML=h+'</div><p class="hint">Välj en färdig karaktär och pynta henne, eller "Rita själv" för att designa plaggen från grunden.</p>';
-      bind(".charcard","click",function(el){ state.char=el.dataset.char; applyChar(); saveCurrent(); TAB.docka(); });
+      bind(".charcard","click",function(el){ state.char=el.dataset.char; var c=CHARS.filter(function(x){return x.id===el.dataset.char;})[0]; if(c&&c.bg)state.bd=c.bg; applyChar(); setBackdrop(); saveCurrent(); TAB.docka(); });
     },
     huvud:function(){
       var s=state.hair;
@@ -382,10 +392,10 @@
       bind(".accbtn","click",function(el){addAccessory(el.dataset.e);});
     },
     bak:function(){
-      var h='<div class="row">';
-      Object.keys(BACKDROPS).forEach(function(k){h+='<button class="bdbtn'+(state.bd===k?" sel":"")+'" data-bd="'+k+'">'+BACKDROPS[k].name+'</button>';});
-      $("panelbody").innerHTML=h+'</div>';
-      bind(".bdbtn","click",function(el){state.bd=el.dataset.bd;setBackdrop();TAB.bak();});
+      var h='<div class="sect"><div class="lbl">Bakgrund</div><div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(76px,1fr));gap:8px">';
+      Object.keys(BACKDROPS).forEach(function(k){h+='<div class="bgcard'+(state.bd===k?" sel":"")+'" data-bd="'+k+'"><img src="'+BACKDROPS[k].img+'" alt="'+BACKDROPS[k].name+'"/><span>'+BACKDROPS[k].name+'</span></div>';});
+      $("panelbody").innerHTML=h+'</div></div>';
+      bind(".bgcard","click",function(el){state.bd=el.dataset.bd;setBackdrop();saveCurrent();TAB.bak();});
     }
   };
   function applyStyle(st){
@@ -452,9 +462,9 @@
   function renderWardrobe(){
     var w=$("wrow"); var list=load(); w.innerHTML="";
     list.forEach(function(s,i){
-      var t=document.createElement("div"); t.className="wthumb"; t.style.background=BACKDROPS[s.bd].css;
+      var t=document.createElement("div"); t.className="wthumb"; var wbd=BACKDROPS[s.bd]||BACKDROPS.catwalk; t.style.backgroundImage="url('"+wbd.img+"')"; t.style.backgroundSize="cover"; t.style.backgroundPosition="center";
       var pid="tp"+i;
-      var base=s.char ? '<img src="/dolls/'+s.char+'.jpg" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:center top">'
+      var base=s.char ? '<img src="/dolls/'+s.char+'.png" style="position:absolute;inset:0;width:100%;height:100%;object-fit:contain;object-position:center bottom">'
         : '<svg viewBox="0 0 34 44" preserveAspectRatio="xMidYMid slice"><defs><pattern id="'+pid+'" patternUnits="userSpaceOnUse" width="34" height="34">'+PATTERNS[s.top.pat].tile(s.top.color,s.top.fg)+'</pattern></defs><rect width="34" height="44" fill="url(#'+pid+')"/></svg>';
       t.innerHTML=base+
         s.acc.map(function(a){return '<span style="position:absolute;left:'+a.x+'%;top:'+a.y+'%;transform:translate(-50%,-50%);font-size:12px">'+a.e+'</span>';}).join("")+
