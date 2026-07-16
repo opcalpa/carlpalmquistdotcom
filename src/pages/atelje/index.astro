@@ -1,6 +1,6 @@
 ---
 // Modeateljén — fristående mobil klädspel-sida (carlpalmquist.com/atelje).
-// Karaktärsväljare (Flux-dockor) + vektor-rita-själv m. form-skuggade plagg.
+// Karaktärsväljare (Flux-dockor) + vektor-rita-själv m. slimmad mannekäng + form-skuggade plagg.
 ---
 <!doctype html>
 <html lang="sv">
@@ -130,13 +130,15 @@
     </defs>
 
     <!-- ben -->
-    <path d="M104 300 q-4 55 -6 92 q-1 12 8 12 q9 0 9 -12 l3 -80z" fill="#f4d3bd"/>
-    <path d="M136 300 q4 55 6 92 q1 12 -8 12 q-9 0 -9 -12 l-3 -80z" fill="#f4d3bd"/>
+    <path d="M108 294 C104 335 101 374 105 401 C105 408 114 408 115 401 C118 374 118 335 118 296 C114 298 111 298 108 294 Z" fill="#f4d3bd"/>
+    <path d="M132 294 C136 335 139 374 135 401 C135 408 126 408 125 401 C122 374 122 335 122 296 C126 298 129 298 132 294 Z" fill="#f4d3bd"/>
     <!-- FÖTTER (skor, bytbara) -->
     <g id="feetG"><path id="shoeL" d="" fill="url(#fabFeet)"/><path id="shoeR" d="" fill="url(#fabFeet)"/></g>
-    <!-- armar -->
-    <path d="M78 176 q-22 30 -30 74 q-2 10 6 12 q8 1 11 -8 q10 -40 25 -64z" fill="#f4d3bd"/>
-    <path d="M162 176 q22 30 30 74 q2 10 -6 12 q-8 1 -11 -8 q-10 -40 -25 -64z" fill="#f4d3bd"/>
+    <!-- armar + händer (hänger nära kroppen) -->
+    <path d="M94 150 C88 178 84 210 84 245 C84 253 87 259 91 259 C95 259 96 251 96 244 C97 213 99 184 102 158 Z" fill="#f4d3bd"/>
+    <ellipse cx="87" cy="260" rx="6" ry="7.5" fill="#f4d3bd"/>
+    <path d="M146 150 C152 178 156 210 156 245 C156 253 153 259 149 259 C145 259 144 251 144 244 C143 213 141 184 138 158 Z" fill="#f4d3bd"/>
+    <ellipse cx="153" cy="260" rx="6" ry="7.5" fill="#f4d3bd"/>
     <!-- hals + torso -->
     <rect x="110" y="104" width="20" height="26" rx="8" fill="#f4d3bd"/>
     <path d="M92 150 q28 -20 56 0 l-4 150 q-24 12 -48 0z" fill="#f4d3bd"/>
@@ -189,14 +191,14 @@
 
   // ===== Bibliotek =====
   var TOP_SHAPES={
-    tshirt:{name:"T-shirt", d:"M92 132 q28 -16 56 0 l16 20 q-9 7 -18 3 l-2 58 q-26 11 -52 0 l-2 -58 q-9 4 -18 -3z", dress:false},
+    tshirt:{name:"T-shirt", d:"M97 130 C106 124 134 124 143 130 L160 148 Q156 156 149 152 L140 141 C139 165 138 186 138 200 Q120 208 102 200 C102 186 101 165 100 141 L91 152 Q84 156 80 148 Z", dress:false},
     linne:{name:"Linne", d:"M101 126 q19 -8 38 0 l3 10 -7 6 -2 74 q-15 8 -30 0 l-2 -74 -7 -6z", dress:false},
-    troja:{name:"Tröja", d:"M86 128 q34 -18 68 0 l12 74 q-11 6 -20 1 l-4 -46 -2 70 q-30 12 -60 0 l-2 -70 -4 46 q-9 5 -20 -1z", dress:false},
+    troja:{name:"Tröja", d:"M90 128 C104 121 136 121 150 128 L158 210 Q151 216 143 210 L140 150 C139 178 138 198 138 206 Q120 214 102 206 C102 198 101 178 100 150 L97 210 Q89 216 82 210 Z", dress:false},
     klanning:{name:"Klänning", d:"M96 130 q24 -14 48 0 l7 22 -9 6 -5 42 l20 118 q-33 16 -64 0 l20 -118 -5 -42 -9 -6z", dress:true}
   };
   var BOT_SHAPES={
     ingen:{name:"Ingen", d:""},
-    kjol:{name:"Kjol", d:"M84 200 q36 14 72 0 l18 78 q-54 20 -108 0z"},
+    kjol:{name:"Kjol", d:"M96 198 Q120 208 144 198 L166 288 Q120 306 74 288 Z"},
     langkjol:{name:"Lång kjol", d:"M88 200 q32 12 64 0 l14 182 q-47 16 -92 0z"},
     byxor:{name:"Byxor", d:"M88 200 q32 12 64 0 l3 22 -11 176 -21 0 -6 -150 -6 150 -21 0 -11 -176z"},
     shorts:{name:"Shorts", d:"M89 200 q31 11 62 0 l3 46 -27 4 -6 -30 -6 30 -27 -4z"}
