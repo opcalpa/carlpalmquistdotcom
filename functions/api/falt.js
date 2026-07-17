@@ -31,6 +31,9 @@ const clientIp = (req) => req.headers.get("cf-connecting-ip") || (req.headers.ge
 const readJson = async (env, k, def) => { try { const v = await kvGet(env, k); return v == null ? def : JSON.parse(v); } catch { return def; } };
 
 const K_IN = "falt:inbox", K_FEED = "falt:feed", K_PW = "falt:pw", K_MIR = "falt:mirror", K_QUIZ = "falt:quiz";
+// Läs-blobar som pappen pushar och PWA:n renderar (samma mönster som quiz): recept, träning, aktiviteter.
+const PUSH_BLOBS = { recipes: "falt:recipes", workouts: "falt:workouts", activities: "falt:activities" };
+const BLOB_MAX = 2_000_000;  // text-JSON per blob, 2 MB räcker gott
 const MIR_MAX = 4_000_000;   // spegel-snapshot (To Do/Listor/Agera) — rejält tilltaget, KV tål 25 MB
 const QUIZ_MAX = 1_000_000;  // frågebanken (🎲 Spel-fliken) — text-JSON, 1 MB räcker långt
 const IN_CAP = 200, FEED_CAP = 20, TEXT_MAX = 20000, TITLE_MAX = 120, MD_MAX = 60000;
@@ -73,6 +76,7 @@ export async function onRequestGet(context) {
     if (kind === "pull") return Response.json({ items: await readJson(env, K_IN, []) });
     if (kind === "mirror") return Response.json({ mirror: await readJson(env, K_MIR, null) });
     if (kind === "quiz") return Response.json({ quiz: await readJson(env, K_QUIZ, null) });
+    if (PUSH_BLOBS[kind]) return Response.json({ [kind]: await readJson(env, PUSH_BLOBS[kind], null) });
     const [inbox, feed] = await Promise.all([readJson(env, K_IN, []), readJson(env, K_FEED, [])]);
     return Response.json({ inbox, feed });
   } catch (e) { return Response.json({ error: String(e).slice(0, 200) }, { status: 500 }); }
@@ -133,6 +137,14 @@ export async function onRequestPost(context) {
       const raw = JSON.stringify(body.quiz);
       if (raw.length > QUIZ_MAX) return Response.json({ error: "too_big" }, { status: 413 });
       await kvPut(env, K_QUIZ, raw);
+      return Response.json({ ok: true, bytes: raw.length });
+    }
+    if (PUSH_BLOBS[kind]) {
+      const payload = body[kind];
+      if (!payload || typeof payload !== "object") return Response.json({ error: "no_" + kind }, { status: 400 });
+      const raw = JSON.stringify(payload);
+      if (raw.length > BLOB_MAX) return Response.json({ error: "too_big" }, { status: 413 });
+      await kvPut(env, PUSH_BLOBS[kind], raw);
       return Response.json({ ok: true, bytes: raw.length });
     }
     return Response.json({ error: "bad kind" }, { status: 400 });
