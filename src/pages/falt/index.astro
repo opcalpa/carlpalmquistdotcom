@@ -51,6 +51,37 @@
     .fsteps{margin:0;padding-left:18px}
     .fsteps li{margin-bottom:6px}
     .fcue{display:block;color:var(--dim);font-size:12px}
+    /* Träning: bild-thumbs + kör-knapp + mobil pass-player */
+    .fthumb{width:34px;height:34px;border-radius:6px;object-fit:cover;vertical-align:middle;margin-right:7px;background:var(--panel2);flex:0 0 auto}
+    .ftsteps li{list-style:none;margin-left:-18px;display:flex;align-items:flex-start}
+    .fstep-t{flex:1;min-width:0}
+    .fkor{width:100%;background:var(--accent);color:#fff;border:none;border-radius:10px;padding:11px;font-size:15px;font-weight:600;margin-bottom:10px;cursor:pointer}
+    .fwp{position:fixed;inset:0;z-index:80;background:var(--bg);display:flex;flex-direction:column;padding:14px;box-sizing:border-box}
+    .fwp-top{display:flex;align-items:center;gap:8px;position:relative;padding-bottom:8px}
+    .fwp-x{background:transparent;border:1px solid var(--line);color:var(--txt);border-radius:50%;width:34px;height:34px;font-size:15px;cursor:pointer;flex:0 0 auto}
+    .fwp-ti{font-size:13px;color:var(--dim);flex:1;text-align:center}
+    .fwp-prog{position:absolute;left:0;right:0;bottom:0;height:3px;background:var(--line);border-radius:2px}
+    .fwp-prog>div{height:100%;background:var(--accent);transition:width .3s}
+    .fwp-c{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:7px;overflow:auto}
+    .fwp-ph{font-size:15px;letter-spacing:2px;color:var(--dim);font-weight:700}
+    .fwp-rest{color:var(--accent)}
+    .fwp-nm{font-size:25px;font-weight:800}
+    .fwp-big{font-size:74px;font-weight:800;line-height:1}
+    .fwp-u{color:var(--dim);font-size:14px}
+    .fwp-nx{color:var(--dim);font-size:15px}
+    .fwp-cue{color:var(--dim);font-size:14px;max-width:340px;line-height:1.4}
+    .fwp-imgs{display:flex;align-items:center;gap:6px;margin:2px 0}
+    .fwp-img{position:relative;flex:1;max-width:150px}
+    .fwp-img img{width:100%;border-radius:10px;display:block}
+    .fwp-img span{position:absolute;bottom:4px;left:4px;font-size:9px;background:rgba(0,0,0,.6);color:#fff;padding:1px 5px;border-radius:4px}
+    .fwp-arw{font-size:22px;color:var(--dim)}
+    .fwp-done{background:var(--accent);color:#fff;border:none;border-radius:10px;padding:12px 26px;font-size:16px;font-weight:600;margin-top:6px;cursor:pointer}
+    .fwp-ctrl{display:flex;gap:8px;justify-content:center;padding-top:8px}
+    .fwp-ctrl button{flex:1;max-width:120px;background:var(--panel);border:1px solid var(--line);color:var(--txt);border-radius:10px;padding:13px;font-size:18px;cursor:pointer}
+    .fwp-fin{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px}
+    .fwp-fe{font-size:54px}
+    .fwp-fs{color:var(--dim)}
+    .fwp-doneb{background:var(--accent);color:#fff;border:none;border-radius:10px;padding:12px 30px;font-size:16px;margin-top:12px;cursor:pointer}
     .fdest{background:var(--panel2);border-radius:10px;padding:10px 12px;margin-bottom:8px}
     .fblurb{color:var(--dim);font-size:13px;margin-top:2px}
     .fnote{color:var(--dim);font-size:12.5px;margin-top:4px}
@@ -1284,20 +1315,95 @@
         host.innerHTML = fstamp(list.length + ' recept', blob.updatedAt) + html;
       }
 
+      function exThumb(e) { var p = e.imgs && e.imgs[0]; return p ? '<img class="fthumb" src="/' + esc(p) + '" alt="" loading="lazy">' : ''; }
       function renderTraning(blob) {
         var host = $("traning");
         var d = (blob && blob.data) || {};
         var ex = d.exercises || {}, ws = d.workouts || [];
         if (!ws.length) { host.innerHTML = '<div class="empty">Inga träningspass pushade än. Tryck 📲 i pappens Hälsa.</div>'; return; }
-        var html = ws.map(function (w) {
+        var html = ws.map(function (w, wi) {
           var steps = (w.steps || []).map(function (s) {
             var e = ex[s.ex] || {}; var name = e.n || s.ex;
             var amt = s.kind === "time" ? (s.val + " s") : (s.val + " reps");
-            return '<li>' + esc(name) + ' — ' + esc(amt) + (s.rest ? (' · vila ' + s.rest + ' s') : '') + (e.c ? '<span class="fcue">' + esc(e.c) + '</span>' : '') + '</li>';
+            return '<li>' + exThumb(e) + '<span class="fstep-t">' + esc(name) + ' — ' + esc(amt) + (s.rest ? (' · vila ' + s.rest + ' s') : '') + (e.c ? '<span class="fcue">' + esc(e.c) + '</span>' : '') + '</span></li>';
           }).join('');
-          return '<details class="fcard"><summary>' + (w.icon ? esc(w.icon) + ' ' : '') + esc(w.name) + (w.focus ? ' <span class="ftag">' + esc(w.focus) + '</span>' : '') + '</summary><div class="fbody"><ol class="fsteps">' + steps + '</ol></div></details>';
+          return '<details class="fcard"><summary>' + (w.icon ? esc(w.icon) + ' ' : '') + esc(w.name) + (w.focus ? ' <span class="ftag">' + esc(w.focus) + '</span>' : '') + '</summary><div class="fbody"><button class="fkor" data-wi="' + wi + '">▶ Kör passet</button><ol class="fsteps ftsteps">' + steps + '</ol></div></details>';
         }).join('');
         host.innerHTML = fstamp(ws.length + ' pass', blob.updatedAt) + html;
+        host.querySelectorAll('.fkor').forEach(function (b) { b.addEventListener('click', function () { startFaltWorkout(ws[+b.dataset.wi], ex); }); });
+      }
+
+      // ---------- Mobil pass-player (timer-guidad, som pappens desktop-player) ----------
+      var _fwp = null;
+      function startFaltWorkout(w, ex) {
+        if (!(w.steps || []).length) return;
+        _fwp = { w: w, ex: ex, steps: w.steps, i: 0, phase: "ready", remaining: 5, timer: null, paused: false };
+        var box = document.getElementById("fwplayer");
+        if (!box) { box = document.createElement("div"); box.id = "fwplayer"; box.className = "fwp"; document.body.appendChild(box); }
+        fwpRender(); fwpRun(fwpWork);
+      }
+      function fwpStop() { if (_fwp && _fwp.timer) { clearInterval(_fwp.timer); _fwp.timer = null; } }
+      function fwpRun(onDone) {
+        fwpStop();
+        _fwp.timer = setInterval(function () {
+          if (!_fwp || _fwp.paused) return;
+          _fwp.remaining--; fwpTick();
+          if (_fwp.remaining <= 0) { fwpStop(); if (navigator.vibrate) navigator.vibrate(40); onDone(); }
+        }, 1000);
+      }
+      function fwpWork() {
+        var s = _fwp.steps[_fwp.i]; _fwp.phase = "work";
+        if (s.kind === "time") { _fwp.remaining = s.val; fwpRender(); fwpRun(fwpAfter); }
+        else { fwpStop(); fwpRender(); }
+      }
+      function fwpAfter() {
+        var s = _fwp.steps[_fwp.i];
+        if (s.rest > 0 && _fwp.i < _fwp.steps.length - 1) { _fwp.phase = "rest"; _fwp.remaining = s.rest; fwpRender(); fwpRun(fwpNext); }
+        else fwpNext();
+      }
+      function fwpNext() { _fwp.i++; if (_fwp.i >= _fwp.steps.length) return fwpFinish(); fwpWork(); }
+      function fwpPrev() { fwpStop(); if (_fwp.phase === "rest") { fwpWork(); return; } _fwp.i = Math.max(0, _fwp.i - 1); fwpWork(); }
+      function fwpSkip() { fwpStop(); if (_fwp.phase === "ready") return fwpWork(); if (_fwp.phase === "rest") return fwpNext(); fwpAfter(); }
+      function fwpPause() { if (!_fwp) return; _fwp.paused = !_fwp.paused; var b = document.getElementById("fwp-pause"); if (b) b.textContent = _fwp.paused ? "▶" : "⏸"; }
+      function fwpQuit() { fwpStop(); _fwp = null; var b = document.getElementById("fwplayer"); if (b) b.remove(); }
+      function fwpTick() { var t = document.getElementById("fwp-big"); if (t) t.textContent = _fwp.remaining; var bar = document.getElementById("fwp-bar"); if (bar) bar.style.width = (100 * _fwp.i / _fwp.steps.length) + "%"; }
+      function fwpImgs(e) {
+        var imgs = (e.imgs || []).slice(0, 3); if (!imgs.length) return '';
+        var cells = imgs.map(function (p, i) { return '<div class="fwp-img"><img src="/' + esc(p) + '" alt=""><span>' + (imgs.length > 1 ? (i === 0 ? "start" : "slut") : "") + '</span></div>'; });
+        return '<div class="fwp-imgs">' + cells.join('<span class="fwp-arw">→</span>') + '</div>';
+      }
+      function fwpRender() {
+        var box = document.getElementById("fwplayer"); if (!box || !_fwp) return;
+        var s = _fwp.steps[_fwp.i]; var e = _fwp.ex[s.ex] || { n: s.ex, c: "" }; var sh = e.show || {};
+        var next = _fwp.steps[_fwp.i + 1] ? ((_fwp.ex[_fwp.steps[_fwp.i + 1].ex] || {}).n || '') : "Klart!";
+        var pct = 100 * _fwp.i / _fwp.steps.length;
+        var center = "";
+        if (_fwp.phase === "ready") {
+          center = '<div class="fwp-ph">GÖR DIG REDO</div><div class="fwp-big" id="fwp-big">' + _fwp.remaining + '</div><div class="fwp-nx">Först ut: <b>' + esc(e.n) + '</b></div>';
+        } else if (_fwp.phase === "rest") {
+          center = '<div class="fwp-ph fwp-rest">VILA</div><div class="fwp-big" id="fwp-big">' + _fwp.remaining + '</div><div class="fwp-nx">Nästa: <b>' + esc(next) + '</b></div>';
+        } else {
+          var imgs = (sh.playerImg !== false) ? fwpImgs(e) : '';
+          var cue = (sh.playerCue !== false && e.c) ? '<div class="fwp-cue">' + esc(e.c) + '</div>' : '';
+          center = '<div class="fwp-nm">' + esc(e.n) + '</div>' + imgs +
+            (s.kind === "time"
+              ? '<div class="fwp-big" id="fwp-big">' + _fwp.remaining + '</div><div class="fwp-u">sekunder</div>'
+              : '<div class="fwp-big">×' + s.val + '</div><div class="fwp-u">reps</div><button class="fwp-done" id="fwp-done">Klar ✓</button>') + cue;
+        }
+        box.innerHTML =
+          '<div class="fwp-top"><button class="fwp-x" id="fwp-quit">✕</button><div class="fwp-ti">' + esc(_fwp.w.icon || '') + ' ' + esc(_fwp.w.name) + ' · ' + Math.min(_fwp.i + 1, _fwp.steps.length) + '/' + _fwp.steps.length + '</div><div class="fwp-prog"><div id="fwp-bar" style="width:' + pct + '%"></div></div></div>' +
+          '<div class="fwp-c">' + center + '</div>' +
+          '<div class="fwp-ctrl"><button id="fwp-prev">◀</button>' + ((_fwp.phase !== "work" || s.kind === "time") ? '<button id="fwp-pause">' + (_fwp.paused ? "▶" : "⏸") + '</button>' : '') + '<button id="fwp-skip">▶▶</button></div>';
+        box.querySelector("#fwp-quit").onclick = fwpQuit;
+        box.querySelector("#fwp-prev").onclick = fwpPrev;
+        box.querySelector("#fwp-skip").onclick = fwpSkip;
+        var p = box.querySelector("#fwp-pause"); if (p) p.onclick = fwpPause;
+        var dn = box.querySelector("#fwp-done"); if (dn) dn.onclick = function () { if (navigator.vibrate) navigator.vibrate(40); fwpAfter(); };
+      }
+      function fwpFinish() {
+        var box = document.getElementById("fwplayer"); if (!box) return; fwpStop();
+        box.innerHTML = '<div class="fwp-fin"><div class="fwp-fe">💪</div><h2>Bra jobbat!</h2><div class="fwp-fs">' + esc(_fwp.w.name) + ' avklarat</div><button class="fwp-doneb" id="fwp-close">Klar</button></div>';
+        box.querySelector("#fwp-close").onclick = fwpQuit;
       }
 
       function renderAkt(blob) {
