@@ -29,7 +29,7 @@
     border-radius:22px; overflow:hidden; margin:8px 0; box-shadow:0 10px 30px rgba(120,60,90,.18); touch-action:none;
     background:linear-gradient(160deg,#ffd9e6,#ffeef4 55%,#e9f7f4); transition:background .4s ease;}
   .layer{position:absolute; inset:0; width:100%; height:100%; object-fit:contain; object-position:center; pointer-events:none; user-select:none;}
-  .acc{position:absolute; transform:translate(-50%,-50%); font-size:40px; cursor:grab; touch-action:none;
+  .acc{position:absolute; transform:translate(-50%,-50%); font-size:40px; cursor:grab; touch-action:none; z-index:20;
     user-select:none; filter:drop-shadow(0 2px 3px rgba(0,0,0,.25)); transition:filter .1s;}
   .acc.drag{cursor:grabbing;}
   .acc.sel{outline:2px dashed rgba(232,111,166,.9); outline-offset:3px; border-radius:6px;}
@@ -37,7 +37,7 @@
     display:flex; align-items:center; justify-content:center; font-size:13px; cursor:nwse-resize; touch-action:none;
     box-shadow:0 1px 4px rgba(0,0,0,.3); z-index:6; transform:translate(-50%,-50%); user-select:none;}
   /* på-canvas plagg-editor */
-  .garbox{position:absolute; border:2px dashed var(--accent); border-radius:6px; box-sizing:border-box; z-index:7; cursor:move; touch-action:none;}
+  .garbox{position:absolute; border:2px dashed var(--accent); border-radius:6px; box-sizing:border-box; z-index:30; cursor:move; touch-action:none;}
   .garbox .gh{position:absolute; width:30px; height:30px; border-radius:50%; background:var(--accent); color:#fff;
     display:flex; align-items:center; justify-content:center; font-size:14px; font-weight:700; transform:translate(-50%,-50%);
     touch-action:none; box-shadow:0 1px 5px rgba(0,0,0,.35); user-select:none;}
@@ -124,11 +124,12 @@
 </header>
 
 <div class="stage" id="stage">
-  <img class="layer" id="L-doll" alt="docka" />
-  <img class="layer" id="L-bottom" style="display:none" />
-  <img class="layer" id="L-dress" style="display:none" />
-  <img class="layer" id="L-top" style="display:none" />
-  <img class="layer" id="L-outer" style="display:none" />
+  <img class="layer" id="L-doll" alt="docka" style="z-index:0" />
+  <img class="layer" id="L-bottom" style="display:none;z-index:2" />
+  <img class="layer" id="L-dress" style="display:none;z-index:3" />
+  <img class="layer" id="L-top" style="display:none;z-index:4" />
+  <img class="layer" id="L-outer" style="display:none;z-index:5" />
+  <img class="layer" id="L-head" alt="" style="z-index:10" />
 </div>
 
 <div class="drawer">
@@ -251,6 +252,7 @@
   var DOLL_SH={"01-nadia":0.30,"02-elsa":0.26,"03-mira":0.30,"04-zoe":0.31,"05-vera":0.31,"06-lin":0.26,"07-ada":0.30,"08-noor":0.32,"09-stella":0.26,"10-amara":0.29};
   var SLOT_DY={dress:0.0,top:0.012,bottom:0.20,outer:-0.008};     // förskjutning från axel-linjen per slot (midja = +0.20)
   var SLOT_SCALE={dress:0.76,top:0.62,bottom:0.70,outer:0.72};    // default-skala: plaggen sitter tajt (dockorna har ~samma proportioner → ett värde passar alla)
+  var DEFAULT_Z={bottom:2,dress:3,top:4,outer:5};                  // lagerordning (under huvud-lagret z:10); användaren kan flippa
   function slotAnchor(slot){ return (DOLL_SH[state.char]||0.29) + (SLOT_DY[slot]||0); }
   var _bbox={};
   function bboxOf(src,cb){
@@ -284,6 +286,7 @@
     var el=$("L-"+slot), s=state[slot];
     var hide=!s.id || ((slot==="top"||slot==="bottom") && state.dress.id);
     if(hide){ el.style.display="none"; el.removeAttribute("src"); el.style.transform=""; return; }
+    el.style.zIndex=(s.z!=null?s.z:(DEFAULT_Z[slot]||3));
     anchorLayer(el,slot,s);
     paintGarment(slot,function(url){
       if(!url){ el.style.display="none"; return; }
@@ -293,7 +296,11 @@
   }
   function renderDoll(){
     var c=CHARS.filter(function(x){return x.id===state.char;})[0]||CHARS[0];
-    var dl=$("L-doll"); dl.src="/dolls/"+state.char+".png"; $("dollname").textContent=c.name;
+    var src="/dolls/"+state.char+".png";
+    var dl=$("L-doll"); dl.src=src; $("dollname").textContent=c.name;
+    // huvud-lager: klippt kopia av dockan (topp ner till strax under nacken) ovanpå plaggen
+    var hd=$("L-head"); hd.src=src; var cut=(DOLL_SH[state.char]||0.29)+0.03;
+    var cp="inset(0 0 "+((1-cut)*100).toFixed(1)+"% 0)"; hd.style.clipPath=cp; hd.style.webkitClipPath=cp;
     ["bottom","dress","top","outer"].forEach(function(sl){paintLayer(sl,false);});
     saveCurrent();
   }
@@ -319,6 +326,7 @@
         +'<button class="fitbtn" data-fit="up" title="Upp">▲</button><button class="fitbtn" data-fit="down" title="Ner">▼</button>'
         +'<button class="fitbtn" data-fit="narrow" title="Smalare">↔－</button><button class="fitbtn" data-fit="wide" title="Bredare">↔＋</button>'
         +'<button class="fitbtn" data-fit="shorter" title="Kortare">↕－</button><button class="fitbtn" data-fit="taller" title="Längre">↕＋</button>'
+        +'<button class="fitbtn" data-fit="zup" title="Lägg framför">⬆</button><button class="fitbtn" data-fit="zdown" title="Lägg bakom">⬇</button>'
         +'<button class="fitbtn fitreset" data-fit="reset">↺</button></div></div>';
     }
     $("panelbody").innerHTML=h;
@@ -329,7 +337,10 @@
       if(k==="left")a.dx-=2.2; else if(k==="right")a.dx+=2.2; else if(k==="up")a.dy-=2.2; else if(k==="down")a.dy+=2.2;
       else if(k==="narrow")a.sx=Math.max(.3,+(a.sx-0.06).toFixed(2)); else if(k==="wide")a.sx=Math.min(2.4,+(a.sx+0.06).toFixed(2));
       else if(k==="shorter")a.sy=Math.max(.3,+(a.sy-0.06).toFixed(2)); else if(k==="taller")a.sy=Math.min(2.6,+(a.sy+0.06).toFixed(2));
-      else if(k==="reset")s.adj=adj0();
+      else if(k==="zup"||k==="zdown"){ var sl2=["bottom","dress","top","outer"], zs=sl2.filter(function(x){return x!==slot&&state[x].id;}).map(function(x){return state[x].z!=null?state[x].z:DEFAULT_Z[x];});
+        if(k==="zup")s.z=Math.min(9,(zs.length?Math.max.apply(null,zs):(DEFAULT_Z[slot]||3))+1); else s.z=Math.max(1,(zs.length?Math.min.apply(null,zs):(DEFAULT_Z[slot]||3))-1);
+        $("L-"+slot).style.zIndex=s.z; toast(k==="zup"?"⬆ framför":"⬇ bakom"); saveCurrent(); return; }
+      else if(k==="reset"){ s.adj=adj0(); s.z=null; $("L-"+slot).style.zIndex=DEFAULT_Z[slot]||3; }
       anchorLayer($("L-"+slot),slot,s); positionGarbox(); saveCurrent(); });
     // markera plagget på dockan så handtagen dyker upp direkt när man är i fliken
     if(s.id) selectGarment(slot); else deselectGarment();
