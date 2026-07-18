@@ -36,6 +36,14 @@
   .achandle{position:absolute; width:24px; height:24px; border-radius:50%; background:var(--accent); color:#fff;
     display:flex; align-items:center; justify-content:center; font-size:13px; cursor:nwse-resize; touch-action:none;
     box-shadow:0 1px 4px rgba(0,0,0,.3); z-index:6; transform:translate(-50%,-50%); user-select:none;}
+  /* på-canvas plagg-editor */
+  .garbox{position:absolute; border:2px dashed var(--accent); border-radius:6px; box-sizing:border-box; z-index:7; cursor:move; touch-action:none;}
+  .garbox .gh{position:absolute; width:30px; height:30px; border-radius:50%; background:var(--accent); color:#fff;
+    display:flex; align-items:center; justify-content:center; font-size:14px; font-weight:700; transform:translate(-50%,-50%);
+    touch-action:none; box-shadow:0 1px 5px rgba(0,0,0,.35); user-select:none;}
+  .garbox .gh.w{cursor:ew-resize;} .garbox .gh.h{cursor:ns-resize;}
+  .garbox .ghint{position:absolute; top:-24px; left:50%; transform:translateX(-50%); background:var(--ink); color:#fff;
+    font-size:10px; padding:3px 8px; border-radius:8px; white-space:nowrap; pointer-events:none;}
   /* passforms-kontroll för plagg */
   .fitbar{display:flex; align-items:center; gap:6px; flex-wrap:wrap; background:rgba(232,111,166,.08);
     border:1px solid var(--line); border-radius:12px; padding:7px 9px; margin:2px 0 4px;}
@@ -212,8 +220,9 @@
   ];
 
   // ===== State =====
-  function slot0(){return {id:"",color:"#ffffff",pat:"slat",fg:"#ffffff",adj:{s:1,dx:0,dy:0}};}
-  function adj0(){return {s:1,dx:0,dy:0};}
+  function adj0(){return {sx:1,sy:1,dx:0,dy:0};}
+  function slot0(){return {id:"",color:"#ffffff",pat:"slat",fg:"#ffffff",adj:adj0()};}
+  function fixAdj(s){ if(!s)return; if(!s.adj)s.adj=adj0(); var a=s.adj; if(a.sx===undefined){a.sx=a.s||1;a.sy=a.s||1;} if(a.dx===undefined)a.dx=0; if(a.dy===undefined)a.dy=0; }
   var state={ char:"01-nadia", dress:slot0(), top:{id:"tee",color:"#e7b6cf",pat:"prickar",fg:"#fff",adj:adj0()}, bottom:{id:"flareskirt",color:"#8ec5e8",pat:"slat",fg:"#fff",adj:adj0()}, outer:slot0(), bd:"tradgard", acc:[] };
 
   // ===== Recolor: vit worn-PNG → färg/mönster via canvas multiply (destination-in bevarar formen) =====
@@ -250,20 +259,23 @@
       if(!im){cb(null);return;}
       var w=120,h=213,cv=document.createElement("canvas");cv.width=w;cv.height=h;var x=cv.getContext("2d");
       x.drawImage(im,0,0,w,h);var d;try{d=x.getImageData(0,0,w,h).data;}catch(e){cb(null);return;}
-      var x0=w,y0=h,x1=0,y1=0,f=false;
-      for(var yy=0;yy<h;yy++){for(var xx=0;xx<w;xx++){if(d[(yy*w+xx)*4+3]>28){f=true;if(xx<x0)x0=xx;if(xx>x1)x1=xx;if(yy<y0)y0=yy;if(yy>y1)y1=yy;}}}
-      var b=f?{y0:y0/h,cx:((x0+x1)/2)/w}:{y0:0,cx:.5};_bbox[src]=b;cb(b);
+      var x0=w,y0=h,x1=0,y1=0,f=false,grid=new Uint8Array(w*h);
+      for(var yy=0;yy<h;yy++){for(var xx=0;xx<w;xx++){var al=d[(yy*w+xx)*4+3]>28;if(al){grid[yy*w+xx]=1;f=true;if(xx<x0)x0=xx;if(xx>x1)x1=xx;if(yy<y0)y0=yy;if(yy>y1)y1=yy;}}}
+      var b=f?{y0:y0/h,y1:y1/h,x0:x0/w,x1:x1/w,cx:((x0+x1)/2)/w,grid:grid,gw:w,gh:h}:{y0:0,y1:1,x0:0,x1:1,cx:.5};
+      _bbox[src]=b;cb(b);
     });
   }
   function anchorLayer(el,slot,s){
     var src="/garderob/"+slot+"/"+s.id+".png";
     bboxOf(src,function(b){ if(!b){el.style.transform="";return;}
-      var a=s.adj||adj0();
-      var sc=(SLOT_SCALE[slot]||1)*a.s;
-      var ty=(slotAnchor(slot)-b.y0*sc)*100 + a.dy;
-      var tx=(0.5-b.cx)*sc*100 + a.dx;
+      fixAdj(s); var a=s.adj;
+      var base=SLOT_SCALE[slot]||1, scX=base*a.sx, scY=base*a.sy;
+      var ty=(slotAnchor(slot)-b.y0*scY)*100 + a.dy;
+      var tx=(0.5-b.cx)*scX*100 + a.dx;
       el.style.transformOrigin="50% 0";
-      el.style.transform="translate("+tx.toFixed(1)+"%,"+ty.toFixed(1)+"%) scale("+sc.toFixed(3)+")";
+      el.style.transform="translate("+tx.toFixed(2)+"%,"+ty.toFixed(2)+"%) scale("+scX.toFixed(3)+","+scY.toFixed(3)+")";
+      el._tf={scX:scX,scY:scY,tx:tx,ty:ty,b:b};
+      if(selGar===slot) positionGarbox();
     });
   }
 
@@ -302,21 +314,25 @@
       h+='<div class="sect"><div class="lbl">Färg</div><div class="rowsc">';
       COLORS.forEach(function(c){h+='<div class="chip'+(s.color===c?" sel":"")+'" style="background:'+c+'" data-c="'+c+'"></div>';});
       h+='</div></div><div class="sect"><div class="lbl">Mönster</div><div class="rowsc" id="patrow"></div></div>';
-      h+='<div class="sect"><div class="lbl">Passform — flytta &amp; storlek</div><div class="fitbar">'
+      h+='<div class="sect"><div class="lbl">Passform — eller markera plagget på dockan &amp; dra handtagen</div><div class="fitbar">'
         +'<button class="fitbtn" data-fit="left" title="Vänster">◀</button><button class="fitbtn" data-fit="right" title="Höger">▶</button>'
         +'<button class="fitbtn" data-fit="up" title="Upp">▲</button><button class="fitbtn" data-fit="down" title="Ner">▼</button>'
-        +'<button class="fitbtn" data-fit="smaller" title="Mindre">－</button><button class="fitbtn" data-fit="bigger" title="Större">＋</button>'
-        +'<button class="fitbtn fitreset" data-fit="reset">↺ passform</button></div></div>';
+        +'<button class="fitbtn" data-fit="narrow" title="Smalare">↔－</button><button class="fitbtn" data-fit="wide" title="Bredare">↔＋</button>'
+        +'<button class="fitbtn" data-fit="shorter" title="Kortare">↕－</button><button class="fitbtn" data-fit="taller" title="Längre">↕＋</button>'
+        +'<button class="fitbtn fitreset" data-fit="reset">↺</button></div></div>';
     }
     $("panelbody").innerHTML=h;
     // mönster-swatchar (canvas)
     if(s.id){ var pr=$("patrow"); Object.keys(PATTERNS).forEach(function(k){ var d=document.createElement("div"); d.className="swatch"+(s.pat===k?" sel":""); d.dataset.pat=k; d.title=PATTERNS[k]; d.appendChild(patCanvas(k,s.color,s.fg)); pr.appendChild(d);}); }
-    bindAll(".gitem","click",function(el){ var changed=s.id!==el.dataset.id; s.id=el.dataset.id; if(changed)s.adj=adj0(); refreshSlot(slot,true); garmentPanel(slot); if(s.id)flashStage(); });
-    bindAll(".fitbtn","click",function(el){ var a=s.adj||(s.adj=adj0()); var k=el.dataset.fit;
+    bindAll(".gitem","click",function(el){ var changed=s.id!==el.dataset.id; s.id=el.dataset.id; if(changed)s.adj=adj0(); refreshSlot(slot,true); garmentPanel(slot); if(s.id){flashStage();selectGarment(slot);} else deselectGarment(); });
+    bindAll(".fitbtn","click",function(el){ fixAdj(s); var a=s.adj, k=el.dataset.fit;
       if(k==="left")a.dx-=2.2; else if(k==="right")a.dx+=2.2; else if(k==="up")a.dy-=2.2; else if(k==="down")a.dy+=2.2;
-      else if(k==="smaller")a.s=Math.max(.5,+(a.s-0.06).toFixed(2)); else if(k==="bigger")a.s=Math.min(1.8,+(a.s+0.06).toFixed(2));
+      else if(k==="narrow")a.sx=Math.max(.3,+(a.sx-0.06).toFixed(2)); else if(k==="wide")a.sx=Math.min(2.4,+(a.sx+0.06).toFixed(2));
+      else if(k==="shorter")a.sy=Math.max(.3,+(a.sy-0.06).toFixed(2)); else if(k==="taller")a.sy=Math.min(2.6,+(a.sy+0.06).toFixed(2));
       else if(k==="reset")s.adj=adj0();
-      anchorLayer($("L-"+slot),slot,s); saveCurrent(); });
+      anchorLayer($("L-"+slot),slot,s); positionGarbox(); saveCurrent(); });
+    // markera plagget på dockan så handtagen dyker upp direkt när man är i fliken
+    if(s.id) selectGarment(slot); else deselectGarment();
     bindAll(".chip","click",function(el){ s.color=el.dataset.c; if(s.pat==="slat"){s.fg=el.dataset.c;} refreshSlot(slot,false); garmentPanel(slot); });
     bindAll(".swatch","click",function(el){ s.pat=el.dataset.pat; refreshSlot(slot,false); garmentPanel(slot); flashStage(); });
   }
@@ -384,8 +400,62 @@
       hd.addEventListener("pointermove",mv); hd.addEventListener("pointerup",up);
     });
   }
-  function selectAcc(el){ if(selAcc&&selAcc!==el){selAcc.classList.remove("sel");removeHandle(selAcc);} selAcc=el; el.classList.add("sel"); addHandle(el); }
+  function selectAcc(el){ deselectGarment(); if(selAcc&&selAcc!==el){selAcc.classList.remove("sel");removeHandle(selAcc);} selAcc=el; el.classList.add("sel"); addHandle(el); }
   function deselectAcc(){ if(selAcc){selAcc.classList.remove("sel");removeHandle(selAcc);selAcc=null;} }
+
+  // ===== På-canvas plagg-editor: klicka plagget → ram med handtag (↔ bredd · ↕ längd · dra = flytta) =====
+  var selGar=null, garbox=null;
+  function ensureGarbox(){
+    if(garbox)return garbox;
+    garbox=document.createElement("div"); garbox.className="garbox"; garbox.style.display="none";
+    garbox.innerHTML='<div class="ghint">↔ bredd · ↕ längd · dra = flytta</div>'
+      +'<div class="gh w" data-h="wl" style="left:0;top:50%">↔</div>'
+      +'<div class="gh w" data-h="wr" style="left:100%;top:50%">↔</div>'
+      +'<div class="gh h" data-h="hb" style="left:50%;top:100%">↕</div>';
+    $("stage").appendChild(garbox);
+    dragGar(garbox,"move");
+    Array.prototype.slice.call(garbox.querySelectorAll(".gh")).forEach(function(h){ dragGar(h,h.dataset.h); });
+    return garbox;
+  }
+  function selectGarment(slot){ if(!state[slot]||!state[slot].id)return; deselectAcc(); selGar=slot; ensureGarbox(); positionGarbox(); }
+  function deselectGarment(){ selGar=null; if(garbox)garbox.style.display="none"; }
+  function deselectAll(){ deselectAcc(); deselectGarment(); }
+  function positionGarbox(){
+    if(!selGar||!garbox)return; var el=$("L-"+selGar), tf=el._tf;
+    if(!tf||el.style.display==="none"){ garbox.style.display="none"; return; }
+    var b=tf.b;
+    function X(px){return 0.5+(px-0.5)*tf.scX+tf.tx/100;}
+    function Y(py){return py*tf.scY+tf.ty/100;}
+    var L=X(b.x0),R=X(b.x1),T=Y(b.y0),B=Y(b.y1);
+    garbox.style.display=""; garbox.style.left=(L*100)+"%"; garbox.style.top=(T*100)+"%";
+    garbox.style.width=((R-L)*100)+"%"; garbox.style.height=((B-T)*100)+"%";
+  }
+  function dragGar(elm,kind){
+    elm.addEventListener("pointerdown",function(ev){ if(!selGar)return; ev.preventDefault(); ev.stopPropagation(); try{elm.setPointerCapture(ev.pointerId);}catch(_){}
+      var s=state[selGar]; fixAdj(s); var a=s.adj, el=$("L-"+selGar), b=el._tf.b, base=SLOT_SCALE[selGar]||1, r=$("stage").getBoundingClientRect();
+      var start={x:ev.clientX,y:ev.clientY,sx:a.sx,sy:a.sy,dx:a.dx,dy:a.dy};
+      var halfW=(b.x1-b.cx)*base*start.sx||0.001, fullH=(b.y1-b.y0)*base*start.sy||0.001;
+      function mv(e){ var ddx=(e.clientX-start.x)/r.width, ddy=(e.clientY-start.y)/r.height;
+        if(kind==="move"){ a.dx=start.dx+ddx*100; a.dy=start.dy+ddy*100; }
+        else if(kind==="wr"||kind==="wl"){ var sgn=kind==="wr"?1:-1; a.sx=Math.max(.3,Math.min(2.4, start.sx*Math.max(0.03,halfW+sgn*ddx)/halfW)); }
+        else if(kind==="hb"){ a.sy=Math.max(.3,Math.min(2.6, start.sy*Math.max(0.03,fullH+ddy)/fullH)); }
+        anchorLayer(el,selGar,s); positionGarbox();
+      }
+      function up(){ try{elm.releasePointerCapture(ev.pointerId);}catch(_){}; elm.removeEventListener("pointermove",mv); elm.removeEventListener("pointerup",up); saveCurrent(); }
+      elm.addEventListener("pointermove",mv); elm.addEventListener("pointerup",up);
+    });
+  }
+  // vilket synligt plagg ligger under (nx,ny) i [0,1]? topp→botten-ordning
+  function garmentAt(nx,ny){
+    var order=["outer","top","dress","bottom"];
+    for(var i=0;i<order.length;i++){ var slot=order[i], el=$("L-"+slot); if(!el||el.style.display==="none"||!el._tf)continue;
+      var s=state[slot]; if(!s.id)continue; var b=_bbox["/garderob/"+slot+"/"+s.id+".png"]; if(!b||!b.grid)continue;
+      var tf=el._tf, px=(nx-0.5-tf.tx/100)/tf.scX+0.5, py=(ny-tf.ty/100)/tf.scY;
+      if(px<0||px>1||py<0||py>1)continue; var gx=Math.floor(px*b.gw), gy=Math.floor(py*b.gh);
+      if(b.grid[gy*b.gw+gx])return slot;
+    }
+    return null;
+  }
   function makeDraggable(el){
     var pts={}, startDist=0, startSize=0, moved=false, downPt=null;
     function dst(a,b){return Math.hypot(a.x-b.x,a.y-b.y);}
@@ -421,7 +491,7 @@
   var CKEY="atelje_current_v3";
   function snapAcc(){return Array.prototype.slice.call(document.querySelectorAll(".acc")).map(function(el){return {e:el.dataset.e||el.textContent,x:el._x,y:el._y,size:el._size||44};});}
   function saveCurrent(){ try{localStorage.setItem(CKEY,JSON.stringify({char:state.char,dress:state.dress,top:state.top,bottom:state.bottom,outer:state.outer,bd:state.bd,acc:snapAcc()}));}catch(e){} }
-  function restoreCurrent(){ try{ var c=JSON.parse(localStorage.getItem(CKEY)||"null"); if(!c)return; ["char","dress","top","bottom","outer","bd"].forEach(function(k){if(c[k]!==undefined)state[k]=c[k];}); ["dress","top","bottom","outer"].forEach(function(sl){if(state[sl]&&!state[sl].adj)state[sl].adj=adj0();}); (c.acc||[]).forEach(function(a){spawnAcc(a);}); }catch(e){} }
+  function restoreCurrent(){ try{ var c=JSON.parse(localStorage.getItem(CKEY)||"null"); if(!c)return; ["char","dress","top","bottom","outer","bd"].forEach(function(k){if(c[k]!==undefined)state[k]=c[k];}); ["dress","top","bottom","outer"].forEach(function(sl){fixAdj(state[sl]);}); (c.acc||[]).forEach(function(a){spawnAcc(a);}); }catch(e){} }
 
   // ===== Garderob (sparade looks) =====
   var WKEY="atelje_wardrobe_v2";
@@ -434,11 +504,11 @@
       var nm=document.createElement("div"); nm.className="wname"; nm.textContent=s.name; t.appendChild(nm);
       t.addEventListener("click",function(){loadLook(s);}); w.appendChild(t); });
   }
-  function loadLook(s){ ["char","dress","top","bottom","outer","bd"].forEach(function(k){if(s[k]!==undefined)state[k]=s[k];}); ["dress","top","bottom","outer"].forEach(function(sl){if(state[sl]&&!state[sl].adj)state[sl].adj=adj0();}); deselectAcc(); document.querySelectorAll(".acc").forEach(function(e){e.remove();}); (s.acc||[]).forEach(function(a){spawnAcc(a);}); renderDoll(); setBackdrop(); toast("👗 "+s.name+" laddad"); }
+  function loadLook(s){ ["char","dress","top","bottom","outer","bd"].forEach(function(k){if(s[k]!==undefined)state[k]=s[k];}); ["dress","top","bottom","outer"].forEach(function(sl){fixAdj(state[sl]);}); deselectAll(); document.querySelectorAll(".acc").forEach(function(e){e.remove();}); (s.acc||[]).forEach(function(a){spawnAcc(a);}); renderDoll(); setBackdrop(); toast("👗 "+s.name+" laddad"); }
 
   // ===== Firande =====
   function done(){
-    deselectAcc();
+    deselectAll();
     var c=$("confetti"); c.hidden=false; c.innerHTML=""; var em=["🎉","✨","💖","⭐","🌸","💫"];
     for(var i=0;i<44;i++){var s=document.createElement("div");s.className="conf";s.textContent=em[i%6];s.style.left=((i*97+13)%100)+"%";s.style.animationDuration=(1.6+((i%5)*.3))+"s";s.style.fontSize=(14+(i%4)*6)+"px";c.appendChild(s);}
     setTimeout(function(){c.hidden=true;},2600);
@@ -451,11 +521,13 @@
   var toEl=$("toast"),toT=null;
   function toast(m){toEl.textContent=m;toEl.classList.add("show");clearTimeout(toT);toT=setTimeout(function(){toEl.classList.remove("show");},1500);}
 
-  Array.prototype.slice.call(document.querySelectorAll("#tabs button")).forEach(function(b){b.addEventListener("click",function(){document.querySelectorAll("#tabs button").forEach(function(x){x.classList.remove("on");});b.classList.add("on");TAB[b.dataset.tab]();});});
+  Array.prototype.slice.call(document.querySelectorAll("#tabs button")).forEach(function(b){b.addEventListener("click",function(){document.querySelectorAll("#tabs button").forEach(function(x){x.classList.remove("on");});b.classList.add("on"); if(["dress","top","bottom","outer"].indexOf(b.dataset.tab)<0)deselectGarment(); TAB[b.dataset.tab]();});});
   $("done").addEventListener("click",done);
-  $("reset").addEventListener("click",function(){deselectAcc();document.querySelectorAll(".acc").forEach(function(e){e.remove();});state.acc=[];state.dress=slot0();state.top=slot0();state.bottom=slot0();state.outer=slot0();renderDoll();toast("↺ Avklädd — börja om!");});
-  // klick på tom scen (eller dockan) avmarkerar pynt
-  $("stage").addEventListener("pointerdown",function(e){ if(e.target===$("stage")) deselectAcc(); });
+  $("reset").addEventListener("click",function(){deselectAll();document.querySelectorAll(".acc").forEach(function(e){e.remove();});state.acc=[];state.dress=slot0();state.top=slot0();state.bottom=slot0();state.outer=slot0();renderDoll();toast("↺ Avklädd — börja om!");});
+  // klick på plagget → markera det för justering; klick på tom scen/docka → avmarkera
+  $("stage").addEventListener("pointerdown",function(e){ if(e.target!==$("stage"))return;
+    var r=$("stage").getBoundingClientRect(), nx=(e.clientX-r.left)/r.width, ny=(e.clientY-r.top)/r.height;
+    var slot=garmentAt(nx,ny); if(slot)selectGarment(slot); else deselectAll(); });
 
   // init
   restoreCurrent(); renderDoll(); setBackdrop(); renderWardrobe(); TAB.docka();
