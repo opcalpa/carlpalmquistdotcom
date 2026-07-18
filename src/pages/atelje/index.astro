@@ -250,7 +250,7 @@
   // Varje docka har olika huvud/hår → axeln sitter olika. Plaggen ankras till DENNA dockas axel/midja.
   var DOLL_SH={"01-nadia":0.30,"02-elsa":0.26,"03-mira":0.30,"04-zoe":0.31,"05-vera":0.31,"06-lin":0.26,"07-ada":0.30,"08-noor":0.32,"09-stella":0.26,"10-amara":0.29};
   var SLOT_DY={dress:0.0,top:0.012,bottom:0.20,outer:-0.008};     // förskjutning från axel-linjen per slot (midja = +0.20)
-  var SLOT_SCALE={dress:0.92,top:0.84,bottom:0.90,outer:0.90};    // krymp plagg till kroppsbredd
+  var SLOT_SCALE={dress:0.76,top:0.62,bottom:0.70,outer:0.72};    // default-skala: plaggen sitter tajt (dockorna har ~samma proportioner → ett värde passar alla)
   function slotAnchor(slot){ return (DOLL_SH[state.char]||0.29) + (SLOT_DY[slot]||0); }
   var _bbox={};
   function bboxOf(src,cb){
