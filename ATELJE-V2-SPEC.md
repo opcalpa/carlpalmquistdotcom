@@ -119,8 +119,25 @@ Varje grind = stopp-möjlighet innan vi bränner tid på nästa steg. Suddgummit
 
 **⚠️ GIT:** `atelje-v2/` + `ATELJE-V2-SPEC.md` är fortf. UNTRACKED (`??`) i carlpalmquistdotcom. Överlever clear men ej checkout/städning. Commit lokalt (utan push — WIP-kroppar ska ej till publika sajten) väntar på Calles ok.
 
-**NÄSTA (steg 3, forts. — GATEA med Calle innan Kontext-credits bränns):**
-1. ~~Lös baskropps-låset~~ ✅ KLAR (grind 3.1).
-2. Definiera dock-rostern (hur många, vilka ansikts-/hår-varianter — Calle väljer) → regenerera dockor (en kropp, utbytta ansikten via ellips-lager, skalliga) + frisyr-bibliotek.
-3. Regenerera garderob pose-låst (vitt tyg) mot `baseBald`/`baseExtract`.
-4. Bygg nod-fit-motor + plagg-mallar i spelet (ersätt axel-ankare). Mät in noderna på `baseBald` (JSON ovan = PLACEHOLDER).
+## GRIND 3.2 (pågår) 2026-07-19 — LÅST PLAGG-RECEPT + OBJEKTIV QA-GRIND + KORRIGERINGS-LOOP
+
+**Noll-drift-bas byggd:** `bodies/baseMag-canonical.png` = baseBalds baddräkt recolorad→magenta **LOKALT** (`tools/recolor-local.mjs`, ren pixel-op) → byte-identisk kropp med baseBald. Ersätter driftade `baseExtract-magenta`. All plagg-extraktion sker mot denna → noll drift i pipelinen.
+
+**Plagg-receptet (`tools/extract-recipe.mjs`)** — deterministiska steg, parametrar per plagg-mall:
+`align (snäpp shot→bas via ankare) → diff → magenta-kill (bas-bleed) → covers-mask (POSITIV: behåll bara plagg-region, dödar skalle/ben-konturer) → openCenter-band (NEGATIV: transparent mitt för öppna plagg) → 2× uniform erode (kant-frans) → despeckle (öar <300px)`.
+Args: `base shot out T ocX0 ocX1 ocY0 ocY1 cvX0 cvX1 cvY0 cvY1`. **BEVISAT: ~12px Kontext-drift på plagg (vs ~0 för ansikte) → align nödvändig.**
+
+**Objektiv QA-grind (`tools/qa-metrics.mjs`)** — ersätter "Claude tycker det ser bra ut" med siffror + trösklar:
+`magenta ≤40 · skinInOpening ≤80 · fringeRatio ≤0.06 · ghostFragments ≤6 · strayOutsideCovers ≤400 [skalle/ben] · interiorHoles ≤600 [panel-dropout] · muddyInteriorCells ≤4 [spök-opacitet]`.
+**KALIBRERAD mot oberoende kritiker-subagent:** metriken fångar nu det kritikern såg (bevisat: samma jacka som fick falskt PASS före skärpningen får korrekt FAIL efter — stray 11556 + hål 8809). interiorHoles exkluderar öppning+utanför-covers → hål = ÄKTA panel-dropout.
+
+**Korrigerings-loop (validerad):** fel delas i **deterministiska** (magenta/stray/frans/fragment → parameter-ratt, auto-tunas till PASS gratis) vs **generativa** (form/opacitet/färg → riktad re-prompt + changelog, 1 Kontext-anrop). Bevisat: jackans skalle/ben/magenta/fragment auto-fixade till PASS; kvarvarande **vänster-panel-translucens = generativt tak** (sänkt tröskel hjälpte ej → korrekt isolerat som "regenerera", ej pixel-pill). even-white-reprompt minskade men eliminerade ej Flux-skuggningen.
+
+**VERIFIERINGS-STACK (Calle valde kombination + skärpta metrik):** (1) objektiva mätvärden = primär grind, (2) Calle dömer i riktiga appen = facit, (3) oberoende kritiker-subagent = extra ögon (känslig, skriker varg ibland). Kritiker-prompt: adversariell, checker+stack-render, verdict CLEAN/MINOR/REJECT.
+
+**Durabla filer:** `tools/{recolor-local,extract-recipe,qa-metrics,align-proof}.mjs`, `bodies/baseMag-canonical.png`, `proof/jacket-final{,-chk,-stack}.png`, `proof/drift-lock-*.png`.
+
+**ÖPPET (Calles dom + nästa):**
+- **Kvalitets-bar:** jacket-final på docka ser bra ut (öppen, t-shirt syns, hår över krage); checkern visar vänster panel aningen grå + tunn skinn-tråd + små svarta stubbar. Metrik-FAIL bara på interiorHoles (äkta men subtil). → Calle avgör: acceptabel bar, eller "best-of-N regenereringar"?
+- Sen: skala garderob (recept per mall) + dock-roster (ansikts-ellips-lager) + nod-fit-motor i spelet. Noder = PLACEHOLDER, mät på baseBald.
+- checker överdriver vs mörk-bg-render; väg in vilken vy som är "sanning".
