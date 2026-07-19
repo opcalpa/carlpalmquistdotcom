@@ -4,9 +4,10 @@
 // Args: base shot out [tol=60] [cvX0 cvX1 cvY0 cvY1]
 import fs from 'node:fs';
 const PORT=9004;
-const [,,BASE,SHOT,OUT,TOL='60',cvX0,cvX1,cvY0,cvY1,ocX0,ocX1,ocY0,ocY1]=process.argv;
+const [,,BASE,SHOT,OUT,TOL='60',cvX0,cvX1,cvY0,cvY1,ocX0,ocX1,ocY0,ocY1,SKINKILL]=process.argv;
 const CV = cvX0!==undefined ? [+cvX0,+cvX1,+cvY0,+cvY1] : null;
 const OC = ocX0!==undefined ? [+ocX0,+ocX1,+ocY0,+ocY1] : null;
+const SK = SKINKILL==='1' || SKINKILL==='skinkill';  // släpp skinn-tonade pixlar ur plagget (för icke-hudfärgade plagg)
 const b64=p=>"data:image/png;base64,"+fs.readFileSync(p).toString('base64');
 const base=b64(BASE), shot=b64(SHOT);
 const nt=await fetch(`http://localhost:${PORT}/json/new?about:blank`,{method:'PUT'}).then(r=>r.json());
@@ -55,6 +56,17 @@ await ev(`(async function(){
   ${CV?`(function(){var X0=(W*${CV[0]})|0,X1=(W*${CV[1]})|0,Y0=(H*${CV[2]})|0,Y1=(H*${CV[3]})|0;for(var y=0;y<H;y++)for(var x=0;x<W;x++){if(x<X0||x>=X1||y<Y0||y>=Y1)o[(y*W+x)*4+3]=0;}})();`:''}
   var a2=new Uint8ClampedArray(o);for(var y3=1;y3<H-1;y3++)for(var x3=1;x3<W-1;x3++){var i3=(y3*W+x3)*4;if(a2[i3+3]===0)continue;var tn=0;for(var oy=-1;oy<=1;oy++)for(var oxx=-1;oxx<=1;oxx++){if(a2[((y3+oy)*W+(x3+oxx))*4+3]===0)tn++;}if(tn>=3)o[i3+3]=0;}
   (function(){var op=new Uint8Array(N);for(var p=0;p<N;p++)op[p]=o[p*4+3]>0?1:0;var sn=new Uint8Array(N),s2=[];for(var ss=0;ss<N;ss++){if(!op[ss]||sn[ss])continue;var comp=[ss];sn[ss]=1;s2.length=0;s2.push(ss);while(s2.length){var q2=s2.pop();var nb2=[q2-1,q2+1,q2-W,q2+W];for(var k2=0;k2<4;k2++){var m2=nb2[k2];if(m2>=0&&m2<N&&op[m2]&&!sn[m2]){sn[m2]=1;s2.push(m2);comp.push(m2);}}}if(comp.length<300)for(var c3=0;c3<comp.length;c3++)o[comp[c3]*4+3]=0;}})();
+  // --- skin-kill: släpp skinn-tonade pixlar ur plagget (drift-ghost av ben/kropp/ansikte) ---
+  ${SK?`(function(){for(var p=0;p<N;p++){var i=p*4;if(o[i+3]===0)continue;var r=o[i],g=o[i+1],b=o[i+2];
+    var mx=Math.max(r,g,b),mn=Math.min(r,g,b),lum=(r+g+b)/3;var nw=(lum>212&&(mx-mn)<22);
+    var skin=(!nw&&r>150&&r>=g&&g>=b&&(r-b)>=15&&(r-b)<100&&(mx-mn)>=12&&(mx-mn)<100&&lum>110&&lum<214);
+    if(skin)o[i+3]=0;}})();
+  // fraktions-despeckle: behåll bara massor >= 12% av största (dödar mörka drift-ghosts oavsett färg)
+  (function(){var op=new Uint8Array(N);for(var p=0;p<N;p++)op[p]=o[p*4+3]>0?1:0;var sn=new Uint8Array(N),s2=[],comps=[];
+    for(var ss=0;ss<N;ss++){if(!op[ss]||sn[ss])continue;var comp=[ss];sn[ss]=1;s2.length=0;s2.push(ss);
+      while(s2.length){var q2=s2.pop();var nb2=[q2-1,q2+1,q2-W,q2+W];for(var k2=0;k2<4;k2++){var m2=nb2[k2];if(m2>=0&&m2<N&&op[m2]&&!sn[m2]){sn[m2]=1;s2.push(m2);comp.push(m2);}}}comps.push(comp);}
+    var mxs=0;comps.forEach(c=>{if(c.length>mxs)mxs=c.length;});var floor=Math.max(300,mxs*0.12);
+    comps.forEach(c=>{if(c.length<floor)for(var i2=0;i2<c.length;i2++)o[c[i2]*4+3]=0;});})();`:''}
   ox.putImageData(od,0,0);window.__O=out.toDataURL('image/png');window.__k=keep;
   var chk=document.createElement('canvas');chk.width=W;chk.height=H;var cc=chk.getContext('2d');var sq=24;for(var yq=0;yq<H;yq+=sq)for(var xq=0;xq<W;xq+=sq){cc.fillStyle=((xq/sq+yq/sq)&1)?'#cfcfcf':'#8f8f8f';cc.fillRect(xq,yq,sq,sq);}cc.drawImage(out,0,0);window.__chk=chk.toDataURL('image/png');
   return 'ok';
