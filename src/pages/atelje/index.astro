@@ -68,6 +68,19 @@
   .btn-done{background:var(--accent); color:#fff;} .btn-reset{background:var(--line); color:var(--ink); flex:0 0 auto; padding:11px 15px;}
   .hint{font-size:11px; color:var(--muted); text-align:center; margin:5px 0 0;}
 
+  /* --- Layout-wrapper: mobil = stack (docka överst, meny under); desktop = docka HÖGER, meny VÄNSTER --- */
+  .workspace{width:100%; display:flex; flex-direction:column; align-items:center;}
+  .menu-col{width:100%; max-width:520px; display:flex; flex-direction:column; align-items:stretch;}
+  @media (min-width:900px){
+    body{justify-content:flex-start;}
+    .workspace{flex-direction:row-reverse; align-items:flex-start; justify-content:center; gap:26px; max-width:1120px; margin-top:8px;}
+    .workspace > .stage{height:min(84vh,780px); max-width:none; margin:0; flex:0 0 auto;} /* större canvas */
+    .menu-col{flex:0 0 500px; max-width:500px; position:sticky; top:10px;}
+    .menu-col .drawer{border-radius:20px; box-shadow:0 10px 30px rgba(120,60,90,.14); max-width:none;}
+    .menu-col .actions{max-width:none; margin-top:8px;}
+    .menu-col .hint{margin-top:8px;}
+  }
+
   .drawer{width:100%; max-width:520px; background:var(--panel); border-radius:20px 20px 0 0;
     box-shadow:0 -6px 20px rgba(120,60,90,.12); padding:8px 12px 14px;}
   .tabs{display:flex; gap:6px; overflow-x:auto; padding-bottom:8px;}
@@ -115,6 +128,21 @@
   .toast{position:fixed; bottom:20px; left:50%; transform:translateX(-50%); background:var(--ink); color:#fff;
     padding:10px 16px; border-radius:999px; font-size:13px; z-index:60; opacity:0; transition:opacity .3s;}
   .toast.show{opacity:1;}
+  /* Suddgummi: in-canvas verktygsrad + pensel-markör */
+  .erasebtn{width:100%; padding:11px; border:0; border-radius:12px; background:var(--ink); color:#fff; font-size:14px; font-weight:700; cursor:pointer;}
+  .edcursor{position:absolute; border:2px solid #e2506e; border-radius:999px; pointer-events:none; transform:translate(-50%,-50%); display:none; z-index:40; box-shadow:0 0 0 1px rgba(255,255,255,.85);}
+  body.editing #stage{cursor:none;}
+  body.editing .garbox,body.editing .acc{display:none !important;}
+  .edbar{position:fixed; left:50%; bottom:14px; transform:translateX(-50%); z-index:70; background:#fff; border-radius:16px; box-shadow:0 12px 40px rgba(0,0,0,.28); padding:10px 12px; display:flex; flex-direction:column; gap:8px; width:min(94vw,420px);}
+  .edbar[hidden]{display:none;}
+  .edrow{display:flex; gap:8px;}
+  .edtool{flex:1; padding:10px; border:2px solid #f0e6ec; border-radius:12px; background:#faf5f8; color:var(--ink); font-size:13px; font-weight:700; cursor:pointer;}
+  .edtool.on{border-color:var(--pink,#e2506e); background:#fdeef3;}
+  .edsize{display:flex; align-items:center; gap:8px; font-size:13px; color:var(--ink); font-weight:700;}
+  .edsize input{flex:1;}
+  .edbtn{flex:1; padding:10px; border:0; border-radius:12px; background:#f2e7ee; color:var(--ink); font-size:13px; font-weight:700; cursor:pointer;}
+  .edbtn.edsave{background:var(--pink,#e2506e); color:#fff;}
+  .edbtn.eddone{background:var(--ink); color:#fff;}
 </style>
 </head>
 <body>
@@ -123,15 +151,20 @@
   <p class="sub">Välj docka, klä på henne — färg &amp; mönster på varje plagg. Mixa fritt.</p>
 </header>
 
+<div class="workspace">
 <div class="stage" id="stage">
+  <img class="layer" id="L-outer-b" style="display:none;z-index:-4" />
+  <img class="layer" id="L-top-b" style="display:none;z-index:-3" />
+  <img class="layer" id="L-dress-b" style="display:none;z-index:-2" />
+  <img class="layer" id="L-bottom-b" style="display:none;z-index:-1" />
   <img class="layer" id="L-doll" alt="docka" style="z-index:0" />
   <img class="layer" id="L-bottom" style="display:none;z-index:2" />
   <img class="layer" id="L-dress" style="display:none;z-index:3" />
   <img class="layer" id="L-top" style="display:none;z-index:4" />
   <img class="layer" id="L-outer" style="display:none;z-index:5" />
-  <img class="layer" id="L-head" alt="" style="z-index:10" />
+  <div class="edcursor" id="edCursor"></div>
 </div>
-
+<div class="menu-col">
 <div class="drawer">
   <div class="tabs" id="tabs">
     <button data-tab="docka" class="on">💃 Docka</button>
@@ -151,10 +184,27 @@
   <button class="btn-done" id="done">📸 Klar!</button>
 </div>
 <p class="hint" id="hint">Tappa ett plagg så glider det på henne. Markera plagg/pynt för att flytta &amp; ändra storlek. 🗑️</p>
+</div><!-- /menu-col -->
+</div><!-- /workspace -->
 
 <div class="wardrobe"><h3>👚 Din garderob</h3><div class="wrow" id="wrow"></div></div>
 <div class="confetti" id="confetti" hidden></div>
 <div class="toast" id="toast"></div>
+
+<!-- Suddgummi: verktygsrad för att sudda plagg DIREKT på dockan (in-canvas) -->
+<div class="edbar" id="edbar" hidden>
+  <div class="edrow">
+    <button class="edtool on" id="edErase">🧽 Sudda</button>
+    <button class="edtool" id="edPaint">🖌 Måla tillbaka</button>
+  </div>
+  <label class="edsize">Storlek <input type="range" id="edSize" min="4" max="120" value="34"><span id="edSizeVal">34</span></label>
+  <div class="edrow">
+    <button class="edbtn" id="edUndo">↺ Ångra</button>
+    <button class="edbtn" id="edReset">⟲ Original</button>
+    <button class="edbtn edsave" id="edSave">💾 Spara</button>
+    <button class="edbtn eddone" id="edDone">✓ Klar</button>
+  </div>
+</div>
 
 <script is:inline>
 (function(){
@@ -229,24 +279,30 @@
   var state={ char:"01-nadia", dress:slot0(), top:{id:"tee",color:"#e7b6cf",pat:"prickar",fg:"#fff",adj:adj0()}, bottom:{id:"flareskirt",color:"#8ec5e8",pat:"slat",fg:"#fff",adj:adj0()}, outer:slot0(), bd:"tradgard", acc:[] };
 
   // ===== Recolor: vit worn-PNG → färg/mönster via canvas multiply (destination-in bevarar formen) =====
-  var _imgCache={}, _paintCache={};
-  function loadImg(src,cb){ if(_imgCache[src]){ var im=_imgCache[src]; if(im.complete&&im.naturalWidth)cb(im); else im.addEventListener("load",function(){cb(im);}); return; } var im=new Image(); im.crossOrigin="anonymous"; _imgCache[src]=im; im.addEventListener("load",function(){cb(im);}); im.addEventListener("error",function(){cb(null);}); im.src=src; }
-  function paintGarment(slot,cb){
+  var _imgCache={}, _paintCache={}, _ver={};
+  function loadImg(src,cb){ if(_imgCache[src]){ var im=_imgCache[src]; if(im.complete&&im.naturalWidth)cb(im); else im.addEventListener("load",function(){cb(im);}); return; } var im=new Image(); im.crossOrigin="anonymous"; _imgCache[src]=im; im.addEventListener("load",function(){cb(im);}); im.addEventListener("error",function(){cb(null);}); im.src=src+(src.indexOf("?")<0?"?":"&")+"v="+(_ver[src]||0); }
+  // efter suddgummi-spara: invalidera alla cachar för plaggets src så ny PNG laddas
+  function bustGarment(slot,id){ var src="/garderob/"+slot+"/"+id+".png"; _ver[src]=(_ver[src]||0)+1; delete _imgCache[src]; delete _bbox[src]; Object.keys(_paintCache).forEach(function(k){ if(k.indexOf(src)===0)delete _paintCache[k]; }); }
+  function paintGarment(slot,cb,suffix){
     var s=state[slot]; if(!s.id){cb(null);return;}
-    var src="/garderob/"+slot+"/"+s.id+".png";
+    var src="/garderob/"+slot+"/"+s.id+(suffix||"")+".png";
     var key=src+"|"+s.color+"|"+s.pat+"|"+s.fg;
     if(_paintCache[key]){cb(_paintCache[key]);return;}
     loadImg(src,function(im){
       if(!im){cb(null);return;}
-      var W=im.naturalWidth,H=im.naturalHeight,cv=document.createElement("canvas");cv.width=W;cv.height=H;var x=cv.getContext("2d");
-      x.drawImage(im,0,0);
-      x.globalCompositeOperation="multiply";
-      if(s.pat&&s.pat!=="slat"){ var t=patCanvas(s.pat,s.color,s.fg); var p=x.createPattern(t,"repeat"); var sc=W/430; x.save(); x.scale(sc,sc); x.fillStyle=p; x.fillRect(0,0,W/sc,H/sc); x.restore(); }
-      else { x.fillStyle=s.color; x.fillRect(0,0,W,H); }
-      x.globalCompositeOperation="destination-in"; x.drawImage(im,0,0);
-      x.globalCompositeOperation="source-over";
-      var url=cv.toDataURL("image/png"); _paintCache[key]=url; cb(url);
+      var url=recolorPixels(im,s); _paintCache[key]=url; cb(url);
     });
+  }
+  // recolor: vit worn-PNG (img ELLER canvas) → färg/mönster via multiply + destination-in (bevarar formen)
+  function recolorPixels(im,s){
+    var W=im.naturalWidth||im.width, H=im.naturalHeight||im.height, cv=document.createElement("canvas");cv.width=W;cv.height=H;var x=cv.getContext("2d");
+    x.drawImage(im,0,0);
+    x.globalCompositeOperation="multiply";
+    if(s.pat&&s.pat!=="slat"){ var t=patCanvas(s.pat,s.color,s.fg); var p=x.createPattern(t,"repeat"); var sc=W/430; x.save(); x.scale(sc,sc); x.fillStyle=p; x.fillRect(0,0,W/sc,H/sc); x.restore(); }
+    else { x.fillStyle=s.color; x.fillRect(0,0,W,H); }
+    x.globalCompositeOperation="destination-in"; x.drawImage(im,0,0);
+    x.globalCompositeOperation="source-over";
+    return cv.toDataURL("image/png");
   }
 
   // ===== Per-docka axel-landmärke (andel av ramen), PIL-mätt via centralt band + klampat [0.25,0.33] =====
@@ -254,7 +310,13 @@
   var DOLL_SH={"01-nadia":0.30,"02-elsa":0.26,"03-mira":0.30,"04-zoe":0.31,"05-vera":0.31,"06-lin":0.26,"07-ada":0.30,"08-noor":0.32,"09-stella":0.26,"10-amara":0.29};
   var SLOT_DY={dress:0.0,top:0.012,bottom:0.20,outer:-0.008};     // förskjutning från axel-linjen per slot (midja = +0.20)
   var SLOT_SCALE={dress:0.76,top:0.62,bottom:0.70,outer:0.72};    // default-skala: plaggen sitter tajt (dockorna har ~samma proportioner → ett värde passar alla)
-  var DEFAULT_Z={bottom:2,dress:3,top:4,outer:5};                  // lagerordning (under huvud-lagret z:10); användaren kan flippa
+  var DEFAULT_Z={bottom:2,dress:3,top:4,outer:5};                  // lagerordning framför kroppen; användaren kan flippa
+  var BACK_Z={bottom:-1,dress:-2,top:-3,outer:-4};                 // baksidor bakom dockan (ovanför bakgrunden) — outer längst bak
+  // Plagg m. separat baksida /garderob/<slot>/<id>-back.png. Delar frontens transform, ELLER (via BACK_ADJUST) ankras
+  // till huvudlinjen. Hoodie-luvan är avstängd tills vidare: back-stycket göms helt bakom hår/huvud i kroppsskala
+  // (hood-down-looken är ren och bra). Sätt "top/hoodie":1 här + raden nedan för att återuppta "luva uppe".
+  var BACK_PIECES={};                                             // t.ex. {"top/hoodie":1}
+  var BACK_ADJUST={};                                            // t.ex. {"top/hoodie":{k:1.16,dy:-0.15}} — k=skala, dy=andel uppåt fr. axellinjen
   function slotAnchor(slot){ return (DOLL_SH[state.char]||0.29) + (SLOT_DY[slot]||0); }
   var _bbox={};
   function bboxOf(src,cb){
@@ -279,15 +341,28 @@
       el.style.transformOrigin="50% 0";
       el.style.transform="translate("+tx.toFixed(2)+"%,"+ty.toFixed(2)+"%) scale("+scX.toFixed(3)+","+scY.toFixed(3)+")";
       el._tf={scX:scX,scY:scY,tx:tx,ty:ty,b:b};
+      // baksidan: dela frontens transform (default) ELLER ankra till huvudlinjen (BACK_ADJUST, t.ex. hoodie-luva)
+      var bk=$("L-"+slot+"-b");
+      if(bk){ bk.style.transformOrigin="50% 0"; var ba=BACK_ADJUST[slot+"/"+s.id];
+        if(ba){ bboxOf("/garderob/"+slot+"/"+s.id+"-back.png",function(hb){ if(!hb){bk.style.transform=el.style.transform;return;}
+            var kx=base*a.sx*(ba.k||1), ky=base*a.sy*(ba.k||1);
+            var hAnchor=(DOLL_SH[state.char]||0.29)+(ba.dy||0);        // huvudlinje = axel + dy (dy<0 = uppåt)
+            var hty=(hAnchor - hb.y0*ky)*100 + a.dy;
+            var htx=(0.5-hb.cx)*kx*100 + a.dx;
+            bk.style.transform="translate("+htx.toFixed(2)+"%,"+hty.toFixed(2)+"%) scale("+kx.toFixed(3)+","+ky.toFixed(3)+")";
+          });
+        } else bk.style.transform=el.style.transform;
+      }
       if(selGar===slot) positionGarbox();
     });
   }
 
   // ===== Render =====
   function paintLayer(slot,animate){
-    var el=$("L-"+slot), s=state[slot];
+    var el=$("L-"+slot), s=state[slot], bk=$("L-"+slot+"-b");
+    function hideBack(){ if(bk){ bk.style.display="none"; bk.removeAttribute("src"); bk.style.transform=""; } }
     var hide=!s.id || ((slot==="top"||slot==="bottom") && state.dress.id);
-    if(hide){ el.style.display="none"; el.removeAttribute("src"); el.style.transform=""; return; }
+    if(hide){ el.style.display="none"; el.removeAttribute("src"); el.style.transform=""; hideBack(); return; }
     el.style.zIndex=(s.z!=null?s.z:(DEFAULT_Z[slot]||3));
     anchorLayer(el,slot,s);
     paintGarment(slot,function(url){
@@ -295,18 +370,71 @@
       el.src=url; el.style.display="";
       if(animate){ el.classList.remove("slidein"); void el.offsetWidth; el.classList.add("slidein"); }
     });
+    // baksida (bakom dockan) — bara för plagg med separat bakstycke, färglagd identiskt, delar transform via anchorLayer
+    if(bk){ if(BACK_PIECES[slot+"/"+s.id]){ bk.style.zIndex=BACK_Z[slot]||-1;
+        paintGarment(slot,function(url){ if(url){ bk.src=url; bk.style.display=""; } else hideBack(); },"-back");
+      } else hideBack(); }
   }
   function renderDoll(){
     var c=CHARS.filter(function(x){return x.id===state.char;})[0]||CHARS[0];
     var src="/dolls/"+state.char+".png";
     var dl=$("L-doll"); dl.src=src; $("dollname").textContent=c.name;
-    // huvud-lager: klippt kopia av dockan (topp ner till strax under nacken) ovanpå plaggen
-    var hd=$("L-head"); hd.src=src; var cut=(DOLL_SH[state.char]||0.29)+0.03;
-    var cp="inset(0 0 "+((1-cut)*100).toFixed(1)+"% 0)"; hd.style.clipPath=cp; hd.style.webkitClipPath=cp;
     ["bottom","dress","top","outer"].forEach(function(sl){paintLayer(sl,false);});
     saveCurrent();
   }
   function refreshSlot(slot,animate){ paintLayer(slot,animate); if(state.dress.id){ paintLayer("top",false); paintLayer("bottom",false);} saveCurrent(); }
+
+  // ===== Suddgummi IN-CANVAS: sudda/måla-tillbaka plagget direkt på dockan, spara om default-PNG =====
+  var edSlot=null, edId=null, edMode="erase", edCanvas=document.createElement("canvas"), edOrig=document.createElement("canvas"), edUndo=[], edDrawing=false;
+  function edRender(){ if(!edSlot)return; $("L-"+edSlot).src=recolorPixels(edCanvas,state[edSlot]); }  // live: recolora redigerade white-base → lager
+  function edLoad(cb){ var im=new Image(); im.crossOrigin="anonymous"; im.onload=function(){ var W=im.naturalWidth,H=im.naturalHeight;
+    [edCanvas,edOrig].forEach(function(c){ c.width=W;c.height=H; var g=c.getContext("2d"); g.clearRect(0,0,W,H); g.drawImage(im,0,0); }); if(cb)cb(); };
+    im.onerror=function(){toast("Kunde ej ladda plagget");}; im.src="/garderob/"+edSlot+"/"+edId+".png?e="+Date.now(); }
+  function edPlaceBar(x,y){ var b=$("edbar"); b.hidden=false; b.style.transform="none"; b.style.bottom="auto";
+    var bw=b.offsetWidth||300, bh=b.offsetHeight||170;
+    b.style.left=Math.max(8,Math.min(x, window.innerWidth-bw-8))+"px";
+    b.style.top=Math.max(8,Math.min(y, window.innerHeight-bh-8))+"px"; }
+  function edBarDefault(){ var r=$("stage").getBoundingClientRect();
+    if(window.innerWidth - r.right >= 250){ edPlaceBar(r.right+14, r.top+8); }   // bred skärm: precis till höger om canvas
+    else { var b=$("edbar"); b.hidden=false; b.style.left="50%"; b.style.top="auto"; b.style.bottom="14px"; b.style.transform="translateX(-50%)"; } }
+  function enterEdit(slot){ var s=state[slot]; if(!s||!s.id)return; deselectAll(); edSlot=slot; edId=s.id; edUndo=[];
+    edLoad(function(){ document.body.classList.add("editing"); edBarDefault(); edRender(); toast("🧽 Sudda direkt på plagget – högerklicka för att flytta reglagen hit"); }); }
+  function edExit(){ document.body.classList.remove("editing"); $("edbar").hidden=true; $("edCursor").style.display="none"; var sl=edSlot; edSlot=null; edId=null; edUndo=[]; edDrawing=false; if(sl)refreshSlot(sl,false); }
+  function edStrokeAt(cx,cy){ if(!edSlot)return; var el=$("L-"+edSlot), tf=el._tf; if(!tf)return;
+    var st=$("stage"), r=st.getBoundingClientRect(); var nx=(cx-r.left)/r.width, ny=(cy-r.top)/r.height;
+    var px=(nx-0.5-tf.tx/100)/tf.scX+0.5, py=(ny-tf.ty/100)/tf.scY;                 // canvas → plaggets native-koord (som garmentAt)
+    var W=edCanvas.width,H=edCanvas.height, ex=px*W, ey=py*H, nr=(+$("edSize").value)/r.width*W/tf.scX;
+    var g=edCanvas.getContext("2d"); g.save();
+    if(edMode==="erase"){ g.globalCompositeOperation="destination-out"; g.beginPath(); g.arc(ex,ey,nr,0,7); g.fill(); }
+    else { g.globalCompositeOperation="source-over"; g.beginPath(); g.arc(ex,ey,nr,0,7); g.closePath(); g.clip(); g.drawImage(edOrig,0,0); }  // måla tillbaka originalpixlar
+    g.restore(); edRender(); }
+  function edShowCursor(e){ var st=$("stage"), r=st.getBoundingClientRect(), b=+$("edSize").value, cur=$("edCursor");
+    cur.style.width=(b*2)+"px"; cur.style.height=(b*2)+"px"; cur.style.left=(e.clientX-r.left)+"px"; cur.style.top=(e.clientY-r.top)+"px"; cur.style.display="block"; }
+  (function edInit(){
+    var st=$("stage");
+    st.addEventListener("pointerdown",function(e){ if(!edSlot)return; if(e.button&&e.button!==0)return; e.preventDefault(); edDrawing=true; try{st.setPointerCapture(e.pointerId);}catch(_){}
+      edUndo.push(edCanvas.getContext("2d").getImageData(0,0,edCanvas.width,edCanvas.height)); if(edUndo.length>30)edUndo.shift();
+      edStrokeAt(e.clientX,e.clientY); edShowCursor(e); });
+    st.addEventListener("pointermove",function(e){ if(!edSlot)return; edShowCursor(e); if(edDrawing)edStrokeAt(e.clientX,e.clientY); });
+    st.addEventListener("pointerup",function(){ edDrawing=false; });
+    st.addEventListener("pointercancel",function(){ edDrawing=false; });
+    st.addEventListener("pointerleave",function(){ if(edSlot)$("edCursor").style.display="none"; });
+    st.addEventListener("contextmenu",function(e){ if(!edSlot)return; e.preventDefault(); edPlaceBar(e.clientX+8, e.clientY-30); });  // högerklick → reglagen hit
+    function tool(m){ edMode=m; $("edErase").classList.toggle("on",m==="erase"); $("edPaint").classList.toggle("on",m==="paint"); }
+    $("edErase").addEventListener("click",function(){tool("erase");});
+    $("edPaint").addEventListener("click",function(){tool("paint");});
+    $("edSize").addEventListener("input",function(){ $("edSizeVal").textContent=$("edSize").value; });
+    $("edUndo").addEventListener("click",function(){ if(!edUndo.length){toast("Inget att ångra");return;} edCanvas.getContext("2d").putImageData(edUndo.pop(),0,0); edRender(); });
+    $("edReset").addEventListener("click",function(){ if(!edSlot)return; if(!confirm("Återställ originalbilden för "+edId+"?"))return;
+      fetch("/__restore-garment",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({slot:edSlot,id:edId})}).then(function(r){return r.json();}).then(function(j){
+        bustGarment(edSlot,edId); edUndo=[]; edLoad(edRender); toast(j&&j.ok?"⟲ Återställt till original":"Ingen original-backup fanns");
+      }).catch(function(){toast("Kunde ej återställa");}); });
+    $("edSave").addEventListener("click",function(){ if(!edSlot)return; var dataUrl=edCanvas.toDataURL("image/png");
+      fetch("/__save-garment",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({slot:edSlot,id:edId,dataUrl:dataUrl})}).then(function(r){return r.json();}).then(function(j){
+        if(j&&j.ok){ bustGarment(edSlot,edId); toast("💾 Sparat på plagget!"); } else toast("Spara-fel");
+      }).catch(function(){toast("Spara-fel (kör du dev-servern?)");}); });
+    $("edDone").addEventListener("click",edExit);
+  })();
 
   function setBackdrop(){ var bd=BACKDROPS[state.bd]||BACKDROPS.catwalk,st=$("stage"); st.style.backgroundImage="url('"+bd.img+"')"; st.style.backgroundSize="cover"; st.style.backgroundPosition="center"; }
   function sparkleAt(px,py){var s=document.createElement("div");s.className="spark";s.textContent="✨";s.style.left=px+"px";s.style.top=py+"px";$("stage").appendChild(s);setTimeout(function(){s.remove();},700);}
@@ -331,8 +459,10 @@
         +'<button class="fitbtn" data-fit="shorter" title="Kortare">↕－</button><button class="fitbtn" data-fit="taller" title="Längre">↕＋</button>'
         +'<button class="fitbtn" data-fit="zup" title="Lägg framför">⬆</button><button class="fitbtn" data-fit="zdown" title="Lägg bakom">⬇</button>'
         +'<button class="fitbtn fitreset" data-fit="reset">↺</button></div></div>';
+      h+='<div class="sect"><button class="erasebtn" id="eraseBtn">✏️ Sudda ut delar av plagget</button></div>';
     }
     $("panelbody").innerHTML=h;
+    var eb=$("eraseBtn"); if(eb)eb.addEventListener("click",function(){ enterEdit(slot); });
     // mönster-swatchar (kaklade, synlig färg) + mönsterfärg-chips
     if(s.id){ var previewInk=(s.fg&&s.fg!==s.color)?s.fg:contrastInk(s.color);
       var pr=$("patrow"); Object.keys(PATTERNS).forEach(function(k){ var d=document.createElement("div"); d.className="swatch"+(s.pat===k?" sel":""); d.dataset.pat=k; d.title=PATTERNS[k]; d.appendChild(swatchCanvas(k,s.color,k==="slat"?s.color:previewInk)); pr.appendChild(d);});
@@ -435,6 +565,12 @@
     return garbox;
   }
   function selectGarment(slot){ if(!state[slot]||!state[slot].id)return; deselectAcc(); selGar=slot; ensureGarbox(); positionGarbox(); }
+  // klick på plagg på canvas → byt även FLIK/panel till det plagget (annars styr färg/mönster fel slot)
+  function gotoGarmentTab(slot){
+    var btn=document.querySelector('#tabs button[data-tab="'+slot+'"]');
+    if(btn){ document.querySelectorAll("#tabs button").forEach(function(x){x.classList.remove("on");}); btn.classList.add("on"); try{btn.scrollIntoView({inline:"center",block:"nearest"});}catch(_){} }
+    if(TAB[slot])TAB[slot](); // renderar panelen för slot; garmentPanel markerar plagget (garbox) på slutet
+  }
   function deselectGarment(){ selGar=null; if(garbox)garbox.style.display="none"; }
   function deselectAll(){ deselectAcc(); deselectGarment(); }
   function positionGarbox(){
@@ -542,9 +678,14 @@
   $("done").addEventListener("click",done);
   $("reset").addEventListener("click",function(){deselectAll();document.querySelectorAll(".acc").forEach(function(e){e.remove();});state.acc=[];state.dress=slot0();state.top=slot0();state.bottom=slot0();state.outer=slot0();renderDoll();toast("↺ Avklädd — börja om!");});
   // klick på plagget → markera det för justering; klick på tom scen/docka → avmarkera
-  $("stage").addEventListener("pointerdown",function(e){ if(e.target!==$("stage"))return;
+  $("stage").addEventListener("pointerdown",function(e){ if(edSlot)return; if(e.target!==$("stage"))return;
     var r=$("stage").getBoundingClientRect(), nx=(e.clientX-r.left)/r.width, ny=(e.clientY-r.top)/r.height;
-    var slot=garmentAt(nx,ny); if(slot)selectGarment(slot); else deselectAll(); });
+    var slot=garmentAt(nx,ny); if(slot)gotoGarmentTab(slot); else deselectAll(); });
+  // avmarkera även vid klick UTANFÖR canvas (var som helst i fönstret), utom i justerings-panelen
+  document.addEventListener("pointerdown",function(e){ if(edSlot)return; if(!selGar&&!selAcc)return;
+    if($("stage").contains(e.target))return;                        // canvas hanteras av handlern ovan
+    if(e.target.closest&&e.target.closest(".drawer"))return;         // panel/justeringskontroller ska ej avmarkera
+    deselectAll(); });
 
   // init
   restoreCurrent(); renderDoll(); setBackdrop(); renderWardrobe(); TAB.docka();
