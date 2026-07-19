@@ -119,6 +119,18 @@ Varje grind = stopp-möjlighet innan vi bränner tid på nästa steg. Suddgummit
 
 **⚠️ GIT:** `atelje-v2/` + `ATELJE-V2-SPEC.md` är fortf. UNTRACKED (`??`) i carlpalmquistdotcom. Överlever clear men ej checkout/städning. Commit lokalt (utan push — WIP-kroppar ska ej till publika sajten) väntar på Calles ok.
 
+## ✅ GODKÄND BASLINJE 2026-07-19 — Calles EGNA ÖGON: "mycket bättre! inga pixel/opacitetsfel, good 2 go"
+
+**Chroma-kropp + grön-key + inbakad frisyr är GODKÄND av Calle själv** (inte verifierare) på: t-shirt, byxor, dunjacka, hoodie (luva upp), polotröja (hög krage). Villkor uppfyllt: små storleks-/positionsjustering via v1:s on-canvas-editor funkar (chroma-lager = vanliga PNG:er). **Generalisering bekräftad:** grön-key är designoberoende; luva-upp + hög krage läser naturligt (hår spiller ut / faller på sidorna). Kvar-mönster: liten axel-glipa vid halslinjen (Flux-form, justerbar) + per-plagg-form-polish via best-of-N.
+
+**LAYER-Z-MODELL (bekräftad, bygg in):** ytterplagg z30 > sweatshirt z26 > skjorta z24 > t-shirt z22 > linne z20 > klänning z15 > underdel z10 > [docka+inbakad frisyr]. Varje plagg bär default-z från kategori → auto-stack; tillåt flera toppar. **Grönt plagg → magenta-bas (multi-chroma).**
+
+**KANONISK PIPELINE (per plagg):** `kontext.mjs baseChroma → "<plagg>, keep bright green skin exactly as is, even white, front only, no back panel" → chromakey2.mjs (align+feather+despill+despeckle) → PNG-lager på docka`. Verktyg: `recolor-chroma.mjs`, `chromakey2.mjs`, `birefnet.mjs` (reserv). Dockor = baseBald+ansikte+**inbakad frisyr** (hår extraheras ALDRIG).
+
+**NÄSTA (skala):** z-registret + roster (dockor m. inbakad frisyr) + kör garderoben via chroma (best-of-N per plagg) + nod-fit i spelmotorn. Commits t.o.m. 9552484.
+
+---
+
 ## GRIND 3.4 (STRATEGISKT GENOMBROTT) 2026-07-19 — CHROMA-KROPP + GRÖN-KEY
 
 **Efter upprepade flood-key-regressioner (Calle: "du påstår grejer fast problem kvarstår, tänk nytt"):** all pixel-heuristik (diff/flood/skin-kill/rektangel-clear) är sprött → whack-a-mole. **NY STRATEGI (Calle valde: chroma-kropp + birefnet):** generera plagg på en **HELGRÖN kropp** (`bodies/baseChroma.png` = baseBald recolorad grön, `tools/recolor-chroma.mjs`) → **ingen hud finns i bilden** → inga skinn-ghosts MÖJLIGA; grön↔vit hög kontrast överallt → inga opacitetshål MÖJLIGA. Extraktion = **grön-key** (`tools/chromakey.mjs`: ta bort grön-dominant + mörk bg + green-despill + erode + fraktions-despeckle) → solid plagg.
