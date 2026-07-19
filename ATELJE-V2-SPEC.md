@@ -119,7 +119,24 @@ Varje grind = stopp-möjlighet innan vi bränner tid på nästa steg. Suddgummit
 
 **⚠️ GIT:** `atelje-v2/` + `ATELJE-V2-SPEC.md` är fortf. UNTRACKED (`??`) i carlpalmquistdotcom. Överlever clear men ej checkout/städning. Commit lokalt (utan push — WIP-kroppar ska ej till publika sajten) väntar på Calles ok.
 
-## GRIND 3.2 (pågår) 2026-07-19 — LÅST PLAGG-RECEPT + OBJEKTIV QA-GRIND + KORRIGERINGS-LOOP
+## GRIND 3.3 (genombrott) 2026-07-19 — FLOOD-KEY ERSÄTTER DIFF → SOLIDA PLAGG + CALLES MODELL
+
+**Calle-dom (REJECT på diff-resultat):** alla plagg translucenta + t-shirt "bara ärmar+krage ovanpå baddräkten". **Rotorsak: diff-extraktion är fel verktyg** — den behåller bara pixlar som skiljer sig >tröskel från basen → lågkontrast/skuggade plagg-ytor droppas → SJÄLVFÖRVÅLLADE hål. Calles insikt: "vi ska inte skapa egna opacitets-missar; Flux genererar plaggen solida."
+
+**LÖSNING: `tools/floodkey2.mjs`** (bas-medveten flood-key, ERSÄTTER diff-extract för soliditet):
+1. Align shot→bas (drift).
+2. Floda "negativa rummet" från kanten = `{mörk bg} ∪ {~oförändrat mot bas, diff<TOL} ∪ {synlig magenta} ∪ {openCenter-band-seeds}`.
+3. **Allt som EJ nås = plagget → SOLIDT** (färg från shot, alpha 255) — oavsett kontrast/skugga. Inga diff-hål.
+4. covers-mask + erode + despeckle.
+Bevisat: **jacket (öppen) + t-shirt (stängd) båda SOLIDA** (`proof/jacket-fk4*.png`, `proof/tshirt-flood*.png`), interiorHoles 4320→~20, mainMasses t-shirt=1. Magenta-seeds flodar inkapslad öppning (ingen ryggdel). Kvar: tunna skinn-trådar i öppning (driftade ben, diff>TOL → ej flodade; mest osynliga; höj TOL i öppnings-band).
+
+**CALLES MODELL (antagen, förenklar allt):** generera **ren framsida** (inget bakom huvud/kropp) → **flood-key solid** → grov auto-position/storlek → **användaren finjusterar sista biten** (position/storlek via v1:s drag/scale-handtag, + hår-position om auto ej räcker). Vi jagar INTE pixel-perfekt auto-fit; vi säkerställer bara solida plagg + ren framsida.
+
+**KVAR (Calles 3:e anmärkning, ej åtgärdad):** håret sitter fel på skallen (skallig hjässa syns) — `hair-extracted` är diff:ad från gammal driftad ram. FIX = samma pipeline: regenerera hår på baseBald + flood-key → solid+alignat hår-lager. Sen skala garderob (flood-key per plagg) + roster.
+
+---
+
+## GRIND 3.2 2026-07-19 — LÅST PLAGG-RECEPT + OBJEKTIV QA-GRIND + KORRIGERINGS-LOOP
 
 **Noll-drift-bas byggd:** `bodies/baseMag-canonical.png` = baseBalds baddräkt recolorad→magenta **LOKALT** (`tools/recolor-local.mjs`, ren pixel-op) → byte-identisk kropp med baseBald. Ersätter driftade `baseExtract-magenta`. All plagg-extraktion sker mot denna → noll drift i pipelinen.
 
