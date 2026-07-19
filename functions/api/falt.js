@@ -99,7 +99,12 @@ export async function onRequestPost(context) {
       const text = (body.text || "").toString().replace(/[\x00-\x09\x0B-\x1F\x7F]/g, " ").trim().slice(0, TEXT_MAX);
       if (!text) return Response.json({ error: "empty" }, { status: 400 });
       const inbox = await readJson(env, K_IN, []);
-      const item = { id: mkId(), text, at: new Date().toISOString() };
+      // Idempotens: PWA:ns durabla outbox kan skicka om en anteckning vars svar tappades offline. Klient-id (cid)
+      // gör en replay till en no-op i st.f. en dubblett. (Fönstret är fortfarande "ack:ad+borttagen mellan svarsdrop
+      // och retry", vilket är litet — offline-fallet skrev aldrig till KV, så inget att dubblera.)
+      const cid = (body.id || "").toString().slice(0, 40);
+      if (cid) { const dup = inbox.find((x) => x.cid === cid); if (dup) return Response.json({ ok: true, item: dup, count: inbox.length, dup: true }); }
+      const item = { id: mkId(), cid: cid || undefined, text, at: new Date().toISOString() };
       inbox.push(item);
       if (inbox.length > IN_CAP) inbox.splice(0, inbox.length - IN_CAP);
       await kvPut(env, K_IN, JSON.stringify(inbox));

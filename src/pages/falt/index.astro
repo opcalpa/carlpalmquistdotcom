@@ -98,6 +98,8 @@
     .qrow:first-of-type{border-top:none}
     .qwhen{color:var(--dim);font-size:12px;flex-shrink:0;font-variant-numeric:tabular-nums}
     .qtext{white-space:pre-wrap;word-break:break-word}
+    .qrow.pending{opacity:.72}
+    .qrow.pending .qwhen{color:var(--warn,#e0a030);font-weight:600}
     .hint{font-size:12px;color:var(--dim);margin-top:8px}
     .doc{border:1px solid var(--line);border-radius:10px;background:var(--panel2);margin-bottom:8px;overflow:hidden}
     .doc-head{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:12px;cursor:pointer;font-weight:600;font-size:15px}
@@ -319,6 +321,17 @@
       var $ = function (id) { return document.getElementById(id); };
       var mirror = null;   // senaste hämtade spegel-snapshot (cache tills ↻ eller ny app-öppning)
 
+      // Offline-motståndskraft: fältet används där uppkopplingen är svag (strand, bil, kök). Varje lyckad fetch
+      // speglas till localStorage och hydreras därifrån FÖRST (stale-while-revalidate) så skalet renderar direkt
+      // offline; nätet uppdaterar sen tyst. Envägs-designen står kvar (read-only spegling); bara läs-cache + outbox.
+      function lsGet(k) { try { return JSON.parse(localStorage.getItem("falt_cache_" + k) || "null"); } catch (e) { return null; } }
+      function lsSet(k, v) { try { localStorage.setItem("falt_cache_" + k, JSON.stringify(v)); } catch (e) {} }
+      // Durabel outbox: osända anteckningar (offline vid spara) köas här, renderas med «väntar på synk»-badge och
+      // flushas på online-eventet / nästa lyckade hydrering. Klient-id (cid) gör serverns insert idempotent → replay säkert.
+      function outboxGet() { try { return JSON.parse(localStorage.getItem("falt_outbox") || "[]"); } catch (e) { return []; } }
+      function outboxSet(a) { try { localStorage.setItem("falt_outbox", JSON.stringify(a)); } catch (e) {} }
+      function mkCid() { return "c" + Date.now().toString(36) + Math.random().toString(36).slice(2, 7); }
+
       function esc(s) { return String(s).replace(/[&<>"']/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]; }); }
       // Mini-markdown: rubriker, **fet**, *kursiv*, [länk](url), punktlistor, stycken.
       function md(src) {
@@ -356,10 +369,15 @@
       // ---------- Inkorg ----------
       function renderQueue(inbox) {
         var q = $("queue");
-        if (!inbox || !inbox.length) { q.innerHTML = '<div class="empty">Inget i kön — allt är hämtat. ✅</div>'; return; }
-        q.innerHTML = inbox.slice().reverse().map(function (it) {
+        var pend = outboxGet();   // osända anteckningar (offline) — visas överst med «väntar på synk»-badge
+        var prows = pend.map(function (it) {
+          return '<div class="qrow pending"><span class="qwhen">⏳ väntar på synk</span><span class="qtext">' + esc(it.text) + "</span></div>";
+        });
+        var rows = (inbox || []).slice().reverse().map(function (it) {
           return '<div class="qrow"><span class="qwhen">' + esc(fmtAt(it.at)) + '</span><span class="qtext">' + esc(it.text) + "</span></div>";
-        }).join("");
+        });
+        if (!prows.length && !rows.length) { q.innerHTML = '<div class="empty">Inget i kön — allt är hämtat. ✅</div>'; return; }
+        q.innerHTML = prows.join("") + rows.join("");
       }
       function renderFeed(feed) {
         var f = $("feed");
@@ -440,9 +458,12 @@
 
       async function loadMirror(force) {
         if (mirror && !force) return;
-        var r = await fetch(API + "?pw=" + encodeURIComponent(pw) + "&kind=mirror");
-        if (!r.ok) throw new Error("http " + r.status);
-        mirror = (await r.json()).mirror;
+        if (!mirror) { var c = lsGet("mirror"); if (c) mirror = c; }   // hydrera från cache först (offline-first)
+        try {
+          var r = await fetch(API + "?pw=" + encodeURIComponent(pw) + "&kind=mirror");
+          if (!r.ok) throw new Error("http " + r.status);
+          mirror = (await r.json()).mirror; lsSet("mirror", mirror);
+        } catch (e) { if (mirror) return; throw e; }                  // hade cache → visa stale; annars låt callern hantera
       }
       function renderMirrorTabs() { renderTodo(); renderListor(); renderAgera(); }
 
@@ -456,9 +477,11 @@
 
       function loadQuiz(force) {
         if (quiz && !force) return Promise.resolve();
+        if (!quiz) { var c = lsGet("quiz"); if (c) quiz = c; }         // offline-first: frågesporten spelbar utan nät
         return fetch(API + "?pw=" + encodeURIComponent(pw) + "&kind=quiz")
           .then(function (r) { if (!r.ok) throw new Error("http " + r.status); return r.json(); })
-          .then(function (j) { quiz = j.quiz; });
+          .then(function (j) { quiz = j.quiz; lsSet("quiz", quiz); })
+          .catch(function (e) { if (quiz) return; throw e; });
       }
       function shuffle(a) {
         var arr = a.slice();
@@ -1296,7 +1319,11 @@
       var blobCache = {};
       function loadBlob(kind, force) {
         if (!force && blobCache[kind]) return Promise.resolve(blobCache[kind]);
-        return fetch(API + "?pw=" + encodeURIComponent(pw) + "&kind=" + kind).then(function (r) { return r.json(); }).then(function (j) { blobCache[kind] = j[kind]; return j[kind]; });
+        if (!blobCache[kind]) { var c = lsGet("blob_" + kind); if (c) blobCache[kind] = c; }   // offline-first: recept/träning/aktiviteter direkt
+        return fetch(API + "?pw=" + encodeURIComponent(pw) + "&kind=" + kind)
+          .then(function (r) { if (!r.ok) throw new Error("http " + r.status); return r.json(); })
+          .then(function (j) { blobCache[kind] = j[kind]; lsSet("blob_" + kind, j[kind]); return j[kind]; })
+          .catch(function (e) { if (blobCache[kind]) return blobCache[kind]; throw e; });
       }
       function fstamp(n, updatedAt) { return '<div class="stamp">' + n + (updatedAt ? ' · uppdaterad ' + esc(String(updatedAt).slice(0, 10)) : '') + '</div>'; }
 
@@ -1439,11 +1466,14 @@
       });
 
       async function hydrate() {
+        var c = lsGet("state"); if (c) { renderQueue(c.inbox); renderFeed(c.feed); }   // offline-first: rita cache innan nätet svarar
         var r = await fetch(API + "?pw=" + encodeURIComponent(pw) + "&kind=state");
         if (r.status === 401) throw new Error("pw");
         if (!r.ok) throw new Error("http " + r.status);
         var j = await r.json();
+        lsSet("state", { inbox: j.inbox, feed: j.feed });
         renderQueue(j.inbox); renderFeed(j.feed);
+        flushOutbox();   // nätet svarar → försök tömma osända anteckningar
       }
       function refreshAll() {
         hydrate().catch(function () {});
@@ -1460,17 +1490,39 @@
         var text = ta.value.trim();
         if (!text) return;
         btn.disabled = true; toast.textContent = ""; toast.className = "toast";
+        var cid = mkCid();
         try {
-          var r = await fetch(API + "?kind=note", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ pw: pw, text: text }) });
+          var r = await fetch(API + "?kind=note", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ pw: pw, text: text, id: cid }) });
           if (!r.ok) throw new Error("http " + r.status);
           ta.value = ""; localStorage.removeItem("falt_draft");
           toast.textContent = "✅ Sparad — hämtas av pappen.";
           hydrate().catch(function () {});
         } catch (e) {
-          toast.textContent = "⚠️ Kunde inte spara (offline?) — texten ligger kvar.";
-          toast.className = "toast err";
+          // Offline/fel → köa durabelt (replay säkert via cid-idempotens) i st.f. att bara lämna texten i rutan.
+          var ob = outboxGet(); ob.push({ cid: cid, text: text, at: new Date().toISOString() }); outboxSet(ob);
+          ta.value = ""; localStorage.removeItem("falt_draft");
+          toast.textContent = "📥 Sparad lokalt — synkas automatiskt när du är online igen.";
+          var cs = lsGet("state"); renderQueue(cs ? cs.inbox : []);
         }
         btn.disabled = false;
+      }
+
+      // Töm osända anteckningar sekventiellt. Failade ligger kvar och försöker igen; cid gör serverns insert idempotent.
+      var _flushing = false;
+      async function flushOutbox() {
+        if (_flushing) return;
+        var ob = outboxGet(); if (!ob.length) return;
+        _flushing = true;
+        var rest = [];
+        for (var i = 0; i < ob.length; i++) {
+          var it = ob[i];
+          try {
+            var r = await fetch(API + "?kind=note", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ pw: pw, text: it.text, id: it.cid }) });
+            if (!r.ok) throw new Error("http " + r.status);
+          } catch (e) { rest.push(it); }
+        }
+        outboxSet(rest); _flushing = false;
+        var cs = lsGet("state"); renderQueue(cs ? cs.inbox : []);   // uppdatera badge-läget (utan att kalla hydrate → ingen rekursion)
       }
 
       function openApp() { $("gate").hidden = true; $("app").hidden = false; hydrate().catch(function () {}); if (spLoad()) showTab("spel"); }
@@ -1489,12 +1541,23 @@
       $("save").addEventListener("click", save);
       $("refresh").addEventListener("click", refreshAll);
       document.addEventListener("visibilitychange", function () { if (!document.hidden && !$("app").hidden) refreshAll(); });
+      window.addEventListener("online", flushOutbox);   // nätet tillbaka → skicka osända anteckningar
       // Utkast överlever app-byten/krascher (rensas vid lyckad spara).
       $("note").addEventListener("input", function () { localStorage.setItem("falt_draft", $("note").value); });
       var draft = localStorage.getItem("falt_draft"); if (draft) $("note").value = draft;
 
-      if (pw) { hydrate().then(openApp).catch(function () { localStorage.removeItem("falt_pw"); $("gate-pw").focus(); }); }
+      // Offline-first öppning: känd session + cachead state → öppna direkt (hydrering/flush sker inne i openApp).
+      // Utan cache faller vi tillbaka till nät-verifiering (loggar ut om nyckeln vägras eller nätet saknas).
+      if (pw) {
+        if (lsGet("state")) { openApp(); flushOutbox(); }
+        else { hydrate().then(openApp).catch(function () { localStorage.removeItem("falt_pw"); $("gate-pw").focus(); }); }
+      }
       else { $("gate-pw").focus(); }
+
+      // Service worker: cache-first-skal så appen (installerad till hemskärmen) öppnas offline utan browserns felsida.
+      if ("serviceWorker" in navigator) {
+        window.addEventListener("load", function () { navigator.serviceWorker.register("/falt-sw.js", { scope: "/falt" }).catch(function () {}); });
+      }
     })();
   </script>
 </body>
