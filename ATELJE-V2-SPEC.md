@@ -119,6 +119,19 @@ Varje grind = stopp-möjlighet innan vi bränner tid på nästa steg. Suddgummit
 
 **⚠️ GIT:** `atelje-v2/` + `ATELJE-V2-SPEC.md` är fortf. UNTRACKED (`??`) i carlpalmquistdotcom. Överlever clear men ej checkout/städning. Commit lokalt (utan push — WIP-kroppar ska ej till publika sajten) väntar på Calles ok.
 
+## GRIND 3.4 (STRATEGISKT GENOMBROTT) 2026-07-19 — CHROMA-KROPP + GRÖN-KEY
+
+**Efter upprepade flood-key-regressioner (Calle: "du påstår grejer fast problem kvarstår, tänk nytt"):** all pixel-heuristik (diff/flood/skin-kill/rektangel-clear) är sprött → whack-a-mole. **NY STRATEGI (Calle valde: chroma-kropp + birefnet):** generera plagg på en **HELGRÖN kropp** (`bodies/baseChroma.png` = baseBald recolorad grön, `tools/recolor-chroma.mjs`) → **ingen hud finns i bilden** → inga skinn-ghosts MÖJLIGA; grön↔vit hög kontrast överallt → inga opacitetshål MÖJLIGA. Extraktion = **grön-key** (`tools/chromakey.mjs`: ta bort grön-dominant + mörk bg + green-despill + erode + fraktions-despeckle) → solid plagg.
+- **MAKE-OR-BREAK PASSERAT: grönt ÖVERLEVER Kontext** (`jacket-on-chroma.png` — kroppen förblev grön när jackan lades på; prompta "keep the figure's bright green skin exactly as is").
+- **OBEROENDE VERIFIERARE (pixel-analys) dömde MINOR:** noll grönt, noll opacitetshål, noll skinn-ghosts, korrekt passform. Enda kvar: kosmetisk kornig kant-frans + 2 småprickar → feather matten.
+- birefnet finns via fal (`tools/birefnet.mjs`, endpoint `fal-ai/birefnet/v2`, samma FLUX_API_KEY) — bakgrundsmatt om det behövs; grön-key räckte här.
+- **VERIFIERINGS-REGEL (Calle):** jag utropar ALDRIG seger — verifierare-subagent + Calle dömer. Kör adversariell kritiker per plagg.
+
+**BESLUT (Calle):** (1) plagg via chroma-kropp+grön-key. (2) **Fast INBAKAD frisyr på dockorna** (hår extraheras ALDRIG → hela hår/ansikts-fragment-problemet borta). (3) Verifierare i loopen.
+**NÄSTA:** feather kant-frans → kör alla plagg via chroma → baka dockor med fast frisyr (roster) → nod-fit i spelet. `tools/floodkey2.mjs` + skin-kill = föråldrat (behåll som referens).
+
+---
+
 ## GRIND 3.3 (genombrott) 2026-07-19 — FLOOD-KEY ERSÄTTER DIFF → SOLIDA PLAGG + CALLES MODELL
 
 **Calle-dom (REJECT på diff-resultat):** alla plagg translucenta + t-shirt "bara ärmar+krage ovanpå baddräkten". **Rotorsak: diff-extraktion är fel verktyg** — den behåller bara pixlar som skiljer sig >tröskel från basen → lågkontrast/skuggade plagg-ytor droppas → SJÄLVFÖRVÅLLADE hål. Calles insikt: "vi ska inte skapa egna opacitets-missar; Flux genererar plaggen solida."
