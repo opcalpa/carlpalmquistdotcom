@@ -54,6 +54,8 @@ await ev(`(async function(){
   var od=ox.getImageData(0,0,W,H),o=od.data,keep=0;
   for(var p2=0;p2<N;p2++){var i=p2*4;if(reached[p2]){o[i+3]=0;}else{o[i]=sd[i];o[i+1]=sd[i+1];o[i+2]=sd[i+2];o[i+3]=255;keep++;}}
   ${CV?`(function(){var X0=(W*${CV[0]})|0,X1=(W*${CV[1]})|0,Y0=(H*${CV[2]})|0,Y1=(H*${CV[3]})|0;for(var y=0;y<H;y++)for(var x=0;x<W;x++){if(x<X0||x>=X1||y<Y0||y>=Y1)o[(y*W+x)*4+3]=0;}})();`:''}
+  // --- openCenter HÅRD-RENSA: nolla öppnings-kolumnen (ben-ghost/baksida bort UTAN att röra panelerna) ---
+  ${OC?`(function(){var X0=(W*${OC[0]})|0,X1=(W*${OC[1]})|0,Y0=(H*${OC[2]})|0,Y1=(H*${OC[3]})|0;for(var y=Y0;y<Y1;y++)for(var x=X0;x<X1;x++)o[(y*W+x)*4+3]=0;})();`:''}
   var a2=new Uint8ClampedArray(o);for(var y3=1;y3<H-1;y3++)for(var x3=1;x3<W-1;x3++){var i3=(y3*W+x3)*4;if(a2[i3+3]===0)continue;var tn=0;for(var oy=-1;oy<=1;oy++)for(var oxx=-1;oxx<=1;oxx++){if(a2[((y3+oy)*W+(x3+oxx))*4+3]===0)tn++;}if(tn>=3)o[i3+3]=0;}
   (function(){var op=new Uint8Array(N);for(var p=0;p<N;p++)op[p]=o[p*4+3]>0?1:0;var sn=new Uint8Array(N),s2=[];for(var ss=0;ss<N;ss++){if(!op[ss]||sn[ss])continue;var comp=[ss];sn[ss]=1;s2.length=0;s2.push(ss);while(s2.length){var q2=s2.pop();var nb2=[q2-1,q2+1,q2-W,q2+W];for(var k2=0;k2<4;k2++){var m2=nb2[k2];if(m2>=0&&m2<N&&op[m2]&&!sn[m2]){sn[m2]=1;s2.push(m2);comp.push(m2);}}}if(comp.length<300)for(var c3=0;c3<comp.length;c3++)o[comp[c3]*4+3]=0;}})();
   // --- skin-kill: släpp skinn-tonade pixlar ur plagget (drift-ghost av ben/kropp/ansikte) ---
