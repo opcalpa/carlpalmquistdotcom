@@ -45,6 +45,17 @@ var op=new Uint8Array(N);for(var p3=0;p3<N;p3++)op[p3]=o[p3*4+3]>40?1:0;var sn=n
 for(var q=0;q<N;q++){if(!op[q]||sn[q])continue;var comp=[q];sn[q]=1;st.length=0;st.push(q);while(st.length){var u=st.pop();var nb=[u-1,u+1,u-W,u+W];for(var k=0;k<4;k++){var nn=nb[k];if(nn>=0&&nn<N&&op[nn]&&!sn[nn]){sn[nn]=1;st.push(nn);comp.push(nn);}}}comps.push(comp);}
 var mxs=0;comps.forEach(c=>{if(c.length>mxs)mxs=c.length;});var floor=Math.max(300,mxs*0.08);
 comps.forEach(c=>{if(c.length<floor)for(var j=0;j<c.length;j++)o[c[j]*4+3]=0;});
+// FYLL INKAPSLADE MIKROHÅL: transparenta pixlar som EJ når kanten (omringade av tyg) => fyll m. grannfärg
+(function(){var opq=new Uint8Array(N);for(var p=0;p<N;p++)opq[p]=o[p*4+3]>128?1:0;
+  var reach=new Uint8Array(N),bs=[];
+  for(var x2=0;x2<W;x2++){[x2,(H-1)*W+x2].forEach(t=>{if(!opq[t]&&!reach[t]){reach[t]=1;bs.push(t);}});}
+  for(var y2=0;y2<H;y2++){[y2*W,y2*W+W-1].forEach(t=>{if(!opq[t]&&!reach[t]){reach[t]=1;bs.push(t);}});}
+  while(bs.length){var q2=bs.pop();var nb2=[q2-1,q2+1,q2-W,q2+W];for(var k2=0;k2<4;k2++){var m2=nb2[k2];if(m2>=0&&m2<N&&!opq[m2]&&!reach[m2]){reach[m2]=1;bs.push(m2);}}}
+  for(var h=0;h<N;h++){if(opq[h]||reach[h])continue;   // inkapslat hål
+    var i=h*4;var hx=h%W,hy=(h/W)|0,rr=0,gg=0,bb=0,cnt=0;
+    for(var oy=-2;oy<=2;oy++)for(var ox2=-2;ox2<=2;ox2++){var xx=hx+ox2,yy=hy+oy;if(xx<0||xx>=W||yy<0||yy>=H)continue;var nn=yy*W+xx;if(opq[nn]){rr+=o[nn*4];gg+=o[nn*4+1];bb+=o[nn*4+2];cnt++;}}
+    if(cnt){o[i]=rr/cnt|0;o[i+1]=gg/cnt|0;o[i+2]=bb/cnt|0;o[i+3]=255;}}
+})();
 ox.putImageData(od,0,0);window.__O=out.toDataURL('image/png');
 var chk=document.createElement('canvas');chk.width=W;chk.height=H;var cc=chk.getContext('2d');var sq=24;for(var yq=0;yq<H;yq+=sq)for(var xq=0;xq<W;xq+=sq){cc.fillStyle=((xq/sq+yq/sq)&1)?'#cfcfcf':'#8f8f8f';cc.fillRect(xq,yq,sq,sq);}cc.drawImage(out,0,0);window.__chk=chk.toDataURL('image/png');
 return 'ok';})()`);
