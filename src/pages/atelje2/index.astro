@@ -92,6 +92,39 @@
   function renderDoll(){
     Object.keys(layers).forEach(function(id){var g=gById[id];if(!worn[g.category]||worn[g.category].id!==id){layers[id].remove();delete layers[id];}});
     man.garments.forEach(function(g){var st=worn[g.category];if(st&&st.id===g.id)applyOne(g,st);});
+    updateHighlight();
+  }
+  function updateHighlight(){Object.keys(layers).forEach(function(id){var g=gById[id];layers[id].classList.toggle('sel',!!(worn[g.category]&&worn[g.category].id===id&&activeCat===g.category));});}
+
+  // ---- pixel-precis hit-test: vilket buret plagg ligger överst vid (cx,cy) ----
+  var _alpha={};
+  function alphaMap(g){var im=_src[g.id];if(!im||!im.naturalWidth)return null;if(_alpha[g.id])return _alpha[g.id];
+    var sc=200/im.naturalWidth,w=Math.max(1,Math.round(im.naturalWidth*sc)),h=Math.max(1,Math.round(im.naturalHeight*sc));
+    var c=document.createElement('canvas');c.width=w;c.height=h;var x=c.getContext('2d');x.drawImage(im,0,0,w,h);
+    var d=x.getImageData(0,0,w,h).data,x0=w,y0=h,x1=0,y1=0;
+    for(var yy=0;yy<h;yy++)for(var xx=0;xx<w;xx++){if(d[(yy*w+xx)*4+3]>40){if(xx<x0)x0=xx;if(xx>x1)x1=xx;if(yy<y0)y0=yy;if(yy>y1)y1=yy;}}
+    // bbox i bild-native px
+    var bbox=x1>=x0?{x0:x0/sc,y0:y0/sc,x1:(x1+1)/sc,y1:(y1+1)/sc}:{x0:0,y0:0,x1:im.naturalWidth,y1:im.naturalHeight};
+    var m={w:w,h:h,sc:sc,d:d,bbox:bbox,iw:im.naturalWidth,ih:im.naturalHeight};_alpha[g.id]=m;return m;}
+  function garmentAt(cx,cy,SW,SH){
+    var ord=man.garments.filter(function(g){return worn[g.category]&&worn[g.category].id===g.id;}).sort(function(a,b){return b.z-a.z;});
+    for(var i=0;i<ord.length;i++){var g=ord[i],im=_src[g.id];if(!im||!im.naturalWidth)continue;
+      var st=worn[g.category],a=st.adj||{dx:0,dy:0,sx:1,sy:1};
+      var sc=Math.min(SW/im.naturalWidth,SH/im.naturalHeight),dw=im.naturalWidth*sc,dh=im.naturalHeight*sc,ox=(SW-dw)/2,oy=(SH-dh)/2;
+      var tx=a.dx/100*SW,ty=a.dy/100*SH;
+      var ex=(cx-SW/2-tx)/a.sx+SW/2, ey=(cy-SH/2-ty)/a.sy+SH/2;   // invers element-transform
+      var px=(ex-ox)/sc, py=(ey-oy)/sc;                            // element → bild-pixel
+      var mp=alphaMap(g);if(!mp)continue;var mx=Math.round(px*mp.sc),my=Math.round(py*mp.sc);
+      if(mx<0||my<0||mx>=mp.w||my>=mp.h)continue;
+      if(mp.d[(my*mp.w+mx)*4+3]>40)return g;
+    }
+    return null;
+  }
+  function selectGarment(g){
+    activeCat=g.category;renderTabs();renderRoller();renderStyle();updateHighlight();
+    var t=[].slice.call(document.querySelectorAll('.tab')).find(function(x){return x.classList.contains('on');});
+    if(t)t.scrollIntoView({inline:'center',block:'nearest',behavior:'smooth'});
+    var c=document.querySelector('.card.on');if(c)c.scrollIntoView({inline:'center',block:'nearest',behavior:'smooth'});
   }
 
   var tabsEl=document.getElementById('tabs');
@@ -159,22 +192,20 @@
     ctl.appendChild(rs);
     fw.appendChild(ctl);
   }
-  // ---- dra plagget på scenen (i passforms-läge) ----
+  // ---- klick på plagg (dockan) = markera det; drag i passforms-läge = flytta ----
   (function(){
-    var stg=document.getElementById('stage'),drag=null;
+    var stg=document.getElementById('stage'),down=null,moved=false;
+    function loc(e){var r=stg.getBoundingClientRect();return {x:e.clientX-r.left,y:e.clientY-r.top,w:r.width,h:r.height};}
     stg.addEventListener('pointerdown',function(e){
-      if(!editing)return;var st=worn[activeCat];if(!st)return;
-      drag={x:e.clientX,y:e.clientY,dx:st.adj.dx,dy:st.adj.dy,st:st,w:stg.clientWidth,h:stg.clientHeight};
-      stg.setPointerCapture(e.pointerId);e.preventDefault();
+      var p=loc(e);down={x:p.x,y:p.y,w:p.w,h:p.h,hit:garmentAt(p.x,p.y,p.w,p.h)};moved=false;
+      if(editing&&worn[activeCat]){down.dx=worn[activeCat].adj.dx;down.dy=worn[activeCat].adj.dy;down.drag=true;stg.setPointerCapture(e.pointerId);}
     });
     stg.addEventListener('pointermove',function(e){
-      if(!drag)return;var st=drag.st;
-      st.adj.dx=drag.dx+(e.clientX-drag.x)/drag.w*100;
-      st.adj.dy=drag.dy+(e.clientY-drag.y)/drag.h*100;
-      var im=layers[st.id];if(im)applyAdj(im,st);
+      if(!down)return;var p=loc(e);if(Math.abs(p.x-down.x)+Math.abs(p.y-down.y)>7)moved=true;
+      if(down.drag&&editing&&worn[activeCat]){var st=worn[activeCat];st.adj.dx=down.dx+(p.x-down.x)/down.w*100;st.adj.dy=down.dy+(p.y-down.y)/down.h*100;var im=layers[st.id];if(im)applyAdj(im,st);}
     });
-    function end(){drag=null;}
-    stg.addEventListener('pointerup',end);stg.addEventListener('pointercancel',end);
+    function end(){if(down&&!moved&&down.hit)selectGarment(down.hit);down=null;}
+    stg.addEventListener('pointerup',end);stg.addEventListener('pointercancel',function(){down=null;});
   })();
   document.getElementById('reset').onclick=function(){worn={};currentN=null;renderDoll();renderTabs();renderRoller();renderStyle();renderLooks();};
 
