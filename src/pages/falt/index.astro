@@ -70,6 +70,8 @@
     .fwp-u{color:var(--dim);font-size:14px}
     .fwp-nx{color:var(--dim);font-size:15px}
     .fwp-cue{color:var(--dim);font-size:14px;max-width:340px;line-height:1.4}
+    .fwp-mus{color:var(--accent);font-size:12px;font-weight:600;opacity:.9;max-width:340px}
+    .fwp-desc{font-size:13px;line-height:1.45;text-align:left;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:9px 11px}
     .fwp-imgs{display:flex;align-items:center;gap:6px;margin:2px 0}
     .fwp-img{position:relative;flex:1;max-width:150px}
     .fwp-img img{width:100%;border-radius:10px;display:block}
@@ -1399,23 +1401,38 @@
         var cells = imgs.map(function (p, i) { return '<div class="fwp-img"><img src="/' + esc(p) + '" alt=""><span>' + (imgs.length > 1 ? (i === 0 ? "start" : "slut") : "") + '</span></div>'; });
         return '<div class="fwp-imgs">' + cells.join('<span class="fwp-arw">→</span>') + '</div>';
       }
+      function fwpMus(e) { return (e && e.muscles && e.muscles.length) ? '<div class="fwp-mus">Tränar: ' + e.muscles.map(esc).join(' · ') + '</div>' : ''; }
+      // "Läs på övningen": muskler + bild + cue + hela beskrivningen. Visas under GÖR DIG REDO och VILA
+      // så man hinner förbereda sig INNAN timern startar — särskilt när bild saknas och allt är text.
+      function fwpStudy(e) {
+        if (!e) return '';
+        var sh = e.show || {};
+        var mus = fwpMus(e);
+        var imgs = (sh.playerImg !== false) ? fwpImgs(e) : '';
+        var cue = (sh.playerCue !== false && e.c) ? '<div class="fwp-cue">' + esc(e.c) + '</div>' : '';
+        var desc = (sh.playerDesc && e.desc) ? '<div class="fwp-cue fwp-desc">' + esc(e.desc) + '</div>' : '';
+        return mus + imgs + cue + desc;
+      }
       function fwpRender() {
         var box = document.getElementById("fwplayer"); if (!box || !_fwp) return;
         var s = _fwp.steps[_fwp.i]; var e = _fwp.ex[s.ex] || { n: s.ex, c: "" }; var sh = e.show || {};
-        var next = _fwp.steps[_fwp.i + 1] ? ((_fwp.ex[_fwp.steps[_fwp.i + 1].ex] || {}).n || '') : "Klart!";
+        var nx = _fwp.steps[_fwp.i + 1] ? (_fwp.ex[_fwp.steps[_fwp.i + 1].ex] || null) : null;
+        var next = nx ? (nx.n || '') : "Klart!";
         var pct = 100 * _fwp.i / _fwp.steps.length;
         var center = "";
         if (_fwp.phase === "ready") {
-          center = '<div class="fwp-ph">GÖR DIG REDO</div><div class="fwp-big" id="fwp-big">' + _fwp.remaining + '</div><div class="fwp-nx">Först ut: <b>' + esc(e.n) + '</b></div>';
+          center = '<div class="fwp-ph">GÖR DIG REDO</div><div class="fwp-big" id="fwp-big">' + _fwp.remaining + '</div><div class="fwp-nx">Först ut: <b>' + esc(e.n) + '</b></div>' + fwpStudy(e);
         } else if (_fwp.phase === "rest") {
-          center = '<div class="fwp-ph fwp-rest">VILA</div><div class="fwp-big" id="fwp-big">' + _fwp.remaining + '</div><div class="fwp-nx">Nästa: <b>' + esc(next) + '</b></div>';
+          center = '<div class="fwp-ph fwp-rest">VILA</div><div class="fwp-big" id="fwp-big">' + _fwp.remaining + '</div>' +
+            (nx ? '<div class="fwp-nx">Nästa: <b>' + esc(next) + '</b></div>' + fwpStudy(nx) : '<div class="fwp-nx">Sista övningen klar strax 💪</div>');
         } else {
           var imgs = (sh.playerImg !== false) ? fwpImgs(e) : '';
           var cue = (sh.playerCue !== false && e.c) ? '<div class="fwp-cue">' + esc(e.c) + '</div>' : '';
-          center = '<div class="fwp-nm">' + esc(e.n) + '</div>' + imgs +
+          var desc = (sh.playerDesc && e.desc) ? '<div class="fwp-cue fwp-desc">' + esc(e.desc) + '</div>' : '';
+          center = '<div class="fwp-nm">' + esc(e.n) + '</div>' + fwpMus(e) + imgs +
             (s.kind === "time"
               ? '<div class="fwp-big" id="fwp-big">' + _fwp.remaining + '</div><div class="fwp-u">sekunder</div>'
-              : '<div class="fwp-big">×' + s.val + '</div><div class="fwp-u">reps</div><button class="fwp-done" id="fwp-done">Klar ✓</button>') + cue;
+              : '<div class="fwp-big">×' + s.val + '</div><div class="fwp-u">reps</div><button class="fwp-done" id="fwp-done">Klar ✓</button>') + cue + desc;
         }
         box.innerHTML =
           '<div class="fwp-top"><button class="fwp-x" id="fwp-quit">✕</button><div class="fwp-ti">' + esc(_fwp.w.icon || '') + ' ' + esc(_fwp.w.name) + ' · ' + Math.min(_fwp.i + 1, _fwp.steps.length) + '/' + _fwp.steps.length + '</div><div class="fwp-prog"><div id="fwp-bar" style="width:' + pct + '%"></div></div></div>' +
