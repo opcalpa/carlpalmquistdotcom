@@ -24,6 +24,7 @@
     <button class="pbadge" id="pbadge">👤 —</button>
     <button class="clear" id="reset">Klä av</button>
     <img id="doll" alt="docka" />
+    <div class="ehint">✥ Dra plagget för att flytta</div>
   </div>
 
   <div class="sheet">
@@ -45,6 +46,7 @@
       <div class="swrow scroll" id="colrow"></div>
       <p class="cap">Mönster</p>
       <div class="swrow scroll" id="patrow"></div>
+      <div class="fitwrap" id="fitwrap"></div>
     </div>
   </div>
 
@@ -85,7 +87,8 @@
   var stage=document.getElementById('stage'),layers={},_src={};
 
   function loadImg(g,cb){if(_src[g.id]){cb(_src[g.id]);return;}var im=new Image();im.onload=function(){_src[g.id]=im;cb(im);};im.onerror=function(){cb(null);};im.src=g.file;}
-  function applyOne(g,st){var im=layers[g.id];if(!im){im=new Image();im.style.zIndex=g.z;layers[g.id]=im;stage.appendChild(im);}im.style.zIndex=g.z;loadImg(g,function(s){if(s)im.src=recolor(s,st.color,st.pat,st.fg);});}
+  function applyOne(g,st){var im=layers[g.id];if(!im){im=new Image();im.style.zIndex=g.z;layers[g.id]=im;stage.appendChild(im);}im.style.zIndex=g.z;applyAdj(im,st);loadImg(g,function(s){if(s)im.src=recolor(s,st.color,st.pat,st.fg);});}
+  function applyAdj(im,st){var a=st.adj||(st.adj={dx:0,dy:0,sx:1,sy:1});im.style.transformOrigin='center';im.style.transform='translate('+a.dx+'%,'+a.dy+'%) scale('+a.sx+','+a.sy+')';}
   function renderDoll(){
     Object.keys(layers).forEach(function(id){var g=gById[id];if(!worn[g.category]||worn[g.category].id!==id){layers[id].remove();delete layers[id];}});
     man.garments.forEach(function(g){var st=worn[g.category];if(st&&st.id===g.id)applyOne(g,st);});
@@ -111,7 +114,7 @@
       d.innerHTML='<img src="'+g.file+'" alt="'+g.label+'"><div class="tick">✓</div>';
       d.onclick=function(){
         if(worn[activeCat]&&worn[activeCat].id===g.id) delete worn[activeCat];
-        else {var dc=g.defaultColor||'#ffffff';worn[activeCat]={id:g.id,color:dc,pat:'slat',fg:ink(dc)};}
+        else {var dc=g.defaultColor||'#ffffff';worn[activeCat]={id:g.id,color:dc,pat:'slat',fg:ink(dc),adj:{dx:0,dy:0,sx:1,sy:1}};}
         renderDoll();renderRoller();renderTabs();renderStyle();
       };
       rollEl.appendChild(d);
@@ -130,7 +133,49 @@
     Object.keys(PAT).forEach(function(k){var d=document.createElement('div');d.className='pat'+(st.pat===k?' on':'');
       d.style.backgroundImage='url('+patCanvas(k,st.color,st.fg).toDataURL()+')';
       d.onclick=function(){st.pat=k;renderDoll();renderStyle();};pr.appendChild(d);});
+    renderFit(st);
   }
+  var editing=false;
+  function renderFit(st){
+    var fw=document.getElementById('fitwrap');fw.innerHTML='';
+    var a=st.adj||(st.adj={dx:0,dy:0,sx:1,sy:1});
+    var tog=document.createElement('button');tog.className='fitbtn'+(editing?' on':'');
+    tog.textContent=(editing?'✓ Klar med passform':'✥ Justera passform (flytta/storlek)');
+    tog.onclick=function(){editing=!editing;document.getElementById('stage').classList.toggle('editing',editing);renderFit(st);};
+    fw.appendChild(tog);
+    if(!editing){document.getElementById('stage').classList.remove('editing');return;}
+    var ctl=document.createElement('div');ctl.className='fitctl';
+    function slider(lbl,key,min,max){
+      var row=document.createElement('div');row.className='fitrow';
+      var l=document.createElement('label');l.textContent=lbl;
+      var r=document.createElement('input');r.type='range';r.min=min;r.max=max;r.step=0.01;r.value=a[key];
+      r.oninput=function(){a[key]=parseFloat(r.value);var im=layers[st.id];if(im)applyAdj(im,st);};
+      row.appendChild(l);row.appendChild(r);return row;
+    }
+    ctl.appendChild(slider('Bredd','sx',0.6,1.5));
+    ctl.appendChild(slider('Längd','sy',0.6,1.5));
+    var rs=document.createElement('button');rs.className='fitreset';rs.textContent='↺ Återställ';
+    rs.onclick=function(){st.adj={dx:0,dy:0,sx:1,sy:1};var im=layers[st.id];if(im)applyAdj(im,st);renderFit(st);};
+    ctl.appendChild(rs);
+    fw.appendChild(ctl);
+  }
+  // ---- dra plagget på scenen (i passforms-läge) ----
+  (function(){
+    var stg=document.getElementById('stage'),drag=null;
+    stg.addEventListener('pointerdown',function(e){
+      if(!editing)return;var st=worn[activeCat];if(!st)return;
+      drag={x:e.clientX,y:e.clientY,dx:st.adj.dx,dy:st.adj.dy,st:st,w:stg.clientWidth,h:stg.clientHeight};
+      stg.setPointerCapture(e.pointerId);e.preventDefault();
+    });
+    stg.addEventListener('pointermove',function(e){
+      if(!drag)return;var st=drag.st;
+      st.adj.dx=drag.dx+(e.clientX-drag.x)/drag.w*100;
+      st.adj.dy=drag.dy+(e.clientY-drag.y)/drag.h*100;
+      var im=layers[st.id];if(im)applyAdj(im,st);
+    });
+    function end(){drag=null;}
+    stg.addEventListener('pointerup',end);stg.addEventListener('pointercancel',end);
+  })();
   document.getElementById('reset').onclick=function(){worn={};currentN=null;renderDoll();renderTabs();renderRoller();renderStyle();renderLooks();};
 
   // ===== Spelare + spara/ladda (localStorage) =====
