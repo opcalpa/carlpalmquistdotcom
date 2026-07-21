@@ -24,7 +24,10 @@
     <button class="pbadge" id="pbadge">👤 —</button>
     <button class="clear" id="reset">Klä av</button>
     <img id="doll" alt="docka" />
-    <div class="ehint">✥ Dra plagget för att flytta</div>
+    <div class="ehint">✥ Dra plagget · handtagen ändrar storlek</div>
+    <div class="ghandle hw" id="hW">↔</div>
+    <div class="ghandle hh" id="hH">↕</div>
+    <button class="ghandle hx" id="hX">✕</button>
   </div>
 
   <div class="sheet">
@@ -94,7 +97,7 @@
     man.garments.forEach(function(g){var st=worn[g.category];if(st&&st.id===g.id)applyOne(g,st);});
     updateHighlight();
   }
-  function updateHighlight(){Object.keys(layers).forEach(function(id){var g=gById[id];layers[id].classList.toggle('sel',!!(worn[g.category]&&worn[g.category].id===id&&activeCat===g.category));});}
+  function updateHighlight(){Object.keys(layers).forEach(function(id){var g=gById[id];layers[id].classList.toggle('sel',!!(worn[g.category]&&worn[g.category].id===id&&activeCat===g.category));});positionHandles();}
 
   // ---- pixel-precis hit-test: vilket buret plagg ligger överst vid (cx,cy) ----
   var _alpha={};
@@ -168,41 +171,60 @@
       d.onclick=function(){st.pat=k;renderDoll();renderStyle();};pr.appendChild(d);});
     renderFit(st);
   }
-  var editing=false;
   function renderFit(st){
     var fw=document.getElementById('fitwrap');fw.innerHTML='';
-    var a=st.adj||(st.adj={dx:0,dy:0,sx:1,sy:1});
-    var tog=document.createElement('button');tog.className='fitbtn'+(editing?' on':'');
-    tog.textContent=(editing?'✓ Klar med passform':'✥ Justera passform (flytta/storlek)');
-    tog.onclick=function(){editing=!editing;document.getElementById('stage').classList.toggle('editing',editing);renderFit(st);};
-    fw.appendChild(tog);
-    if(!editing){document.getElementById('stage').classList.remove('editing');return;}
-    var ctl=document.createElement('div');ctl.className='fitctl';
-    function slider(lbl,key,min,max){
-      var row=document.createElement('div');row.className='fitrow';
-      var l=document.createElement('label');l.textContent=lbl;
-      var r=document.createElement('input');r.type='range';r.min=min;r.max=max;r.step=0.01;r.value=a[key];
-      r.oninput=function(){a[key]=parseFloat(r.value);var im=layers[st.id];if(im)applyAdj(im,st);};
-      row.appendChild(l);row.appendChild(r);return row;
-    }
-    ctl.appendChild(slider('Bredd','sx',0.6,1.5));
-    ctl.appendChild(slider('Längd','sy',0.6,1.5));
-    var rs=document.createElement('button');rs.className='fitreset';rs.textContent='↺ Återställ';
-    rs.onclick=function(){st.adj={dx:0,dy:0,sx:1,sy:1};var im=layers[st.id];if(im)applyAdj(im,st);renderFit(st);};
-    ctl.appendChild(rs);
-    fw.appendChild(ctl);
+    if(!st.adj)st.adj={dx:0,dy:0,sx:1,sy:1};
+    var rs=document.createElement('button');rs.className='fitbtn';rs.textContent='↺ Återställ storlek & position';
+    rs.onclick=function(){st.adj={dx:0,dy:0,sx:1,sy:1};var im=layers[st.id];if(im)applyAdj(im,st);positionHandles();};
+    fw.appendChild(rs);
   }
-  // ---- klick på plagg (dockan) = markera det; drag i passforms-läge = flytta ----
+  // ---- on-canvas-handtag: bredd (höger), höjd (under), ✕ (ta bort) ----
+  function positionHandles(){
+    var hW=document.getElementById('hW'),hH=document.getElementById('hH'),hX=document.getElementById('hX');
+    var st=worn[activeCat],mp=st?alphaMap(gById[st.id]):null;
+    if(!st||!mp){[hW,hH,hX].forEach(function(h){h.classList.remove('show');});stage.classList.remove('hassel');return;}
+    stage.classList.add('hassel');
+    var SW=stage.clientWidth,SH=stage.clientHeight,a=st.adj||{dx:0,dy:0,sx:1,sy:1};
+    var sc=Math.min(SW/mp.iw,SH/mp.ih),ox=(SW-mp.iw*sc)/2,oy=(SH-mp.ih*sc)/2;
+    var ex0=ox+mp.bbox.x0*sc,ey0=oy+mp.bbox.y0*sc,ex1=ox+mp.bbox.x1*sc,ey1=oy+mp.bbox.y1*sc;
+    function TX(e){return a.sx*(e-SW/2)+SW/2+a.dx/100*SW;}
+    function TY(e){return a.sy*(e-SH/2)+SH/2+a.dy/100*SH;}
+    var X0=TX(ex0),X1=TX(ex1),Y0=TY(ey0),Y1=TY(ey1);
+    function cl(v,m){return Math.max(6,Math.min(m-6,v));}
+    hW.style.left=cl(X1,SW)+'px';hW.style.top=cl((Y0+Y1)/2,SH)+'px';hW.classList.add('show');
+    hH.style.left=cl((X0+X1)/2,SW)+'px';hH.style.top=cl(Y1,SH)+'px';hH.classList.add('show');
+    hX.style.left=cl(X1,SW)+'px';hX.style.top=cl(Y0,SH)+'px';hX.classList.add('show');
+    hW._k=Math.max(24,ex1-SW/2);hH._k=Math.max(24,ey1-SH/2);
+  }
+  (function(){
+    function bindResize(el,axis){
+      el.addEventListener('pointerdown',function(e){e.stopPropagation();var st=worn[activeCat];if(!st)return;
+        var s={x:e.clientX,y:e.clientY,sx:st.adj.sx,sy:st.adj.sy,k:el._k};el.setPointerCapture(e.pointerId);
+        function mv(ev){var st2=worn[activeCat];if(!st2)return;
+          if(axis==='w')st2.adj.sx=Math.max(0.5,Math.min(2,s.sx+(ev.clientX-s.x)/s.k));
+          else st2.adj.sy=Math.max(0.5,Math.min(2,s.sy+(ev.clientY-s.y)/s.k));
+          var im=layers[st2.id];if(im)applyAdj(im,st2);positionHandles();}
+        function up(){el.removeEventListener('pointermove',mv);el.removeEventListener('pointerup',up);}
+        el.addEventListener('pointermove',mv);el.addEventListener('pointerup',up);});
+    }
+    bindResize(document.getElementById('hW'),'w');
+    bindResize(document.getElementById('hH'),'h');
+    document.getElementById('hX').addEventListener('pointerdown',function(e){e.stopPropagation();});
+    document.getElementById('hX').addEventListener('click',function(e){e.stopPropagation();
+      if(worn[activeCat]){delete worn[activeCat];renderDoll();renderTabs();renderRoller();renderStyle();positionHandles();}});
+    window.addEventListener('resize',positionHandles);
+  })();
+  // ---- klick = markera plagg; drag på markerat plagg = flytta ----
   (function(){
     var stg=document.getElementById('stage'),down=null,moved=false;
     function loc(e){var r=stg.getBoundingClientRect();return {x:e.clientX-r.left,y:e.clientY-r.top,w:r.width,h:r.height};}
     stg.addEventListener('pointerdown',function(e){
-      var p=loc(e);down={x:p.x,y:p.y,w:p.w,h:p.h,hit:garmentAt(p.x,p.y,p.w,p.h)};moved=false;
-      if(editing&&worn[activeCat]){down.dx=worn[activeCat].adj.dx;down.dy=worn[activeCat].adj.dy;down.drag=true;stg.setPointerCapture(e.pointerId);}
+      var p=loc(e),hit=garmentAt(p.x,p.y,p.w,p.h);down={x:p.x,y:p.y,w:p.w,h:p.h,hit:hit};moved=false;
+      if(hit&&worn[activeCat]&&worn[activeCat].id===hit.id){down.move=true;down.dx=worn[activeCat].adj.dx;down.dy=worn[activeCat].adj.dy;stg.setPointerCapture(e.pointerId);}
     });
     stg.addEventListener('pointermove',function(e){
       if(!down)return;var p=loc(e);if(Math.abs(p.x-down.x)+Math.abs(p.y-down.y)>7)moved=true;
-      if(down.drag&&editing&&worn[activeCat]){var st=worn[activeCat];st.adj.dx=down.dx+(p.x-down.x)/down.w*100;st.adj.dy=down.dy+(p.y-down.y)/down.h*100;var im=layers[st.id];if(im)applyAdj(im,st);}
+      if(down.move){var st=worn[activeCat];if(!st)return;st.adj.dx=down.dx+(p.x-down.x)/down.w*100;st.adj.dy=down.dy+(p.y-down.y)/down.h*100;var im=layers[st.id];if(im)applyAdj(im,st);positionHandles();}
     });
     function end(){if(down&&!moved&&down.hit)selectGarment(down.hit);down=null;}
     stg.addEventListener('pointerup',end);stg.addEventListener('pointercancel',function(){down=null;});
