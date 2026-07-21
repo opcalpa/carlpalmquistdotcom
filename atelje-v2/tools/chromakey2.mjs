@@ -30,14 +30,22 @@ var d=dat(SHOT,[s,dx,dy]);   // aligned shot
 window.__align=JSON.stringify({s:+s.toFixed(4),dx:Math.round(dx),dy:Math.round(dy)});
 var out=document.createElement('canvas');out.width=W;out.height=H;var ox=out.getContext('2d');var od=ox.getImageData(0,0,W,H),o=od.data;
 for(var p=0;p<N;p++){var i=p*4;var r=d[i],g=d[i+1],b=d[i+2];var lum=(r+g+b)/3,mx=Math.max(r,g,b),mn=Math.min(r,g,b);
-  // dark bg -> transparent
-  if(d[i+3]===0 || (lum<70&&(mx-mn)<28)){o[i+3]=0;continue;}
+  // (mörk bakgrund tas bort SENARE via border-flood, så svart plagg överlever)
+  if(d[i+3]===0){o[i+3]=0;continue;}
   // FEATHER: greenness = g - max(r,b); ramp 12..38 => alpha 255..0
   var greenness=g-Math.max(r,b);
   var a;
   if(greenness>=38)a=0; else if(greenness<=12)a=255; else a=Math.round(255*(38-greenness)/(38-12));
   o[i]=r;o[i+1]=g;o[i+2]=b;o[i+3]=a;
 }
+// BORDER-FLOOD MÖRKT = bakgrund: ta bort mörk-neutralt som NÅR kanten; inkapslat svart (plagg) behålls
+(function(){var dark=i=>{var r=o[i],g=o[i+1],b=o[i+2];var l=(r+g+b)/3,mx=Math.max(r,g,b),mn=Math.min(r,g,b);return l<72&&(mx-mn)<30;};
+  var reach=new Uint8Array(N),st=[];
+  for(var x=0;x<W;x++){[x,(H-1)*W+x].forEach(t=>{if(o[t*4+3]>0&&dark(t*4)&&!reach[t]){reach[t]=1;st.push(t);}});}
+  for(var y=0;y<H;y++){[y*W,y*W+W-1].forEach(t=>{if(o[t*4+3]>0&&dark(t*4)&&!reach[t]){reach[t]=1;st.push(t);}});}
+  while(st.length){var q=st.pop();var nb=[q-1,q+1,q-W,q+W];for(var k=0;k<4;k++){var nn=nb[k];if(nn>=0&&nn<N&&!reach[nn]&&o[nn*4+3]>0&&dark(nn*4)){reach[nn]=1;st.push(nn);}}}
+  for(var p=0;p<N;p++)if(reach[p])o[p*4+3]=0;
+})();
 // despill: dämpa grön-tint i kvarvarande pixlar
 for(var p2=0;p2<N;p2++){var i2=p2*4;if(o[i2+3]===0)continue;var lim=(o[i2]+o[i2+2])/2+8;if(o[i2+1]>lim)o[i2+1]=lim;}
 // fraktions-despeckle (>=8% av största, på alpha>40)
