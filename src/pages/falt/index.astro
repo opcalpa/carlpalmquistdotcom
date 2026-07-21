@@ -71,6 +71,11 @@
     .fwp-cue{color:var(--dim);font-size:14px;max-width:340px;line-height:1.4}
     .fwp-mus{color:var(--accent);font-size:12px;font-weight:600;opacity:.9;max-width:340px}
     .fwp-desc{font-size:13px;line-height:1.45;text-align:left;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:9px 11px}
+    .fwp-choose{display:flex;flex-direction:column;gap:12px;width:100%;max-width:320px;margin:8px auto}
+    .fwp-cbtn{display:flex;flex-direction:column;align-items:center;gap:3px;background:var(--panel2);border:1px solid var(--line);color:var(--txt);border-radius:14px;padding:16px}
+    .fwp-cbtn b{font-size:18px;font-weight:700}
+    .fwp-cbtn span{font-size:13px;color:var(--dim)}
+    .fwp-cbtn:active{border-color:var(--accent)}
     .fwp-imgs{display:flex;align-items:center;gap:6px;margin:2px 0}
     .fwp-img{position:relative;flex:1;max-width:150px}
     .fwp-img img{width:100%;border-radius:10px;display:block}
@@ -1364,11 +1369,24 @@
 
       // ---------- Mobil pass-player (timer-guidad, som pappens desktop-player) ----------
       var _fwp = null;
+      // Halvt pass: uppvärmning + första halvan av kroppen + sista 2 nedvarvningsstegen.
+      function fwpHalf(steps) {
+        if (!steps || steps.length <= 4) return (steps || []).slice();
+        var cd = 2, body = steps.slice(0, steps.length - cd);
+        return body.slice(0, Math.ceil(body.length / 2)).concat(steps.slice(steps.length - cd));
+      }
       function startFaltWorkout(w, ex) {
         if (!(w.steps || []).length) return;
-        _fwp = { w: w, ex: ex, steps: w.steps, i: 0, phase: "ready", remaining: 5, timer: null, paused: false };
+        // Fas "choose": välj helt/halvt innan nedräkningen startar.
+        _fwp = { w: w, ex: ex, steps: w.steps, i: 0, phase: "choose", remaining: 5, timer: null, paused: false };
         var box = document.getElementById("fwplayer");
         if (!box) { box = document.createElement("div"); box.id = "fwplayer"; box.className = "fwp"; document.body.appendChild(box); }
+        fwpRender();
+      }
+      function fwpBegin(half) {
+        if (!_fwp) return;
+        _fwp.steps = half ? fwpHalf(_fwp.w.steps) : _fwp.w.steps.slice();
+        _fwp.half = !!half; _fwp.i = 0; _fwp.phase = "ready"; _fwp.remaining = 5;
         fwpRender(); fwpRun(fwpWork);
       }
       function fwpStop() { if (_fwp && _fwp.timer) { clearInterval(_fwp.timer); _fwp.timer = null; } }
@@ -1415,6 +1433,20 @@
       }
       function fwpRender() {
         var box = document.getElementById("fwplayer"); if (!box || !_fwp) return;
+        if (_fwp.phase === "choose") {
+          var full = _fwp.w.steps.length, halfN = fwpHalf(_fwp.w.steps).length;
+          box.innerHTML =
+            '<div class="fwp-top"><button class="fwp-x" id="fwp-quit">✕</button><div class="fwp-ti">' + esc(_fwp.w.icon || '') + ' ' + esc(_fwp.w.name) + '</div><div class="fwp-prog"><div style="width:0%"></div></div></div>' +
+            '<div class="fwp-c"><div class="fwp-nx" style="margin-bottom:14px">Hur långt pass vill du köra?</div>' +
+            '<div class="fwp-choose">' +
+              '<button class="fwp-cbtn" id="fwp-full"><b>Helt pass</b><span>' + full + ' steg</span></button>' +
+              '<button class="fwp-cbtn" id="fwp-half"><b>Halvt pass</b><span>' + halfN + ' steg</span></button>' +
+            '</div></div>';
+          box.querySelector("#fwp-quit").onclick = fwpQuit;
+          box.querySelector("#fwp-full").onclick = function () { fwpBegin(false); };
+          box.querySelector("#fwp-half").onclick = function () { fwpBegin(true); };
+          return;
+        }
         var s = _fwp.steps[_fwp.i]; var e = _fwp.ex[s.ex] || { n: s.ex, c: "" }; var sh = e.show || {};
         var nx = _fwp.steps[_fwp.i + 1] ? (_fwp.ex[_fwp.steps[_fwp.i + 1].ex] || null) : null;
         var next = nx ? (nx.n || '') : "Klart!";
