@@ -50,6 +50,7 @@
       <div class="swrow scroll" id="colrow"></div>
       <p class="cap">Mönster</p>
       <div class="swrow scroll" id="patrow"></div>
+      <div class="patsteps hidden" id="patsteps"></div>
       <div class="fitwrap" id="fitwrap"></div>
     </div>
   </div>
@@ -61,23 +62,33 @@
   var man = await fetch('/garderob-v2/manifest.json').then(function(r){return r.json();});
   document.getElementById('doll').src = man.doll;
 
+  // ---- mönster-motorn: grid-baserade motiv (täthet=antal, storlek via tile-scale) + linjer ----
+  function _grid(c,T,b,f,d,draw){c.fillStyle=b;c.fillRect(0,0,T,T);c.fillStyle=f;
+    var g=Math.max(1,Math.round(2*(d||1))),cell=T/g;
+    for(var i=0;i<g;i++)for(var j=0;j<g;j++)draw((i+0.5)*cell,(j+0.5)*cell,cell);}
+  function _star(c,cx,cy,R){c.save();c.translate(cx,cy);c.beginPath();for(var i=0;i<10;i++){var a=Math.PI/5*i-Math.PI/2,r=i%2?R*0.42:R;c.lineTo(Math.cos(a)*r,Math.sin(a)*r);}c.closePath();c.fill();c.restore();}
+  function _heart(c,cx,cy,s){c.save();c.translate(cx,cy);c.scale(s,s);c.beginPath();c.moveTo(0,3);c.bezierCurveTo(-6,-4,-12,4,0,11);c.bezierCurveTo(12,4,6,-4,0,3);c.fill();c.restore();}
+  function _flower(c,cx,cy,R,f){c.fillStyle=f;for(var i=0;i<5;i++){var a=i*72*Math.PI/180;c.beginPath();c.arc(cx+Math.cos(a)*R,cy+Math.sin(a)*R,R*0.62,0,7);c.fill();}c.fillStyle="#ffd24a";c.beginPath();c.arc(cx,cy,R*0.5,0,7);c.fill();}
   var PAT={
     slat:{n:"Slätt",f:function(c,T,b,f){c.fillStyle=b;c.fillRect(0,0,T,T);}},
-    prickar:{n:"Prickar",f:function(c,T,b,f){c.fillStyle=b;c.fillRect(0,0,T,T);c.fillStyle=f;var r=T*0.12;[[.25,.25],[.75,.75]].forEach(function(p){c.beginPath();c.arc(p[0]*T,p[1]*T,r,0,7);c.fill();});}},
-    breton:{n:"Ränder",f:function(c,T,b,f){c.fillStyle=b;c.fillRect(0,0,T,T);c.fillStyle=f;c.fillRect(0,0,T,T*0.42);}},
-    gingham:{n:"Gingham",f:function(c,T,b,f){c.fillStyle="#fff";c.fillRect(0,0,T,T);c.fillStyle=b;c.globalAlpha=.5;c.fillRect(0,0,T*0.5,T);c.fillRect(0,0,T,T*0.5);c.globalAlpha=1;}},
-    rutor:{n:"Rutor",f:function(c,T,b,f){c.fillStyle=b;c.fillRect(0,0,T,T);c.strokeStyle=f;c.globalAlpha=.55;c.lineWidth=T*0.06;c.beginPath();c.moveTo(T*0.3,0);c.lineTo(T*0.3,T);c.moveTo(0,T*0.3);c.lineTo(T,T*0.3);c.stroke();c.globalAlpha=1;}},
-    stjarnor:{n:"Stjärnor",f:function(c,T,b,f){c.fillStyle=b;c.fillRect(0,0,T,T);c.fillStyle=f;function s(cx,cy,R){c.save();c.translate(cx,cy);c.beginPath();for(var i=0;i<10;i++){var a=Math.PI/5*i-Math.PI/2;var r=i%2?R*0.42:R;c.lineTo(Math.cos(a)*r,Math.sin(a)*r);}c.closePath();c.fill();c.restore();}s(T*0.28,T*0.3,T*0.16);s(T*0.72,T*0.72,T*0.16);}},
-    hjartan:{n:"Hjärtan",f:function(c,T,b,f){c.fillStyle=b;c.fillRect(0,0,T,T);c.fillStyle=f;function h(cx,cy,s){c.save();c.translate(cx,cy);c.scale(s,s);c.beginPath();c.moveTo(0,3);c.bezierCurveTo(-6,-4,-12,4,0,11);c.bezierCurveTo(12,4,6,-4,0,3);c.fill();c.restore();}h(T*0.28,T*0.3,T*0.018);h(T*0.72,T*0.72,T*0.018);}},
-    blommor:{n:"Blommor",f:function(c,T,b,f){c.fillStyle=b;c.fillRect(0,0,T,T);function fl(cx,cy,R){c.fillStyle=f;for(var i=0;i<5;i++){var a=i*72*Math.PI/180;c.beginPath();c.arc(cx+Math.cos(a)*R,cy+Math.sin(a)*R,R*0.62,0,7);c.fill();}c.fillStyle="#ffd24a";c.beginPath();c.arc(cx,cy,R*0.5,0,7);c.fill();}fl(T*0.28,T*0.3,T*0.1);fl(T*0.72,T*0.72,T*0.1);}}
+    prickar:{n:"Prickar",f:function(c,T,b,f,d){_grid(c,T,b,f,d,function(cx,cy,cell){c.beginPath();c.arc(cx,cy,cell*0.30,0,7);c.fill();});}},
+    stjarnor:{n:"Stjärnor",f:function(c,T,b,f,d){_grid(c,T,b,f,d,function(cx,cy,cell){_star(c,cx,cy,cell*0.42);});}},
+    hjartan:{n:"Hjärtan",f:function(c,T,b,f,d){_grid(c,T,b,f,d,function(cx,cy,cell){_heart(c,cx,cy,cell*0.032);});}},
+    blommor:{n:"Blommor",f:function(c,T,b,f,d){_grid(c,T,b,f,d,function(cx,cy,cell){_flower(c,cx,cy,cell*0.26,f);});}},
+    breton:{n:"Ränder",f:function(c,T,b,f,d){c.fillStyle=b;c.fillRect(0,0,T,T);c.fillStyle=f;var n=Math.max(1,Math.round(d||1)),band=T/(n*2);for(var i=0;i<n;i++)c.fillRect(0,2*i*band,T,band);}},
+    rutor:{n:"Rutor",f:function(c,T,b,f,d){c.fillStyle=b;c.fillRect(0,0,T,T);c.strokeStyle=f;c.globalAlpha=.55;var n=Math.max(1,Math.round(d||1));c.lineWidth=Math.max(1,T*0.05);for(var i=0;i<n;i++){var p=(i+0.5)/n*T;c.beginPath();c.moveTo(p,0);c.lineTo(p,T);c.moveTo(0,p);c.lineTo(T,p);c.stroke();}c.globalAlpha=1;}},
+    gingham:{n:"Gingham",f:function(c,T,b,f,d){c.fillStyle="#fff";c.fillRect(0,0,T,T);c.fillStyle=b;c.globalAlpha=.5;var n=Math.max(1,Math.round(d||1)),cell=T/(n*2);for(var i=0;i<n*2;i+=2){c.fillRect(i*cell,0,cell,T);c.fillRect(0,i*cell,T,cell);}c.globalAlpha=1;}}
   };
   var COLORS=["#ffffff","#111318","#e2506e","#c1122b","#e7b6cf","#d9a441","#8ec5e8","#3a6ea5","#7cc7c0","#9bb58a","#c7b3e6","#f7a072","#6d4423"];
-  function patCanvas(p,c,f){var s=document.createElement("canvas");s.width=48;s.height=48;(PAT[p]||PAT.slat).f(s.getContext("2d"),48,c,f);return s;}
+  function patCanvas(p,c,f,dens){var s=document.createElement("canvas");s.width=48;s.height=48;(PAT[p]||PAT.slat).f(s.getContext("2d"),48,c,f,dens||1);return s;}
   function ink(hex){var c=(hex||"#fff").replace("#","");if(c.length===3)c=c[0]+c[0]+c[1]+c[1]+c[2]+c[2];var r=parseInt(c.slice(0,2),16),g=parseInt(c.slice(2,4),16),b=parseInt(c.slice(4,6),16);return (0.299*r+0.587*g+0.114*b)>150?"#1c1c22":"#ffffff";}
-  function recolor(im,color,pat,fg){
+  function recolor(im,color,pat,fg,psize,pdens){
+    psize=psize||1;pdens=pdens||1;
     var W=im.naturalWidth,H=im.naturalHeight,cv=document.createElement("canvas");cv.width=W;cv.height=H;var x=cv.getContext("2d");
-    x.drawImage(im,0,0);x.globalCompositeOperation="multiply";
-    if(pat&&pat!=="slat"){var t=patCanvas(pat,color,fg),p=x.createPattern(t,"repeat"),sc=W/430;x.save();x.scale(sc,sc);x.fillStyle=p;x.fillRect(0,0,W/sc,H/sc);x.restore();}
+    // desaturera plagget till neutral ljus bas INNAN multiply → ren stark hue utan bas-färg-kontaminering (v1-look)
+    x.filter='grayscale(1) brightness(1.12)';x.drawImage(im,0,0);x.filter='none';
+    x.globalCompositeOperation="multiply";
+    if(pat&&pat!=="slat"){var t=patCanvas(pat,color,fg,pdens),p=x.createPattern(t,"repeat"),sc=W/440*psize;x.save();x.scale(sc,sc);x.fillStyle=p;x.fillRect(0,0,W/sc,H/sc);x.restore();}
     else{x.fillStyle=color;x.fillRect(0,0,W,H);}
     x.globalCompositeOperation="destination-in";x.drawImage(im,0,0);x.globalCompositeOperation="source-over";return cv.toDataURL("image/png");
   }
@@ -91,7 +102,7 @@
   var stage=document.getElementById('stage'),layers={},_src={};
 
   function loadImg(g,cb){if(_src[g.id]){cb(_src[g.id]);return;}var im=new Image();im.onload=function(){_src[g.id]=im;cb(im);};im.onerror=function(){cb(null);};im.src=g.file;}
-  function applyOne(g,st){var im=layers[g.id];if(!im){im=new Image();im.style.zIndex=g.z;layers[g.id]=im;stage.appendChild(im);}im.style.zIndex=g.z;applyAdj(im,st);loadImg(g,function(s){if(s)im.src=recolor(s,st.color,st.pat,st.fg);});}
+  function applyOne(g,st){var im=layers[g.id];if(!im){im=new Image();im.style.zIndex=g.z;layers[g.id]=im;stage.appendChild(im);}im.style.zIndex=g.z;applyAdj(im,st);loadImg(g,function(s){if(s)im.src=recolor(s,st.color,st.pat,st.fg,st.patSize,st.patDens);});}
   function applyAdj(im,st){var a=st.adj||(st.adj={dx:0,dy:0,sx:1,sy:1});im.style.transformOrigin='center';im.style.transform='translate('+a.dx+'%,'+a.dy+'%) scale('+a.sx+','+a.sy+')';}
   function renderDoll(){
     Object.keys(layers).forEach(function(id){var g=gById[id];if(!worn[g.category]||worn[g.category].id!==id){layers[id].remove();delete layers[id];}});
@@ -151,7 +162,7 @@
       d.innerHTML='<img src="'+g.file+'" alt="'+g.label+'"><div class="tick">✓</div>';
       d.onclick=function(){
         if(worn[activeCat]&&worn[activeCat].id===g.id) delete worn[activeCat];
-        else {var dc=g.defaultColor||'#ffffff';worn[activeCat]={id:g.id,color:dc,pat:'slat',fg:ink(dc),adj:{dx:0,dy:0,sx:1,sy:1}};}
+        else {var dc=g.defaultColor||'#ffffff';worn[activeCat]={id:g.id,color:dc,pat:'slat',fg:ink(dc),adj:{dx:0,dy:0,sx:1,sy:1},patSize:1,patDens:1};}
         renderDoll();renderRoller();renderTabs();renderStyle();
       };
       rollEl.appendChild(d);
@@ -161,6 +172,7 @@
   function renderStyle(){
     var st=worn[activeCat];
     if(!st){styleEl.classList.add('hidden');return;}
+    if(st.patSize==null)st.patSize=1;if(st.patDens==null)st.patDens=1;   // bakåtkomp. gamla looks
     styleEl.classList.remove('hidden');
     document.getElementById('stylecap').textContent='Färg — '+gById[st.id].label;
     var cr=document.getElementById('colrow');cr.innerHTML='';
@@ -168,9 +180,26 @@
       d.onclick=function(){st.color=hex;st.fg=ink(hex);renderDoll();renderStyle();};cr.appendChild(d);});
     var pr=document.getElementById('patrow');pr.innerHTML='';
     Object.keys(PAT).forEach(function(k){var d=document.createElement('div');d.className='pat'+(st.pat===k?' on':'');
-      d.style.backgroundImage='url('+patCanvas(k,st.color,st.fg).toDataURL()+')';
+      d.style.backgroundImage='url('+patCanvas(k,st.color,st.fg,st.patDens).toDataURL()+')';
       d.onclick=function(){st.pat=k;renderDoll();renderStyle();};pr.appendChild(d);});
+    renderPatSteps(st);
     renderFit(st);
+  }
+  function renderPatSteps(st){
+    var ps=document.getElementById('patsteps');ps.innerHTML='';
+    if(!st.pat||st.pat==='slat'){ps.classList.add('hidden');return;}   // slätt = inget mönster att skala
+    ps.classList.remove('hidden');
+    function step(label,key){
+      var row=document.createElement('div');row.className='steprow';
+      var mn=document.createElement('button');mn.className='stepb';mn.textContent='−';
+      var lb=document.createElement('span');lb.className='steplbl';lb.textContent=label;
+      var pl=document.createElement('button');pl.className='stepb';pl.textContent='＋';
+      mn.onclick=function(){st[key]=Math.max(0.4,+(st[key]-0.15).toFixed(2));renderDoll();renderStyle();};
+      pl.onclick=function(){st[key]=Math.min(2.2,+(st[key]+0.15).toFixed(2));renderDoll();renderStyle();};
+      row.appendChild(mn);row.appendChild(lb);row.appendChild(pl);return row;
+    }
+    ps.appendChild(step('Storlek','patSize'));
+    ps.appendChild(step('Täthet','patDens'));
   }
   function renderFit(st){
     var fw=document.getElementById('fitwrap');fw.innerHTML='';
