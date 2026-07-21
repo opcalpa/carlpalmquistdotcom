@@ -90,21 +90,24 @@
    "category": "dress",
    "z": 15,
    "label": "Skater",
-   "file": "/garderob-v2/skater.png"
+   "file": "/garderob-v2/skater.png",
+   "defaultColor": "#c1122b"
   },
   {
    "id": "sundress",
    "category": "dress",
    "z": 15,
    "label": "Solklänning",
-   "file": "/garderob-v2/sundress.png"
+   "file": "/garderob-v2/sundress.png",
+   "defaultColor": "#d9a441"
   },
   {
    "id": "maxi",
    "category": "dress",
    "z": 15,
    "label": "Maxi",
-   "file": "/garderob-v2/maxi.png"
+   "file": "/garderob-v2/maxi.png",
+   "defaultColor": "#26314f"
   },
   {
    "id": "jeans",
@@ -125,7 +128,8 @@
    "category": "bottom",
    "z": 10,
    "label": "Kjol",
-   "file": "/garderob-v2/skirt.png"
+   "file": "/garderob-v2/skirt.png",
+   "defaultColor": "#e7b6cf"
   },
   {
    "id": "sneakers",

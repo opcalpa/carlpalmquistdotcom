@@ -126,7 +126,7 @@
   function toggle(g){
     var cur=worn[g.category];
     if(cur&&cur.id===g.id){ if(active===g.category){delete worn[g.category];active=null;} else {active=g.category;} }  // klick på aktivt = av; annars markera
-    else { worn[g.category]={id:g.id,color:'#ffffff',pat:'slat',fg:'#111318'}; active=g.category; }
+    else { var dc=g.defaultColor||'#ffffff'; worn[g.category]={id:g.id,color:dc,pat:'slat',fg:contrastInk(dc)}; active=g.category; }
     render();paintPalette();showEditor();
   }
 
