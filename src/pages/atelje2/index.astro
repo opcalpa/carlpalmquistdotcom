@@ -10,14 +10,34 @@
 <link rel="stylesheet" href="/atelje2.css" />
 </head>
 <body>
+  <div id="picker">
+    <h2>Vem spelar? 👗</h2>
+    <p>Välj spelare — dina looks sparas för dig.</p>
+    <div class="who">
+      <button class="whobtn" data-p="Louisa"><span class="big">🌸</span><span class="nm">Louisa</span></button>
+      <button class="whobtn" data-p="Mathilde"><span class="big">🦋</span><span class="nm">Mathilde</span></button>
+    </div>
+  </div>
+
   <div class="stage" id="stage">
     <div class="brand">👗 Modeateljén <span>v2</span></div>
+    <button class="pbadge" id="pbadge">👤 —</button>
     <button class="clear" id="reset">Klä av</button>
     <img id="doll" alt="docka" />
   </div>
 
   <div class="sheet">
     <div class="grip"></div>
+    <div class="looks" id="looks">
+      <div class="lookhd">
+        <span class="t" id="lookstitle">Mina looks</span>
+        <div class="lookbtns">
+          <button class="lookbtn" id="btnUpdate" style="display:none">💾 Uppdatera</button>
+          <button class="lookbtn solid" id="btnSaveNew">＋ Spara ny</button>
+        </div>
+      </div>
+      <div class="lookroll scroll" id="lookroll"></div>
+    </div>
     <div class="tabs scroll" id="tabs"></div>
     <div class="roller scroll" id="roller"></div>
     <div class="style hidden" id="style">
@@ -27,6 +47,8 @@
       <div class="swrow scroll" id="patrow"></div>
     </div>
   </div>
+
+  <div class="toast" id="toast"></div>
 
 <script is:inline>
 (async function(){
@@ -109,9 +131,70 @@
       d.style.backgroundImage='url('+patCanvas(k,st.color,st.fg).toDataURL()+')';
       d.onclick=function(){st.pat=k;renderDoll();renderStyle();};pr.appendChild(d);});
   }
-  document.getElementById('reset').onclick=function(){worn={};renderDoll();renderTabs();renderRoller();renderStyle();};
+  document.getElementById('reset').onclick=function(){worn={};currentN=null;renderDoll();renderTabs();renderRoller();renderStyle();renderLooks();};
+
+  // ===== Spelare + spara/ladda (localStorage) =====
+  var PLAYERS={Louisa:'🌸',Mathilde:'🦋'};
+  var player=null, currentN=null;
+  function getSaves(){try{return JSON.parse(localStorage.getItem('atelje2_saves')||'{}');}catch(e){return {};}}
+  function setSaves(s){localStorage.setItem('atelje2_saves',JSON.stringify(s));}
+  function mySaves(){var s=getSaves();return (s[player]||[]);}
+  function toast(msg){var t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');clearTimeout(t._t);t._t=setTimeout(function(){t.classList.remove('show');},1600);}
+
+  function captureThumb(cb){
+    var doll=document.getElementById('doll');
+    var W=140,H=Math.round(W*(doll.naturalHeight/doll.naturalWidth||1.85));
+    var c=document.createElement('canvas');c.width=W;c.height=H;var x=c.getContext('2d');
+    x.fillStyle='#ffe9f1';x.fillRect(0,0,W,H);
+    function fit(im){var s=Math.min(W/im.naturalWidth,H/im.naturalHeight);var w=im.naturalWidth*s,h=im.naturalHeight*s;x.drawImage(im,(W-w)/2,(H-h)/2,w,h);}
+    if(doll.complete)fit(doll);
+    // rita plaggen i z-ordning
+    var ordered=man.garments.filter(function(g){return worn[g.category]&&worn[g.category].id===g.id;}).sort(function(a,b){return a.z-b.z;});
+    var pend=ordered.length;
+    if(!pend){cb(c.toDataURL('image/jpeg',0.72));return;}
+    ordered.forEach(function(g){var im=layers[g.id];if(im&&im.complete&&im.naturalWidth){fit(im);if(!--pend)cb(c.toDataURL('image/jpeg',0.72));}
+      else{var t=new Image();t.onload=function(){fit(t);if(!--pend)cb(c.toDataURL('image/jpeg',0.72));};t.onerror=function(){if(!--pend)cb(c.toDataURL('image/jpeg',0.72));};t.src=im?im.src:g.file;}});
+  }
+  function saveLook(overwriteN){
+    captureThumb(function(thumb){
+      var s=getSaves();var arr=s[player]||(s[player]=[]);
+      var wornClone=JSON.parse(JSON.stringify(worn));
+      if(overwriteN){var it=arr.find(function(l){return l.n===overwriteN;});if(it){it.worn=wornClone;it.thumb=thumb;toast('Look #'+overwriteN+' uppdaterad');}}
+      else{var maxN=arr.reduce(function(m,l){return Math.max(m,l.n);},0);var n=maxN+1;arr.push({n:n,worn:wornClone,thumb:thumb});currentN=n;toast('Sparad som look #'+n);}
+      setSaves(s);renderLooks();
+    });
+  }
+  function loadLook(n){var it=mySaves().find(function(l){return l.n===n;});if(!it)return;worn=JSON.parse(JSON.stringify(it.worn));currentN=n;renderDoll();renderTabs();renderRoller();renderStyle();renderLooks();toast('Look #'+n);}
+  function delLook(n){var s=getSaves();s[player]=(s[player]||[]).filter(function(l){return l.n!==n;});setSaves(s);if(currentN===n)currentN=null;renderLooks();}
+
+  function renderLooks(){
+    document.getElementById('lookstitle').textContent=(player||'')+'s looks';
+    document.getElementById('btnUpdate').style.display=currentN?'':'none';
+    var roll=document.getElementById('lookroll');roll.innerHTML='';
+    var arr=mySaves();
+    if(!arr.length){roll.innerHTML='<div class="emptylooks">Inga sparade looks än — klä på och tryck ＋ Spara ny.</div>';return;}
+    arr.forEach(function(l){
+      var d=document.createElement('div');d.className='lookcard'+(currentN===l.n?' on':'');
+      d.innerHTML='<img src="'+l.thumb+'"><div class="n">#'+l.n+'</div><div class="del">×</div>';
+      d.querySelector('img').onclick=function(){loadLook(l.n);};
+      d.querySelector('.n').onclick=function(){loadLook(l.n);};
+      d.querySelector('.del').onclick=function(e){e.stopPropagation();if(confirm('Ta bort look #'+l.n+'?'))delLook(l.n);};
+      roll.appendChild(d);
+    });
+  }
+  function pickPlayer(name){player=name;localStorage.setItem('atelje2_player',name);currentN=null;
+    document.getElementById('pbadge').textContent=PLAYERS[name]+' '+name;
+    document.getElementById('picker').style.display='none';renderLooks();}
+
+  document.getElementById('btnSaveNew').onclick=function(){if(!player)return;saveLook(null);};
+  document.getElementById('btnUpdate').onclick=function(){if(currentN)saveLook(currentN);};
+  document.getElementById('pbadge').onclick=function(){document.getElementById('picker').style.display='';};
+  [].forEach.call(document.querySelectorAll('.whobtn'),function(b){b.onclick=function(){pickPlayer(b.dataset.p);};});
 
   renderTabs();renderRoller();renderStyle();
+  // återuppta senaste spelaren om den finns
+  var last=localStorage.getItem('atelje2_player');
+  if(last&&PLAYERS[last])pickPlayer(last); else document.getElementById('picker').style.display='';
 })();
 </script>
 </body>

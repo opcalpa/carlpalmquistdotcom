@@ -57,3 +57,37 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;b
   .grip{display:none}
   .tabs{flex-wrap:wrap}
 }
+
+/* ---- Spelar-val ---- */
+#picker{position:fixed;inset:0;z-index:50;background:linear-gradient(160deg,#ffd9e6,#ffeef4 55%,#e9f7f4);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:22px;padding:24px;text-align:center}
+#picker h2{margin:0;font-size:23px;color:#3b2c3a} #picker p{margin:0;color:#a68fa0;font-size:14px}
+#picker .who{display:flex;gap:18px;flex-wrap:wrap;justify-content:center;margin-top:8px}
+.whobtn{border:0;background:#fff;border-radius:26px;padding:24px 28px;font-weight:800;color:#3b2c3a;cursor:pointer;
+  box-shadow:0 12px 34px rgba(120,60,90,.20);min-width:140px;transition:transform .12s}
+.whobtn:active{transform:scale(.95)} .whobtn .big{display:block;font-size:48px;margin-bottom:8px}
+.whobtn .nm{font-size:19px}
+/* spelar-badge + spara-knapp i scenen */
+.pbadge{position:absolute;top:8px;left:10px;z-index:3;border:0;background:rgba(255,255,255,.82);color:#3b2c3a;
+  font-size:13px;font-weight:800;border-radius:999px;padding:7px 12px;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,.08)}
+.pbadge:active{transform:scale(.94)}
+/* ---- Mina looks ---- */
+.looks{padding:8px 14px 4px;border-bottom:1px solid #f0e0e9;margin-bottom:6px}
+.lookhd{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px}
+.lookhd .t{font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:.4px;color:#a68fa0}
+.lookbtns{display:flex;gap:7px}
+.lookbtn{border:0;background:#fbe9f1;color:#e86fa6;font-size:12.5px;font-weight:800;border-radius:999px;padding:8px 13px;cursor:pointer;transition:transform .12s}
+.lookbtn.solid{background:#e86fa6;color:#fff;box-shadow:0 3px 10px rgba(232,111,166,.3)}
+.lookbtn:active{transform:scale(.94)}
+.lookroll{display:flex;gap:9px}
+.lookcard{flex:0 0 auto;width:56px;height:80px;border-radius:12px;border:2px solid #f0e0e9;overflow:hidden;position:relative;cursor:pointer;background:#fbeef3}
+.lookcard img{width:100%;height:100%;object-fit:cover}
+.lookcard.on{border-color:#e86fa6;box-shadow:0 3px 10px rgba(232,111,166,.28)}
+.lookcard .n{position:absolute;bottom:0;left:0;right:0;background:rgba(59,44,58,.72);color:#fff;font-size:10px;font-weight:800;text-align:center;line-height:14px}
+.lookcard .del{position:absolute;top:3px;right:3px;width:17px;height:17px;border-radius:50%;background:rgba(0,0,0,.5);color:#fff;font-size:11px;line-height:17px;text-align:center}
+.emptylooks{color:#a68fa0;font-size:12.5px;padding:4px 2px 8px}
+/* toast */
+.toast{position:fixed;left:50%;bottom:calc(28px + env(safe-area-inset-bottom));transform:translateX(-50%) translateY(8px);
+  background:#3b2c3a;color:#fff;font-size:14px;font-weight:700;padding:11px 20px;border-radius:999px;z-index:60;opacity:0;transition:all .22s;pointer-events:none}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+@media (min-width:900px){ .pbadge{top:10px;left:14px} }
