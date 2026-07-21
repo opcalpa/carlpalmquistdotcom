@@ -25,6 +25,7 @@
     <button class="clear" id="reset">Klä av</button>
     <img id="doll" alt="docka" />
     <div class="ehint">✥ Dra plagget · handtagen ändrar storlek</div>
+    <div class="gbox" id="gbox"></div>
     <div class="ghandle hw" id="hW">↔</div>
     <div class="ghandle hh" id="hH">↕</div>
     <button class="ghandle hx" id="hX">✕</button>
@@ -180,19 +181,20 @@
   }
   // ---- on-canvas-handtag: bredd (höger), höjd (under), ✕ (ta bort) ----
   function positionHandles(){
-    var hW=document.getElementById('hW'),hH=document.getElementById('hH'),hX=document.getElementById('hX');
+    var hW=document.getElementById('hW'),hH=document.getElementById('hH'),hX=document.getElementById('hX'),gb=document.getElementById('gbox');
     var st=worn[activeCat],mp=st?alphaMap(gById[st.id]):null;
-    if(!st||!mp){[hW,hH,hX].forEach(function(h){h.classList.remove('show');});stage.classList.remove('hassel');return;}
+    if(!st||!mp){[hW,hH,hX].forEach(function(h){h.classList.remove('show');});gb.classList.remove('show');stage.classList.remove('hassel');return;}
     stage.classList.add('hassel');
     var SW=stage.clientWidth,SH=stage.clientHeight,a=st.adj||{dx:0,dy:0,sx:1,sy:1};
     var sc=Math.min(SW/mp.iw,SH/mp.ih),ox=(SW-mp.iw*sc)/2,oy=(SH-mp.ih*sc)/2;
     var ex0=ox+mp.bbox.x0*sc,ey0=oy+mp.bbox.y0*sc,ex1=ox+mp.bbox.x1*sc,ey1=oy+mp.bbox.y1*sc;
     function TX(e){return a.sx*(e-SW/2)+SW/2+a.dx/100*SW;}
     function TY(e){return a.sy*(e-SH/2)+SH/2+a.dy/100*SH;}
-    var X0=TX(ex0),X1=TX(ex1),Y0=TY(ey0),Y1=TY(ey1);
+    var X0=TX(ex0),X1=TX(ex1),Y0=TY(ey0),Y1=TY(ey1),mx=(X0+X1)/2,my=(Y0+Y1)/2;
     function cl(v,m){return Math.max(6,Math.min(m-6,v));}
-    hW.style.left=cl(X1,SW)+'px';hW.style.top=cl((Y0+Y1)/2,SH)+'px';hW.classList.add('show');
-    hH.style.left=cl((X0+X1)/2,SW)+'px';hH.style.top=cl(Y1,SH)+'px';hH.classList.add('show');
+    gb.style.left=Math.min(X0,X1)+'px';gb.style.top=Math.min(Y0,Y1)+'px';gb.style.width=Math.abs(X1-X0)+'px';gb.style.height=Math.abs(Y1-Y0)+'px';gb.classList.add('show');
+    hW.style.left=cl(X1,SW)+'px';hW.style.top=cl(my,SH)+'px';hW.classList.add('show');
+    hH.style.left=cl(mx,SW)+'px';hH.style.top=cl(Y1,SH)+'px';hH.classList.add('show');
     hX.style.left=cl(X1,SW)+'px';hX.style.top=cl(Y0,SH)+'px';hX.classList.add('show');
     hW._k=Math.max(24,ex1-SW/2);hH._k=Math.max(24,ey1-SH/2);
   }
