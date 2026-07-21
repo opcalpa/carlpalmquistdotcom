@@ -1,0 +1,152 @@
+{
+ "doll": "/garderob-v2/doll.png",
+ "garments": [
+  {
+   "id": "tshirt",
+   "category": "tshirt",
+   "z": 22,
+   "label": "T-shirt",
+   "file": "/garderob-v2/tshirt.png"
+  },
+  {
+   "id": "tank",
+   "category": "tank",
+   "z": 20,
+   "label": "Linne",
+   "file": "/garderob-v2/tank.png"
+  },
+  {
+   "id": "croptop",
+   "category": "tshirt",
+   "z": 22,
+   "label": "Croptopp",
+   "file": "/garderob-v2/croptop.png"
+  },
+  {
+   "id": "blouse",
+   "category": "shirt",
+   "z": 24,
+   "label": "Blus",
+   "file": "/garderob-v2/blouse.png"
+  },
+  {
+   "id": "turtle",
+   "category": "shirt",
+   "z": 24,
+   "label": "Polotröja",
+   "file": "/garderob-v2/turtle.png"
+  },
+  {
+   "id": "hoodie",
+   "category": "sweatshirt",
+   "z": 26,
+   "label": "Hoodie",
+   "file": "/garderob-v2/hoodie.png"
+  },
+  {
+   "id": "cardigan",
+   "category": "outer",
+   "z": 28,
+   "label": "Kofta",
+   "file": "/garderob-v2/cardigan.png"
+  },
+  {
+   "id": "denimjkt",
+   "category": "outer",
+   "z": 30,
+   "label": "Jeansjacka",
+   "file": "/garderob-v2/denimjkt.png"
+  },
+  {
+   "id": "blazer",
+   "category": "outer",
+   "z": 30,
+   "label": "Kavaj",
+   "file": "/garderob-v2/blazer.png"
+  },
+  {
+   "id": "trench",
+   "category": "outer",
+   "z": 30,
+   "label": "Trenchcoat",
+   "file": "/garderob-v2/trench.png"
+  },
+  {
+   "id": "puffer",
+   "category": "outer",
+   "z": 30,
+   "label": "Dunjacka",
+   "file": "/garderob-v2/puffer.png"
+  },
+  {
+   "id": "aline",
+   "category": "dress",
+   "z": 15,
+   "label": "A-linje",
+   "file": "/garderob-v2/aline.png"
+  },
+  {
+   "id": "skater",
+   "category": "dress",
+   "z": 15,
+   "label": "Skater",
+   "file": "/garderob-v2/skater.png"
+  },
+  {
+   "id": "sundress",
+   "category": "dress",
+   "z": 15,
+   "label": "Solklänning",
+   "file": "/garderob-v2/sundress.png"
+  },
+  {
+   "id": "maxi",
+   "category": "dress",
+   "z": 15,
+   "label": "Maxi",
+   "file": "/garderob-v2/maxi.png"
+  },
+  {
+   "id": "jeans",
+   "category": "bottom",
+   "z": 10,
+   "label": "Jeans",
+   "file": "/garderob-v2/jeans.png"
+  },
+  {
+   "id": "shorts",
+   "category": "bottom",
+   "z": 10,
+   "label": "Shorts",
+   "file": "/garderob-v2/shorts.png"
+  },
+  {
+   "id": "skirt",
+   "category": "bottom",
+   "z": 10,
+   "label": "Kjol",
+   "file": "/garderob-v2/skirt.png"
+  },
+  {
+   "id": "sneakers",
+   "category": "shoes",
+   "z": 12,
+   "label": "Sneakers",
+   "file": "/garderob-v2/sneakers.png"
+  },
+  {
+   "id": "boots",
+   "category": "shoes",
+   "z": 12,
+   "label": "Stövlar",
+   "file": "/garderob-v2/boots.png"
+  },
+  {
+   "id": "ballerina",
+   "category": "shoes",
+   "z": 12,
+   "label": "Ballerina",
+   "file": "/garderob-v2/ballerina.png"
+  }
+ ]
+}
