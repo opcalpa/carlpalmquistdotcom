@@ -1428,7 +1428,8 @@
         var mus = fwpMus(e);
         var imgs = (sh.playerImg !== false) ? fwpImgs(e) : '';
         var cue = (sh.playerCue !== false && e.c) ? '<div class="fwp-cue">' + esc(e.c) + '</div>' : '';
-        var desc = (sh.playerDesc && e.desc) ? '<div class="fwp-cue fwp-desc">' + esc(e.desc) + '</div>' : '';
+        // Under vila/redo visas HELA beskrivningen alltid (läsa på) — oavsett playerDesc.
+        var desc = e.desc ? '<div class="fwp-cue fwp-desc">' + esc(e.desc) + '</div>' : '';
         return mus + imgs + cue + desc;
       }
       function fwpRender() {
