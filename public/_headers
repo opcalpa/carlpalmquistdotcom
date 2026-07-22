@@ -1,0 +1,7 @@
+# Aktivt utvecklad sida — revalidera alltid så nya deploys syns utan hård reload.
+/atelje2
+  Cache-Control: no-cache, must-revalidate
+/atelje2.css
+  Cache-Control: no-cache, must-revalidate
+/atelje2/*
+  Cache-Control: no-cache, must-revalidate

@@ -97,8 +97,12 @@
   function recolor(im,color,pat,fg,psize,pdens){
     psize=psize||1;pdens=pdens||1;
     var W=im.naturalWidth,H=im.naturalHeight,cv=document.createElement("canvas");cv.width=W;cv.height=H;var x=cv.getContext("2d");
-    // desaturera plagget till neutral ljus bas INNAN multiply → ren stark hue utan bas-färg-kontaminering (v1-look)
-    x.filter='grayscale(1) brightness(1.12)';x.drawImage(im,0,0);x.filter='none';
+    // desaturera plagget MANUELLT (ctx.filter stöds ej i alla mobil-browsers → färgen blev "off")
+    // → neutral ljus bas → ren stark hue vid multiply, oberoende av basfärg
+    x.drawImage(im,0,0);
+    var _id=x.getImageData(0,0,W,H),_p=_id.data;
+    for(var _i=0;_i<_p.length;_i+=4){if(_p[_i+3]===0)continue;var _l=Math.min(255,(0.299*_p[_i]+0.587*_p[_i+1]+0.114*_p[_i+2])*1.12);_p[_i]=_p[_i+1]=_p[_i+2]=_l;}
+    x.putImageData(_id,0,0);
     x.globalCompositeOperation="multiply";
     if(pat&&pat!=="slat"){var t=patCanvas(pat,color,fg,pdens),p=x.createPattern(t,"repeat"),sc=W/440*psize;x.save();x.scale(sc,sc);x.fillStyle=p;x.fillRect(0,0,W/sc,H/sc);x.restore();}
     else{x.fillStyle=color;x.fillRect(0,0,W,H);}
@@ -237,9 +241,10 @@
     var X0=TX(ex0),X1=TX(ex1),Y0=TY(ey0),Y1=TY(ey1),mx=(X0+X1)/2,my=(Y0+Y1)/2;
     function cl(v,m){return Math.max(6,Math.min(m-6,v));}
     gb.style.left=Math.min(X0,X1)+'px';gb.style.top=Math.min(Y0,Y1)+'px';gb.style.width=Math.abs(X1-X0)+'px';gb.style.height=Math.abs(Y1-Y0)+'px';gb.classList.add('show');
-    hW.style.left=cl(X1,SW)+'px';hW.style.top=cl(my,SH)+'px';hW.classList.add('show');
-    hH.style.left=cl(mx,SW)+'px';hH.style.top=cl(Y1,SH)+'px';hH.classList.add('show');
-    hX.style.left=cl(X1,SW)+'px';hX.style.top=cl(Y0,SH)+'px';hX.classList.add('show');
+    var OFF=30;   // handtagen en bit UTANFÖR plagget → lätt att gripa + plagget fritt att dra/flytta
+    hW.style.left=cl(X1+OFF,SW)+'px';hW.style.top=cl(my,SH)+'px';hW.classList.add('show');
+    hH.style.left=cl(mx,SW)+'px';hH.style.top=cl(Y1+OFF,SH)+'px';hH.classList.add('show');
+    hX.style.left=cl(X1+OFF,SW)+'px';hX.style.top=cl(Y0-OFF,SH)+'px';hX.classList.add('show');
     hW._k=Math.max(24,ex1-SW/2);hH._k=Math.max(24,ey1-SH/2);
   }
   (function(){
