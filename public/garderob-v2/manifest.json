@@ -161,6 +161,38 @@
    "label": "Leggings",
    "file": "/garderob-v2/leggings.png",
    "defaultColor": "#111318"
+  },
+  {
+   "id": "bomber",
+   "category": "outer",
+   "z": 30,
+   "label": "Bomberjacka",
+   "file": "/garderob-v2/bomber.png",
+   "defaultColor": "#111318"
+  },
+  {
+   "id": "buttonshirt",
+   "category": "shirt",
+   "z": 24,
+   "label": "Skjorta",
+   "file": "/garderob-v2/buttonshirt.png",
+   "defaultColor": "#8ec5e8"
+  },
+  {
+   "id": "crewneck",
+   "category": "sweatshirt",
+   "z": 26,
+   "label": "Sweatshirt",
+   "file": "/garderob-v2/crewneck.png",
+   "defaultColor": "#e7b6cf"
+  },
+  {
+   "id": "dungarees",
+   "category": "bottom",
+   "z": 10,
+   "label": "Hängselbyxor",
+   "file": "/garderob-v2/dungarees.png",
+   "defaultColor": "#3a6ea5"
   }
  ]
 }
