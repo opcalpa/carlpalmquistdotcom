@@ -153,6 +153,14 @@
    "z": 12,
    "label": "Ballerina",
    "file": "/garderob-v2/ballerina.png"
+  },
+  {
+   "id": "leggings",
+   "category": "bottom",
+   "z": 10,
+   "label": "Leggings",
+   "file": "/garderob-v2/leggings.png",
+   "defaultColor": "#111318"
   }
  ]
 }

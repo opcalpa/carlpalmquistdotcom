@@ -36,8 +36,20 @@ const r=await send('Runtime.evaluate',{returnByValue:true,awaitPromise:true,expr
     while(st.length){var u=st.pop();area++;sl+=(d[u*4]+d[u*4+1]+d[u*4+2])/3;var ux=u%W,uy=(u/W)|0;if(ux<bx0)bx0=ux;if(ux>bx1)bx1=ux;if(uy<by0)by0=uy;if(uy>by1)by1=uy;
       var nb=[u-1,u+1,u-W,u+W];for(var k=0;k<4;k++){var nn=nb[k];if(nn>=0&&nn<N&&op[nn]&&lab[nn]<0){lab[nn]=ci;st.push(nn);}}}
     comps.push({i:ci,area:area,w:bx1-bx0+1,h:by1-by0+1,lum:sl/area});}
-  comps.forEach(c=>{var streak=(c.w<26)&&(c.h>3*c.w)&&(c.lum<90);   // tunn + hög + mörk = skugg-strimma
+  comps.forEach(c=>{var aw=c.area/c.h;var streak=(aw<24)&&(c.h>140)&&(c.h>2.5*aw)&&(c.lum<95);   // tunn-i-snitt + hög + mörk = skugg-strimma (flarande bas fångas via medelbredd)
     if(streak)for(var p=0;p<N;p++)if(lab[p]===c.i)d[p*4+3]=0;});
+  // --- STÄDNING 1.5: HÅRDGÖR ALFA → solid silhuett (efter strimm-städning, så tunna strimmor ej breddas) ---
+  for(var p4=0;p4<N;p4++){d[p4*4+3]=d[p4*4+3]>=25?255:0;}
+  // fyll INKAPSLADE hål (transparent som ej når kanten = omringat av tyg) → helt solitt plagg
+  (function(){var opq=new Uint8Array(N);for(var p=0;p<N;p++)opq[p]=d[p*4+3]>0?1:0;
+    var reach=new Uint8Array(N),bs=[];
+    for(var x=0;x<W;x++){[x,(H-1)*W+x].forEach(function(t){if(!opq[t]&&!reach[t]){reach[t]=1;bs.push(t);}});}
+    for(var y=0;y<H;y++){[y*W,y*W+W-1].forEach(function(t){if(!opq[t]&&!reach[t]){reach[t]=1;bs.push(t);}});}
+    while(bs.length){var q=bs.pop();var nb=[q-1,q+1,q-W,q+W];for(var k=0;k<4;k++){var m2=nb[k];if(m2>=0&&m2<N&&!opq[m2]&&!reach[m2]){reach[m2]=1;bs.push(m2);}}}
+    for(var h=0;h<N;h++){if(opq[h]||reach[h])continue;var i=h*4;var hx=h%W,hy=(h/W)|0,rr=0,gg=0,bb=0,cnt=0;
+      for(var oy=-2;oy<=2;oy++)for(var ox2=-2;ox2<=2;ox2++){var xx=hx+ox2,yy=hy+oy;if(xx<0||xx>=W||yy<0||yy>=H)continue;var nn=yy*W+xx;if(d[nn*4+3]>0){rr+=d[nn*4];gg+=d[nn*4+1];bb+=d[nn*4+2];cnt++;}}
+      d[i+3]=255;if(cnt){d[i]=rr/cnt|0;d[i+1]=gg/cnt|0;d[i+2]=bb/cnt|0;}}
+  })();
   // --- STÄDNING 2: shava 1px kant (tar bort mörk feather-frans runt hals/axlar) ---
   var a2=new Uint8Array(N);for(var p2=0;p2<N;p2++)a2[p2]=d[p2*4+3]>40?1:0;
   for(var p3=0;p3<N;p3++){if(!a2[p3])continue;var px=p3%W,py=(p3/W)|0;
