@@ -122,13 +122,14 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;b
 @media (min-width:900px){ .pbadge{top:10px;left:14px} }
 
 /* ---- Mönster-storlek + täthet (+/−) ---- */
-.patsteps{display:flex;gap:10px;padding:2px 0 8px;flex-wrap:wrap}
+.patsteps{display:flex;flex-direction:column;gap:6px;padding:4px 2px 10px}
 .patsteps.hidden{display:none}
-.steprow{display:flex;align-items:center;gap:8px;background:var(--soft);border-radius:999px;padding:4px}
-.steplbl{font-size:12px;font-weight:800;color:var(--muted);min-width:52px;text-align:center}
-.stepb{border:0;background:#fff;color:var(--accent);font-size:18px;font-weight:800;line-height:1;width:30px;height:30px;
-  border-radius:50%;cursor:pointer;box-shadow:0 2px 6px rgba(232,111,166,.18);transition:transform .12s}
-.stepb:active{transform:scale(.9)}
+.slrow{display:flex;align-items:center;gap:12px}
+.sllbl{font-size:12px;font-weight:800;color:var(--muted);min-width:56px;flex:0 0 auto}
+.slrange{flex:1;-webkit-appearance:none;appearance:none;height:8px;border-radius:999px;background:var(--soft);outline:none;margin:8px 0}
+.slrange::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;width:24px;height:24px;border-radius:50%;background:var(--accent);
+  border:3px solid #fff;box-shadow:0 2px 7px rgba(232,111,166,.4);cursor:pointer}
+.slrange::-moz-range-thumb{width:22px;height:22px;border:3px solid #fff;border-radius:50%;background:var(--accent);box-shadow:0 2px 7px rgba(232,111,166,.4);cursor:pointer}
 
 /* ---- Passforms-editor ---- */
 .fitwrap{border-top:1px dashed #f0e0e9;margin-top:6px;padding-top:8px}

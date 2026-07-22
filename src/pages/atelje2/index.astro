@@ -199,21 +199,21 @@
       d.onclick=function(){st.pat=k;renderDoll();renderStyle();};pr.appendChild(d);});
     renderPatSteps(st);
   }
+  var _patraf=null;
   function renderPatSteps(st){
     var ps=document.getElementById('patsteps');ps.innerHTML='';
     if(!st.pat||st.pat==='slat'){ps.classList.add('hidden');return;}   // slätt = inget mönster att skala
     ps.classList.remove('hidden');
-    function step(label,key){
-      var row=document.createElement('div');row.className='steprow';
-      var mn=document.createElement('button');mn.className='stepb';mn.textContent='−';
-      var lb=document.createElement('span');lb.className='steplbl';lb.textContent=label;
-      var pl=document.createElement('button');pl.className='stepb';pl.textContent='＋';
-      mn.onclick=function(){st[key]=Math.max(0.4,+(st[key]-0.15).toFixed(2));renderDoll();renderStyle();};
-      pl.onclick=function(){st[key]=Math.min(2.2,+(st[key]+0.15).toFixed(2));renderDoll();renderStyle();};
-      row.appendChild(mn);row.appendChild(lb);row.appendChild(pl);return row;
+    function slider(label,key){
+      var row=document.createElement('div');row.className='slrow';
+      var lb=document.createElement('span');lb.className='sllbl';lb.textContent=label;
+      var inp=document.createElement('input');inp.type='range';inp.className='slrange';inp.min='0.4';inp.max='2.2';inp.step='0.05';inp.value=st[key];
+      inp.oninput=function(){st[key]=+(+inp.value).toFixed(2);   // live under drag; throttlad recolor (1 per frame)
+        if(!_patraf)_patraf=requestAnimationFrame(function(){_patraf=null;renderDoll();});};
+      row.appendChild(lb);row.appendChild(inp);return row;
     }
-    ps.appendChild(step('Storlek','patSize'));
-    ps.appendChild(step('Täthet','patDens'));
+    ps.appendChild(slider('Storlek','patSize'));
+    ps.appendChild(slider('Täthet','patDens'));
   }
   // ---- lägesväxel Plagg ⇄ Färg&mönster (samma yta) + återställ-ikon ----
   var mode='plagg';
@@ -368,7 +368,7 @@
     var sheet=document.querySelector('.sheet'),grip=document.querySelector('.grip');
     function clampH(h){return Math.max(96,Math.min(Math.round(window.innerHeight*0.64),h));}
     function setH(h){h=clampH(h);sheet.style.height=h+'px';localStorage.setItem('atelje2_sheeth',h);positionHandles();}
-    var saved=parseInt(localStorage.getItem('atelje2_sheeth')||'0',10);if(saved)setH(saved);
+    var saved=parseInt(localStorage.getItem('atelje2_sheeth')||'0',10);setH(saved||Math.round(window.innerHeight*0.36));
     var drag=null;
     grip.addEventListener('pointerdown',function(e){drag={y:e.clientY,h:sheet.getBoundingClientRect().height};grip.setPointerCapture(e.pointerId);e.preventDefault();});
     grip.addEventListener('pointermove',function(e){if(!drag)return;setH(drag.h+(drag.y-e.clientY));});
