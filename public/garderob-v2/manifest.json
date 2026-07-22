@@ -225,6 +225,46 @@
    "label": "Långärmad",
    "file": "/garderob-v2/longsleeve.png",
    "defaultColor": "#c7b3e6"
+  },
+  {
+   "id": "partydress",
+   "category": "dress",
+   "z": 15,
+   "label": "Festklänning",
+   "file": "/garderob-v2/partydress.png",
+   "defaultColor": "#e2506e"
+  },
+  {
+   "id": "pinafore",
+   "category": "dress",
+   "z": 15,
+   "label": "Hängselklänning",
+   "file": "/garderob-v2/pinafore.png",
+   "defaultColor": "#3a6ea5"
+  },
+  {
+   "id": "pleatedskirt",
+   "category": "bottom",
+   "z": 10,
+   "label": "Veckad kjol",
+   "file": "/garderob-v2/pleatedskirt.png",
+   "defaultColor": "#c7b3e6"
+  },
+  {
+   "id": "rainboots",
+   "category": "shoes",
+   "z": 12,
+   "label": "Gummistövlar",
+   "file": "/garderob-v2/rainboots.png",
+   "defaultColor": "#c1122b"
+  },
+  {
+   "id": "raincoat",
+   "category": "outer",
+   "z": 30,
+   "label": "Regnjacka",
+   "file": "/garderob-v2/raincoat.png",
+   "defaultColor": "#f7a072"
   }
  ]
 }

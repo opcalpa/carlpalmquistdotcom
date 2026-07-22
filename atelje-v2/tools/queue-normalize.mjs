@@ -28,6 +28,15 @@ const r=await send('Runtime.evaluate',{returnByValue:true,awaitPromise:true,expr
   // --- STÄDNING 0 (endast skor): skor genereras ljusa → droppa mörka pixlar (tar bort mörk
   //     leg-gap-skugga som hänger ihop med skorna och annars förstör deras bbox/placering) ---
   if(CAT==='shoes'){for(var p=0;p<N;p++){if(d[p*4+3]>40&&(d[p*4]+d[p*4+1]+d[p*4+2])/3<90)d[p*4+3]=0;}}
+  // --- STÄDNING 0.4: floda bakgrund (transparent + MÖRKT) från kanterna, stoppa vid ljust tyg ---
+  //     tar bort instängd mörk bg-residu i konkava kurvor (t.ex. midjan) som öppnar sig mot ytterkanten.
+  //     knappar/detaljer inne i ljust tyg (ej kopplade till kanten) bevaras.
+  (function(){var reach=new Uint8Array(N),st=[];
+    var isBg=i=>d[i+3]<=40||(d[i]+d[i+1]+d[i+2])/3<75;
+    for(var x=0;x<W;x++){[x,(H-1)*W+x].forEach(function(t){if(!reach[t]&&isBg(t*4)){reach[t]=1;st.push(t);}});}
+    for(var y=0;y<H;y++){[y*W,y*W+W-1].forEach(function(t){if(!reach[t]&&isBg(t*4)){reach[t]=1;st.push(t);}});}
+    while(st.length){var q=st.pop();var nb=[q-1,q+1,q-W,q+W];for(var k=0;k<4;k++){var nn=nb[k];if(nn>=0&&nn<N&&!reach[nn]&&isBg(nn*4)){reach[nn]=1;st.push(nn);}}}
+    for(var p=0;p<N;p++)if(reach[p]&&d[p*4+3]>40)d[p*4+3]=0;})();
   // --- STÄDNING 1: droppa mörka tunna vertikala skugg-strimmor (leg-gap-skugga som keyats in) ---
   // Identifieras på FORM+FÄRG (tunn+hög+mörk), ej storlek → skor/toppar/flerdelade plagg behålls.
   var op=new Uint8Array(N);for(var p=0;p<N;p++)op[p]=d[p*4+3]>40?1:0;
