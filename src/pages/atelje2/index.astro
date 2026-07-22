@@ -7,7 +7,7 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1" />
 <title>Modeateljén</title>
-<link rel="stylesheet" href="/atelje2.css" />
+<link rel="stylesheet" href="/atelje2.css?v=4" />
 </head>
 <body>
   <div id="picker">
@@ -20,7 +20,7 @@
   </div>
 
   <div class="stage" id="stage">
-    <button class="pbadge" id="pbadge">🌸 Louisa ▾</button>
+    <button class="pbadge" id="pbadge" aria-label="Profil & sparade looks">🌸</button>
     <button class="clear" id="reset">Klä av</button>
     <img id="doll" alt="docka" />
     <div class="ehint">✥ Dra plagget · handtagen ändrar storlek</div>
@@ -348,7 +348,7 @@
   function openProfile(){if(!player){document.getElementById('picker').style.display='';return;}renderProfilePlayers();renderLooks();document.getElementById('profile').classList.remove('hidden');}
   function closeProfile(){document.getElementById('profile').classList.add('hidden');}
   function pickPlayer(name){player=name;localStorage.setItem('atelje2_player',name);currentN=null;
-    document.getElementById('pbadge').textContent=PLAYERS[name]+' '+name+' ▾';
+    document.getElementById('pbadge').textContent=PLAYERS[name];
     document.getElementById('picker').style.display='none';renderProfilePlayers();renderLooks();}
 
   document.getElementById('btnSaveNew').onclick=function(){if(!player)return;saveLook(null);};
@@ -357,6 +357,20 @@
   document.getElementById('profx').onclick=closeProfile;
   document.getElementById('profback').onclick=closeProfile;
   [].forEach.call(document.querySelectorAll('.whobtn'),function(b){b.onclick=function(){pickPlayer(b.dataset.p);};});
+
+  // ---- resizbar toolbar: dra i greppet → ändra panelhöjd; drag ner = större dockyta ----
+  (function(){
+    var sheet=document.querySelector('.sheet'),grip=document.querySelector('.grip');
+    function clampH(h){return Math.max(96,Math.min(Math.round(window.innerHeight*0.64),h));}
+    function setH(h){h=clampH(h);sheet.style.height=h+'px';localStorage.setItem('atelje2_sheeth',h);positionHandles();}
+    var saved=parseInt(localStorage.getItem('atelje2_sheeth')||'0',10);if(saved)setH(saved);
+    var drag=null;
+    grip.addEventListener('pointerdown',function(e){drag={y:e.clientY,h:sheet.getBoundingClientRect().height};grip.setPointerCapture(e.pointerId);e.preventDefault();});
+    grip.addEventListener('pointermove',function(e){if(!drag)return;setH(drag.h+(drag.y-e.clientY));});
+    function endDrag(){drag=null;}
+    grip.addEventListener('pointerup',endDrag);grip.addEventListener('pointercancel',endDrag);
+    window.addEventListener('resize',function(){if(sheet.style.height)setH(parseInt(sheet.style.height,10));});
+  })();
 
   renderTabs();renderRoller();renderStyle();
   // återuppta senaste spelaren om den finns
