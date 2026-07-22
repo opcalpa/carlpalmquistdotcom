@@ -23,6 +23,11 @@ execFileSync('node',[`${REPO}/atelje-v2/tools/chromakey2.mjs`,base,shot,outPng],
 console.log('→ normalisera placering ('+job.category+')…');
 execFileSync('node',[`${REPO}/atelje-v2/tools/queue-normalize.mjs`,outPng,job.category],{stdio:'inherit'});
 
+// 1c) komposita på dockan → verifierings-bild (kragar/ryggdelar/passform)
+const dollPng=`${Q}/staging/${id}-doll.png`;
+console.log('→ komposita på docka…');
+execFileSync('node',[`${REPO}/atelje-v2/tools/composite-doll.mjs`,outPng,dollPng],{stdio:'inherit'});
+
 // 2) mät grön-överlevnad (råbild) + läckage/hål (keyad utdata) via canvas på 9004
 const b64=p=>'data:image/png;base64,'+fs.readFileSync(p).toString('base64');
 const nt=await fetch(`http://localhost:${PORT}/json/new?about:blank`,{method:'PUT'}).then(r=>r.json());
@@ -76,9 +81,12 @@ const fb=`# feedback: ${id}
 - inkapslade hål: **${m.holeFrac}%**  ${holeOK?'✅':'⚠️ genomskinliga hål i tyget'}
 - storlek: ${m.W}×${m.H}
 
-## granska
-Öppna \`staging/${id}-chk.png\` (rutig bakgrund). Leta: gröna kanter, hål i tyget,
-ben-/kropps-spöken, bakpanel som sticker ut.
+## granska (två bilder)
+- \`staging/${id}-doll.png\` = plagget PÅ dockan → passform, sitter kragen rätt, **ingen bakpanel/bakre
+  krage bakom halsen**, inga glipor, hår faller naturligt.
+- \`staging/${id}-chk.png\` = rutig bakgrund → gröna kanter, hål i tyget, ben-/kropps-spöken, stray-fläckar.
+
+Kritiker-subagent dömer CLEAN/MINOR/REJECT på docka-bilden innan Calle ser den.
 
 ## nästa
 ${verdict.startsWith('CLEAN')

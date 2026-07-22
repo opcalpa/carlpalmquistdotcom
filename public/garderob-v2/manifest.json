@@ -21,7 +21,8 @@
    "category": "tshirt",
    "z": 22,
    "label": "Croptopp",
-   "file": "/garderob-v2/croptop.png"
+   "file": "/garderob-v2/croptop.png",
+   "defaultColor": "#ffffff"
   },
   {
    "id": "blouse",
@@ -34,7 +35,7 @@
    "id": "turtle",
    "category": "shirt",
    "z": 24,
-   "label": "Polotr\u00f6ja",
+   "label": "Polotröja",
    "file": "/garderob-v2/turtle.png"
   },
   {
@@ -98,7 +99,7 @@
    "id": "sundress",
    "category": "dress",
    "z": 15,
-   "label": "Solkl\u00e4nning",
+   "label": "Solklänning",
    "file": "/garderob-v2/sundress.png",
    "defaultColor": "#d9a441"
   },
@@ -143,7 +144,7 @@
    "id": "boots",
    "category": "shoes",
    "z": 12,
-   "label": "St\u00f6vlar",
+   "label": "Stövlar",
    "file": "/garderob-v2/boots.png"
   },
   {
