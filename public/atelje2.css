@@ -13,9 +13,6 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;b
 .stage{position:relative;flex:1 1 auto;min-height:0;margin:8px 12px 0;border-radius:var(--r-lg);overflow:hidden;
   background:linear-gradient(160deg,#ffd9e6,#ffeef4 55%,#e9f7f4);box-shadow:var(--shadow)}
 .stage img{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;pointer-events:none}
-.brand{position:absolute;top:10px;left:0;right:0;text-align:center;font-size:15px;font-weight:800;color:#3b2c3a;
-  text-shadow:0 1px 6px rgba(255,255,255,.7);z-index:2;pointer-events:none}
-.brand span{color:var(--accent)}
 .clear{position:absolute;top:8px;right:10px;z-index:3;border:0;background:rgba(255,255,255,.82);
   color:var(--ink);font-size:13px;font-weight:700;border-radius:999px;padding:7px 12px;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,.08)}
 .clear:active{transform:scale(.94)}
@@ -50,6 +47,35 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;b
   background-size:cover;background-position:center;transition:transform .12s}
 .pat:active{transform:scale(.92)}
 .pat.on{border-color:var(--accent);box-shadow:0 0 0 2px rgba(232,111,166,.25)}
+
+/* ---- lägesväxel Plagg ⇄ Färg & mönster + återställ-ikon ---- */
+.segtog{display:flex;align-items:center;gap:8px;padding:0 14px 8px}
+.segwrap{flex:1;display:flex;background:var(--soft);border-radius:999px;padding:3px}
+.seg{flex:1;display:flex;align-items:center;justify-content:center;gap:6px;border:0;background:transparent;color:var(--muted);
+  font-size:13px;font-weight:800;border-radius:999px;padding:8px 8px;cursor:pointer;transition:all .16s;white-space:nowrap}
+.seg .em{font-size:15px}
+.seg.on{background:#fff;color:var(--accent);box-shadow:0 2px 8px rgba(232,111,166,.22)}
+.iconbtn{flex:0 0 auto;width:38px;height:38px;border-radius:50%;border:0;background:var(--soft);color:var(--accent);
+  font-size:19px;font-weight:800;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:transform .14s}
+.iconbtn:active{transform:scale(.9) rotate(-40deg)}
+.pane.hidden{display:none}
+.stilhint{color:var(--muted);font-size:13px;padding:6px 2px 12px}
+
+/* ---- Profilmeny (looks + spelarbyte, öppnas från Louisa) ---- */
+.profile{position:fixed;inset:0;z-index:55}
+.profile.hidden{display:none}
+.profback{position:absolute;inset:0;background:rgba(59,44,58,.32)}
+.profcard{position:absolute;left:0;right:0;top:0;background:var(--panel);border-radius:0 0 26px 26px;
+  box-shadow:0 10px 30px rgba(120,60,90,.24);padding:calc(14px + env(safe-area-inset-top)) 16px 18px;max-height:82dvh;overflow-y:auto;animation:profdrop .22s ease}
+@keyframes profdrop{from{transform:translateY(-16px);opacity:.3}to{transform:none;opacity:1}}
+.profx{position:absolute;top:calc(14px + env(safe-area-inset-top));right:14px;width:30px;height:30px;border-radius:50%;border:0;background:var(--soft);color:var(--ink);font-size:14px;cursor:pointer}
+.profplayers{display:flex;gap:10px;margin:2px 40px 14px 0}
+.profplayer{flex:1;display:flex;align-items:center;justify-content:center;gap:7px;border:2px solid var(--line);background:#fff;border-radius:16px;padding:11px;font-size:15px;font-weight:800;color:var(--ink);cursor:pointer}
+.profplayer .pe{font-size:20px}
+.profplayer.on{border-color:var(--accent);background:var(--soft);box-shadow:0 3px 10px rgba(232,111,166,.2)}
+.profcard .lookroll{flex-wrap:wrap}
+.profcard .lookcard{width:66px;height:94px}
+
 @media (min-width:900px){
   body{flex-direction:row-reverse;align-items:stretch}
   .stage{flex:0 0 auto;height:calc(100dvh - 20px);width:auto;aspect-ratio:9/16;margin:10px}

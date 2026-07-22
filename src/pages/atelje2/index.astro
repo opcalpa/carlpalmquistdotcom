@@ -20,8 +20,7 @@
   </div>
 
   <div class="stage" id="stage">
-    <div class="brand">👗 Modeateljén <span>v2</span></div>
-    <button class="pbadge" id="pbadge">👤 —</button>
+    <button class="pbadge" id="pbadge">🌸 Louisa ▾</button>
     <button class="clear" id="reset">Klä av</button>
     <img id="doll" alt="docka" />
     <div class="ehint">✥ Dra plagget · handtagen ändrar storlek</div>
@@ -33,25 +32,38 @@
 
   <div class="sheet">
     <div class="grip"></div>
-    <div class="looks" id="looks">
-      <div class="lookhd">
+    <div class="segtog">
+      <div class="segwrap">
+        <button class="seg on" data-mode="plagg" id="segPlagg"><span class="em">👕</span>Plagg</button>
+        <button class="seg" data-mode="stil" id="segStil"><span class="em">🎨</span>Färg &amp; mönster</button>
+      </div>
+      <button class="iconbtn" id="btnResetFit" title="Återställ storlek & position" aria-label="Återställ storlek & position">↺</button>
+    </div>
+    <div class="pane" id="panePlagg">
+      <div class="tabs scroll" id="tabs"></div>
+      <div class="roller scroll" id="roller"></div>
+    </div>
+    <div class="pane hidden" id="paneStil">
+      <div class="swrow scroll" id="colrow"></div>
+      <div class="swrow scroll" id="patrow"></div>
+      <div class="patsteps" id="patsteps"></div>
+      <div class="stilhint" id="stilhint">Välj ett plagg först — tryck 👕 Plagg och klä på dockan.</div>
+    </div>
+  </div>
+
+  <div class="profile hidden" id="profile">
+    <div class="profback" id="profback"></div>
+    <div class="profcard">
+      <button class="profx" id="profx">✕</button>
+      <div class="profplayers" id="profplayers"></div>
+      <div class="profhd">
         <span class="t" id="lookstitle">Mina looks</span>
         <div class="lookbtns">
           <button class="lookbtn" id="btnUpdate" style="display:none">💾 Uppdatera</button>
           <button class="lookbtn solid" id="btnSaveNew">＋ Spara ny</button>
         </div>
       </div>
-      <div class="lookroll scroll" id="lookroll"></div>
-    </div>
-    <div class="tabs scroll" id="tabs"></div>
-    <div class="roller scroll" id="roller"></div>
-    <div class="style hidden" id="style">
-      <p class="cap" id="stylecap">Färg</p>
-      <div class="swrow scroll" id="colrow"></div>
-      <p class="cap">Mönster</p>
-      <div class="swrow scroll" id="patrow"></div>
-      <div class="patsteps hidden" id="patsteps"></div>
-      <div class="fitwrap" id="fitwrap"></div>
+      <div class="lookroll" id="lookroll"></div>
     </div>
   </div>
 
@@ -137,7 +149,7 @@
     return null;
   }
   function selectGarment(g){
-    activeCat=g.category;selected=true;renderTabs();renderRoller();renderStyle();updateHighlight();
+    activeCat=g.category;selected=true;switchMode('stil');renderTabs();renderRoller();renderStyle();updateHighlight();
     var t=[].slice.call(document.querySelectorAll('.tab')).find(function(x){return x.classList.contains('on');});
     if(t)t.scrollIntoView({inline:'center',block:'nearest',behavior:'smooth'});
     var c=document.querySelector('.card.on');if(c)c.scrollIntoView({inline:'center',block:'nearest',behavior:'smooth'});
@@ -149,7 +161,7 @@
     CATS.forEach(function(c){
       var b=document.createElement('button');b.className='tab'+(activeCat===c[0]?' on':'');
       b.innerHTML='<span class="em">'+c[1]+'</span>'+c[2]+(worn[c[0]]?'<span class="dot"></span>':'');
-      b.onclick=function(){activeCat=c[0];selected=false;renderTabs();renderRoller();renderStyle();updateHighlight();
+      b.onclick=function(){activeCat=c[0];selected=false;switchMode('plagg');renderTabs();renderRoller();renderStyle();updateHighlight();
         b.scrollIntoView({inline:'center',block:'nearest',behavior:'smooth'});};
       tabsEl.appendChild(b);
     });
@@ -162,29 +174,26 @@
       var d=document.createElement('div');d.className='card'+(worn[activeCat]&&worn[activeCat].id===g.id?' on':'');
       d.innerHTML='<img src="'+g.file+'" alt="'+g.label+'"><div class="tick">✓</div>';
       d.onclick=function(){
-        if(worn[activeCat]&&worn[activeCat].id===g.id){delete worn[activeCat];selected=false;}
-        else {var dc=g.defaultColor||'#ffffff';worn[activeCat]={id:g.id,color:dc,pat:'slat',fg:ink(dc),adj:{dx:0,dy:0,sx:1,sy:1},patSize:1,patDens:1};selected=true;}
+        if(worn[activeCat]&&worn[activeCat].id===g.id){delete worn[activeCat];selected=false;switchMode('plagg');}
+        else {var dc=g.defaultColor||'#ffffff';worn[activeCat]={id:g.id,color:dc,pat:'slat',fg:ink(dc),adj:{dx:0,dy:0,sx:1,sy:1},patSize:1,patDens:1};selected=true;switchMode('stil');}
         renderDoll();renderRoller();renderTabs();renderStyle();
       };
       rollEl.appendChild(d);
     });
   }
-  var styleEl=document.getElementById('style');
   function renderStyle(){
     var st=worn[activeCat];
-    if(!st){styleEl.classList.add('hidden');return;}
+    var cr=document.getElementById('colrow'),pr=document.getElementById('patrow'),ps=document.getElementById('patsteps'),hint=document.getElementById('stilhint');
+    cr.innerHTML='';pr.innerHTML='';ps.innerHTML='';
+    if(!st){cr.style.display=pr.style.display=ps.style.display='none';if(hint)hint.style.display='';return;}
+    cr.style.display=pr.style.display=ps.style.display='';if(hint)hint.style.display='none';
     if(st.patSize==null)st.patSize=1;if(st.patDens==null)st.patDens=1;   // bakåtkomp. gamla looks
-    styleEl.classList.remove('hidden');
-    document.getElementById('stylecap').textContent='Färg — '+gById[st.id].label;
-    var cr=document.getElementById('colrow');cr.innerHTML='';
     COLORS.forEach(function(hex){var d=document.createElement('div');d.className='col'+(st.color===hex?' on':'');d.style.background=hex;
       d.onclick=function(){st.color=hex;st.fg=ink(hex);renderDoll();renderStyle();};cr.appendChild(d);});
-    var pr=document.getElementById('patrow');pr.innerHTML='';
     Object.keys(PAT).forEach(function(k){var d=document.createElement('div');d.className='pat'+(st.pat===k?' on':'');
       d.style.backgroundImage='url('+patCanvas(k,st.color,st.fg,st.patDens).toDataURL()+')';
       d.onclick=function(){st.pat=k;renderDoll();renderStyle();};pr.appendChild(d);});
     renderPatSteps(st);
-    renderFit(st);
   }
   function renderPatSteps(st){
     var ps=document.getElementById('patsteps');ps.innerHTML='';
@@ -202,13 +211,18 @@
     ps.appendChild(step('Storlek','patSize'));
     ps.appendChild(step('Täthet','patDens'));
   }
-  function renderFit(st){
-    var fw=document.getElementById('fitwrap');fw.innerHTML='';
-    if(!st.adj)st.adj={dx:0,dy:0,sx:1,sy:1};
-    var rs=document.createElement('button');rs.className='fitbtn';rs.textContent='↺ Återställ storlek & position';
-    rs.onclick=function(){st.adj={dx:0,dy:0,sx:1,sy:1};var im=layers[st.id];if(im)applyAdj(im,st);positionHandles();};
-    fw.appendChild(rs);
+  // ---- lägesväxel Plagg ⇄ Färg&mönster (samma yta) + återställ-ikon ----
+  var mode='plagg';
+  function switchMode(m){mode=m;
+    document.getElementById('panePlagg').classList.toggle('hidden',m!=='plagg');
+    document.getElementById('paneStil').classList.toggle('hidden',m!=='stil');
+    document.getElementById('segPlagg').classList.toggle('on',m==='plagg');
+    document.getElementById('segStil').classList.toggle('on',m==='stil');
+    if(m==='stil')renderStyle();
   }
+  document.getElementById('segPlagg').onclick=function(){switchMode('plagg');};
+  document.getElementById('segStil').onclick=function(){switchMode('stil');};
+  document.getElementById('btnResetFit').onclick=function(){var st=worn[activeCat];if(!st)return;st.adj={dx:0,dy:0,sx:1,sy:1};var im=layers[st.id];if(im)applyAdj(im,st);positionHandles();};
   // ---- on-canvas-handtag: bredd (höger), höjd (under), ✕ (ta bort) ----
   function positionHandles(){
     var hW=document.getElementById('hW'),hH=document.getElementById('hH'),hX=document.getElementById('hX'),gb=document.getElementById('gbox');
@@ -268,7 +282,7 @@
     stg.addEventListener('pointerup',end);stg.addEventListener('pointercancel',function(){down=null;});
     // klick UTANFÖR canvasen (flik/swatch/ark/bakgrund, ej plagg-kort) = avmarkera
     document.addEventListener('pointerdown',function(e){
-      if(e.target.closest('#stage')||e.target.closest('.card'))return;
+      if(e.target.closest('#stage')||e.target.closest('.card')||e.target.closest('.segtog'))return;
       if(selected){selected=false;updateHighlight();}
     },true);
   })();
@@ -305,7 +319,7 @@
       setSaves(s);renderLooks();
     });
   }
-  function loadLook(n){var it=mySaves().find(function(l){return l.n===n;});if(!it)return;worn=JSON.parse(JSON.stringify(it.worn));selected=false;currentN=n;renderDoll();renderTabs();renderRoller();renderStyle();renderLooks();toast('Look #'+n);}
+  function loadLook(n){var it=mySaves().find(function(l){return l.n===n;});if(!it)return;worn=JSON.parse(JSON.stringify(it.worn));selected=false;currentN=n;closeProfile();switchMode('plagg');renderDoll();renderTabs();renderRoller();renderStyle();renderLooks();toast('Look #'+n);}
   function delLook(n){var s=getSaves();s[player]=(s[player]||[]).filter(function(l){return l.n!==n;});setSaves(s);if(currentN===n)currentN=null;renderLooks();}
 
   function renderLooks(){
@@ -323,13 +337,25 @@
       roll.appendChild(d);
     });
   }
+  function renderProfilePlayers(){
+    var pp=document.getElementById('profplayers');pp.innerHTML='';
+    Object.keys(PLAYERS).forEach(function(nm){
+      var b=document.createElement('button');b.className='profplayer'+(player===nm?' on':'');
+      b.innerHTML='<span class="pe">'+PLAYERS[nm]+'</span>'+nm;
+      b.onclick=function(){pickPlayer(nm);};pp.appendChild(b);
+    });
+  }
+  function openProfile(){if(!player){document.getElementById('picker').style.display='';return;}renderProfilePlayers();renderLooks();document.getElementById('profile').classList.remove('hidden');}
+  function closeProfile(){document.getElementById('profile').classList.add('hidden');}
   function pickPlayer(name){player=name;localStorage.setItem('atelje2_player',name);currentN=null;
-    document.getElementById('pbadge').textContent=PLAYERS[name]+' '+name;
-    document.getElementById('picker').style.display='none';renderLooks();}
+    document.getElementById('pbadge').textContent=PLAYERS[name]+' '+name+' ▾';
+    document.getElementById('picker').style.display='none';renderProfilePlayers();renderLooks();}
 
   document.getElementById('btnSaveNew').onclick=function(){if(!player)return;saveLook(null);};
   document.getElementById('btnUpdate').onclick=function(){if(currentN)saveLook(currentN);};
-  document.getElementById('pbadge').onclick=function(){document.getElementById('picker').style.display='';};
+  document.getElementById('pbadge').onclick=openProfile;
+  document.getElementById('profx').onclick=closeProfile;
+  document.getElementById('profback').onclick=closeProfile;
   [].forEach.call(document.querySelectorAll('.whobtn'),function(b){b.onclick=function(){pickPlayer(b.dataset.p);};});
 
   renderTabs();renderRoller();renderStyle();
