@@ -35,9 +35,22 @@ const r=await send('Runtime.evaluate',{returnByValue:true,awaitPromise:true,expr
   for(var q=0;q<N;q++){if(!op[q]||lab[q]>=0)continue;var ci=comps.length,area=0,sl=0,bx0=W,by0=H,bx1=0,by1=0;lab[q]=ci;st.length=0;st.push(q);
     while(st.length){var u=st.pop();area++;sl+=(d[u*4]+d[u*4+1]+d[u*4+2])/3;var ux=u%W,uy=(u/W)|0;if(ux<bx0)bx0=ux;if(ux>bx1)bx1=ux;if(uy<by0)by0=uy;if(uy>by1)by1=uy;
       var nb=[u-1,u+1,u-W,u+W];for(var k=0;k<4;k++){var nn=nb[k];if(nn>=0&&nn<N&&op[nn]&&lab[nn]<0){lab[nn]=ci;st.push(nn);}}}
-    comps.push({i:ci,area:area,w:bx1-bx0+1,h:by1-by0+1,lum:sl/area});}
-  comps.forEach(c=>{var aw=c.area/c.h;var streak=(aw<24)&&(c.h>140)&&(c.h>2.5*aw)&&(c.lum<95);   // tunn-i-snitt + hög + mörk = skugg-strimma (flarande bas fångas via medelbredd)
-    if(streak)for(var p=0;p<N;p++)if(lab[p]===c.i)d[p*4+3]=0;});
+    comps.push({i:ci,area:area,w:bx1-bx0+1,h:by1-by0+1,by0:by0,by1:by1,lum:sl/area});}
+  var main=comps.reduce((a,b)=>b.area>a.area?b:a,comps[0]);
+  comps.forEach(c=>{var aw=c.area/c.h;
+    var streak=(aw<24)&&(c.h>140)&&(c.h>2.5*aw)&&(c.lum<95);   // tunn+hög+mörk skugg-strimma (flarande bas via medelbredd)
+    var darkStray=(c.lum<70)&&(c.area<main.area*0.5);          // ljus-bas → lös mörk komponent = skräp (kontur sitter fast i ljus kropp)
+    var belowMain=(c!==main)&&(c.by0>main.by1-3)&&(c.area<main.area*0.5); // frånkopplad del UNDER plagget = stativ-stång/skugg-stray
+    if(streak||darkStray||belowMain)for(var p=0;p<N;p++)if(lab[p]===c.i)d[p*4+3]=0;});
+  // --- STÄDNING 1.2: ta bort tunna mörka linjer som EJ omges av ljust tyg (leg-gap-skugga kopplad till plagget) ---
+  (function(){var K=10,rm=[];
+    for(var y=0;y<H;y++)for(var x=0;x<W;x++){var i=(y*W+x)*4;if(d[i+3]<=40)continue;if((d[i]+d[i+1]+d[i+2])/3>=70)continue;
+      var lL=false,lR=false;
+      for(var k=1;k<=K&&!lL;k++){var xl=x-k;if(xl<0)break;var il=(y*W+xl)*4;if(d[il+3]>40&&(d[il]+d[il+1]+d[il+2])/3>110)lL=true;}
+      for(var k2=1;k2<=K&&!lR;k2++){var xr=x+k2;if(xr>=W)break;var ir=(y*W+xr)*4;if(d[ir+3]>40&&(d[ir]+d[ir+1]+d[ir+2])/3>110)lR=true;}
+      if(!lL&&!lR)rm.push(i);}
+    for(var r=0;r<rm.length;r++)d[rm[r]+3]=0;
+  })();
   // --- STÄDNING 1.5: HÅRDGÖR ALFA → solid silhuett (efter strimm-städning, så tunna strimmor ej breddas) ---
   for(var p4=0;p4<N;p4++){d[p4*4+3]=d[p4*4+3]>=25?255:0;}
   // fyll INKAPSLADE hål (transparent som ej når kanten = omringat av tyg) → helt solitt plagg

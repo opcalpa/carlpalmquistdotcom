@@ -193,6 +193,38 @@
    "label": "Hängselbyxor",
    "file": "/garderob-v2/dungarees.png",
    "defaultColor": "#3a6ea5"
+  },
+  {
+   "id": "joggers",
+   "category": "bottom",
+   "z": 10,
+   "label": "Mjukisbyxor",
+   "file": "/garderob-v2/joggers.png",
+   "defaultColor": "#7cc7c0"
+  },
+  {
+   "id": "knitdress",
+   "category": "dress",
+   "z": 15,
+   "label": "Stickad klänning",
+   "file": "/garderob-v2/knitdress.png",
+   "defaultColor": "#c7b3e6"
+  },
+  {
+   "id": "knitsweater",
+   "category": "sweatshirt",
+   "z": 26,
+   "label": "Stickad tröja",
+   "file": "/garderob-v2/knitsweater.png",
+   "defaultColor": "#d9a441"
+  },
+  {
+   "id": "longsleeve",
+   "category": "tshirt",
+   "z": 22,
+   "label": "Långärmad",
+   "file": "/garderob-v2/longsleeve.png",
+   "defaultColor": "#c7b3e6"
   }
  ]
 }
