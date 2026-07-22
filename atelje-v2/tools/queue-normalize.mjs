@@ -24,19 +24,20 @@ const r=await send('Runtime.evaluate',{returnByValue:true,awaitPromise:true,expr
   var im=await L(${JSON.stringify(src)});var W=im.naturalWidth,H=im.naturalHeight,N=W*H;
   var m=document.createElement('canvas');m.width=W;m.height=H;var mx=m.getContext('2d');mx.drawImage(im,0,0);
   var imgd=mx.getImageData(0,0,W,H),d=imgd.data;
-  // --- STÄDNING 1: droppa avlägsna stray-komponenter (skugg-strimmor etc) ---
+  var CAT=${JSON.stringify(CAT)};
+  // --- STÄDNING 0 (endast skor): skor genereras ljusa → droppa mörka pixlar (tar bort mörk
+  //     leg-gap-skugga som hänger ihop med skorna och annars förstör deras bbox/placering) ---
+  if(CAT==='shoes'){for(var p=0;p<N;p++){if(d[p*4+3]>40&&(d[p*4]+d[p*4+1]+d[p*4+2])/3<90)d[p*4+3]=0;}}
+  // --- STÄDNING 1: droppa mörka tunna vertikala skugg-strimmor (leg-gap-skugga som keyats in) ---
+  // Identifieras på FORM+FÄRG (tunn+hög+mörk), ej storlek → skor/toppar/flerdelade plagg behålls.
   var op=new Uint8Array(N);for(var p=0;p<N;p++)op[p]=d[p*4+3]>40?1:0;
   var lab=new Int32Array(N).fill(-1),comps=[],st=[];
-  for(var q=0;q<N;q++){if(!op[q]||lab[q]>=0)continue;var ci=comps.length,area=0,bx0=W,by0=H,bx1=0,by1=0;lab[q]=ci;st.length=0;st.push(q);
-    while(st.length){var u=st.pop();area++;var ux=u%W,uy=(u/W)|0;if(ux<bx0)bx0=ux;if(ux>bx1)bx1=ux;if(uy<by0)by0=uy;if(uy>by1)by1=uy;
+  for(var q=0;q<N;q++){if(!op[q]||lab[q]>=0)continue;var ci=comps.length,area=0,sl=0,bx0=W,by0=H,bx1=0,by1=0;lab[q]=ci;st.length=0;st.push(q);
+    while(st.length){var u=st.pop();area++;sl+=(d[u*4]+d[u*4+1]+d[u*4+2])/3;var ux=u%W,uy=(u/W)|0;if(ux<bx0)bx0=ux;if(ux>bx1)bx1=ux;if(uy<by0)by0=uy;if(uy>by1)by1=uy;
       var nb=[u-1,u+1,u-W,u+W];for(var k=0;k<4;k++){var nn=nb[k];if(nn>=0&&nn<N&&op[nn]&&lab[nn]<0){lab[nn]=ci;st.push(nn);}}}
-    comps.push({i:ci,area:area,bx0:bx0,by0:by0,bx1:bx1,by1:by1});}
-  var big=comps.reduce((a,b)=>b.area>a.area?b:a,comps[0]);
-  // behåll: stor (>=25% av största) ELLER nära största bbox (gap<40px bägge axlar). Annars droppa.
-  var GAP=40;
-  comps.forEach(c=>{var keep=c.area>=big.area*0.6;   // stor legit del (t.ex. jack-panel/sko-par) behålls
-    if(!keep){var gx=Math.max(0,c.bx0-big.bx1,big.bx0-c.bx1),gy=Math.max(0,c.by0-big.by1,big.by0-c.by1);if(gx<GAP&&gy<GAP)keep=true;}  // angränsande (rem/krage) behålls
-    if(!keep)for(var p=0;p<N;p++)if(lab[p]===c.i)d[p*4+3]=0;});
+    comps.push({i:ci,area:area,w:bx1-bx0+1,h:by1-by0+1,lum:sl/area});}
+  comps.forEach(c=>{var streak=(c.w<26)&&(c.h>3*c.w)&&(c.lum<90);   // tunn + hög + mörk = skugg-strimma
+    if(streak)for(var p=0;p<N;p++)if(lab[p]===c.i)d[p*4+3]=0;});
   // --- STÄDNING 2: shava 1px kant (tar bort mörk feather-frans runt hals/axlar) ---
   var a2=new Uint8Array(N);for(var p2=0;p2<N;p2++)a2[p2]=d[p2*4+3]>40?1:0;
   for(var p3=0;p3<N;p3++){if(!a2[p3])continue;var px=p3%W,py=(p3/W)|0;
