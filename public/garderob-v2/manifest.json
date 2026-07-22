@@ -6,7 +6,8 @@
    "category": "tshirt",
    "z": 22,
    "label": "T-shirt",
-   "file": "/garderob-v2/tshirt.png"
+   "file": "/garderob-v2/tshirt.png",
+   "defaultColor": "#ffffff"
   },
   {
    "id": "tank",
@@ -33,7 +34,7 @@
    "id": "turtle",
    "category": "shirt",
    "z": 24,
-   "label": "Polotröja",
+   "label": "Polotr\u00f6ja",
    "file": "/garderob-v2/turtle.png"
   },
   {
@@ -97,7 +98,7 @@
    "id": "sundress",
    "category": "dress",
    "z": 15,
-   "label": "Solklänning",
+   "label": "Solkl\u00e4nning",
    "file": "/garderob-v2/sundress.png",
    "defaultColor": "#d9a441"
   },
@@ -142,7 +143,7 @@
    "id": "boots",
    "category": "shoes",
    "z": 12,
-   "label": "Stövlar",
+   "label": "St\u00f6vlar",
    "file": "/garderob-v2/boots.png"
   },
   {

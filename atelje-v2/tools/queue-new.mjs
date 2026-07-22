@@ -10,10 +10,13 @@ if(!(cat in Z)){console.error('okänd kategori:',cat,'— giltiga:',Object.keys(
 // säkerställ referenskropp i kön
 const ref=Q+'/reference/baseChroma.png';
 if(!fs.existsSync(ref))fs.copyFileSync(REPO+'/atelje-v2/bodies/baseChroma.png',ref);
-const prompt=`Edit the cartoon paper-doll figure: add ${eng}, front view only. `+
+// Mjuk prompt: bevara karaktären, lägg bara till plagget. (Hård "rita inte om" fick Gemini att
+// byta karaktär helt → undvik.) Inramning/skala fixas Code-sida i queue-normalize.mjs.
+const prompt=`Edit this cartoon paper-doll figure: add ${eng}, front view only. `+
   `KEEP the figure's bright green skin/body exactly as is (even under white or light fabric). `+
-  `Front-facing surfaces only — no back panel, no rear collar/waistband. `+
-  `Same pose, same scale, same plain background.`;
+  `Keep the SAME soft cartoon girl character, same friendly art style, same pose and same plain `+
+  `dark background — only add the garment. Front-facing surfaces only, no back panel, no rear collar. `+
+  `Try to show the whole figure from head to feet.`;
 const job={
   id, category:cat, z:zArg?+zArg:Z[cat], label,
   defaultColor:color||'#ffffff',

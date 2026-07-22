@@ -1,0 +1,46 @@
+{
+  "W": 752,
+  "H": 1392,
+  "categories": {
+    "bottom": {
+      "centerX": 393,
+      "top": 635,
+      "width": 276
+    },
+    "dress": {
+      "centerX": 388,
+      "top": 366,
+      "width": 418
+    },
+    "outer": {
+      "centerX": 394.5,
+      "top": 315,
+      "width": 475
+    },
+    "shirt": {
+      "centerX": 396,
+      "top": 317,
+      "width": 434
+    },
+    "shoes": {
+      "centerX": 400.5,
+      "top": 1262,
+      "width": 221
+    },
+    "sweatshirt": {
+      "centerX": 394,
+      "top": 310,
+      "width": 484
+    },
+    "tank": {
+      "centerX": 394,
+      "top": 364,
+      "width": 216
+    },
+    "tshirt": {
+      "centerX": 394,
+      "top": 364,
+      "width": 288
+    }
+  }
+}

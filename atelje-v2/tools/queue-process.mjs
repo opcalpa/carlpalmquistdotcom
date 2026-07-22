@@ -19,6 +19,10 @@ const outPng=`${Q}/staging/${id}.png`;
 console.log('→ grön-key (chromakey2)…');
 execFileSync('node',[`${REPO}/atelje-v2/tools/chromakey2.mjs`,base,shot,outPng],{stdio:'inherit'});
 
+// 1b) normalisera placering till kategorins kanon-ruta (oberoende av generatorns inramning)
+console.log('→ normalisera placering ('+job.category+')…');
+execFileSync('node',[`${REPO}/atelje-v2/tools/queue-normalize.mjs`,outPng,job.category],{stdio:'inherit'});
+
 // 2) mät grön-överlevnad (råbild) + läckage/hål (keyad utdata) via canvas på 9004
 const b64=p=>'data:image/png;base64,'+fs.readFileSync(p).toString('base64');
 const nt=await fetch(`http://localhost:${PORT}/json/new?about:blank`,{method:'PUT'}).then(r=>r.json());
