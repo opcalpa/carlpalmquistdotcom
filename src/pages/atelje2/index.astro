@@ -7,7 +7,7 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1" />
 <title>Modeateljén</title>
-<link rel="stylesheet" href="/atelje2.css?v=4" />
+<link rel="stylesheet" href="/atelje2.css?v=5" />
 </head>
 <body>
   <div id="picker">
@@ -21,8 +21,10 @@
 
   <div class="stage" id="stage">
     <button class="pbadge" id="pbadge" aria-label="Profil & sparade looks">🌸</button>
+    <button class="scenebtn" id="scenebtn" aria-label="Byt bakgrund">🏞️</button>
     <button class="clear" id="reset">Klä av</button>
     <img id="doll" alt="docka" />
+    <div class="scenebar" id="scenebar"></div>
     <div class="ehint">✥ Dra plagget · handtagen ändrar storlek</div>
     <div class="gbox" id="gbox"></div>
     <div class="ghandle hw" id="hW">↔</div>
@@ -73,6 +75,28 @@
 (async function(){
   var man = await fetch('/garderob-v2/manifest.json').then(function(r){return r.json();});
   document.getElementById('doll').src = man.doll;
+
+  // ---- scen/bakgrunds-väljare: delat bibliotek, funkar bakom valfri (transparent) docka ----
+  var SCENES=[
+    {id:'rosa',n:'Rosa',css:'linear-gradient(160deg,#ffd9e6,#ffeef4 55%,#e9f7f4)'},
+    {id:'strand',n:'Strand',css:'linear-gradient(#bfe6ff 0%,#d3f0ff 52%,#ffe9b0 52%,#ffd587 100%)'},
+    {id:'solned',n:'Solnedgång',css:'linear-gradient(#ffd06b,#ff93b4 46%,#a875d8)'},
+    {id:'ang',n:'Äng',css:'linear-gradient(#bfe6ff 0%,#dff4ff 48%,#a6db6f 54%,#68bd47 100%)'},
+    {id:'natt',n:'Natt',css:'radial-gradient(120% 80% at 50% 12%,#33427e,#111a3d 72%)'},
+    {id:'disco',n:'Disco',css:'linear-gradient(125deg,#7b2ff7,#f107a3 52%,#ff7ac6)'}
+  ];
+  var stageEl=document.getElementById('stage'),sceneId='rosa';
+  function applyScene(id,save){var s=SCENES.find(function(x){return x.id===id;})||SCENES[0];sceneId=s.id;stageEl.style.background=s.css;
+    if(save!==false){var pl=localStorage.getItem('atelje2_player')||'_';localStorage.setItem('atelje2_scene_'+pl,s.id);}
+    renderScenebar();}
+  function renderScenebar(){var bar=document.getElementById('scenebar');bar.innerHTML='';
+    SCENES.forEach(function(s){var b=document.createElement('button');b.className='scenesw'+(sceneId===s.id?' on':'');
+      b.style.background=s.css;b.title=s.n;b.setAttribute('aria-label',s.n);
+      b.onclick=function(e){e.stopPropagation();applyScene(s.id);};bar.appendChild(b);});}
+  document.getElementById('scenebtn').onclick=function(e){e.stopPropagation();document.getElementById('scenebar').classList.toggle('show');};
+  document.addEventListener('pointerdown',function(e){var bar=document.getElementById('scenebar');
+    if(bar.classList.contains('show')&&!e.target.closest('#scenebar')&&!e.target.closest('#scenebtn'))bar.classList.remove('show');},true);
+  applyScene(localStorage.getItem('atelje2_scene__')||'rosa',false);
 
   // ---- mönster-motorn: grid-baserade motiv (täthet=antal, storlek via tile-scale) + linjer ----
   function _grid(c,T,b,f,d,draw){c.fillStyle=b;c.fillRect(0,0,T,T);c.fillStyle=f;
@@ -353,6 +377,7 @@
   function closeProfile(){document.getElementById('profile').classList.add('hidden');}
   function pickPlayer(name){player=name;localStorage.setItem('atelje2_player',name);currentN=null;
     document.getElementById('pbadge').textContent=PLAYERS[name];
+    applyScene(localStorage.getItem('atelje2_scene_'+name)||'rosa',false);
     document.getElementById('picker').style.display='none';renderProfilePlayers();renderLooks();}
 
   document.getElementById('btnSaveNew').onclick=function(){if(!player)return;saveLook(null);};
