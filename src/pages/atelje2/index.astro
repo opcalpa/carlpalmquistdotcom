@@ -212,8 +212,7 @@
         if(!_patraf)_patraf=requestAnimationFrame(function(){_patraf=null;renderDoll();});};
       row.appendChild(lb);row.appendChild(inp);return row;
     }
-    ps.appendChild(slider('Storlek','patSize'));
-    ps.appendChild(slider('Täthet','patDens'));
+    ps.appendChild(slider('Storlek','patSize'));   // ETT reglage räcker: storlek & täthet var matematiskt samma axel (kvoten patSize/patDens)
   }
   // ---- lägesväxel Plagg ⇄ Färg&mönster (samma yta) + återställ-ikon ----
   var mode='plagg';
@@ -366,15 +365,16 @@
   // ---- resizbar toolbar: dra i greppet → ändra panelhöjd; drag ner = större dockyta ----
   (function(){
     var sheet=document.querySelector('.sheet'),grip=document.querySelector('.grip');
+    function isDesktop(){return window.innerWidth>=900;}   // desktop: sido-panel, CSS styr höjden (flex-stretch). Inline-höjd får INTE läcka hit.
     function clampH(h){return Math.max(96,Math.min(Math.round(window.innerHeight*0.64),h));}
-    function setH(h){h=clampH(h);sheet.style.height=h+'px';localStorage.setItem('atelje2_sheeth',h);positionHandles();}
+    function setH(h){if(isDesktop()){sheet.style.height='';return;}h=clampH(h);sheet.style.height=h+'px';localStorage.setItem('atelje2_sheeth',h);positionHandles();}
     var saved=parseInt(localStorage.getItem('atelje2_sheeth')||'0',10);setH(saved||Math.round(window.innerHeight*0.36));
     var drag=null;
-    grip.addEventListener('pointerdown',function(e){drag={y:e.clientY,h:sheet.getBoundingClientRect().height};grip.setPointerCapture(e.pointerId);e.preventDefault();});
+    grip.addEventListener('pointerdown',function(e){if(isDesktop())return;drag={y:e.clientY,h:sheet.getBoundingClientRect().height};grip.setPointerCapture(e.pointerId);e.preventDefault();});
     grip.addEventListener('pointermove',function(e){if(!drag)return;setH(drag.h+(drag.y-e.clientY));});
     function endDrag(){drag=null;}
     grip.addEventListener('pointerup',endDrag);grip.addEventListener('pointercancel',endDrag);
-    window.addEventListener('resize',function(){if(sheet.style.height)setH(parseInt(sheet.style.height,10));});
+    window.addEventListener('resize',function(){if(isDesktop()){sheet.style.height='';}else if(sheet.style.height){setH(parseInt(sheet.style.height,10));}else{setH(Math.round(window.innerHeight*0.36));}});
   })();
 
   renderTabs();renderRoller();renderStyle();
