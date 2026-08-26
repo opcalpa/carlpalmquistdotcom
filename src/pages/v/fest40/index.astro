@@ -1,0 +1,327 @@
+---
+// "Kalaset" — publik eventplanerings-sida. Design: design_handoff_fest40 (Claude Design 2026-08-26).
+// Datadriven: ALLT innehåll kommer ur KV via /api/fest40?slug=. Ingen eventdata i denna publika källa.
+const slug = "calle40";
+---
+<!doctype html>
+<html lang="sv">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>Kalaset</title>
+<meta name="robots" content="noindex, nofollow" />
+<style>
+:root{
+  --bg:#faf7f2; --panel:#fffdfa; --panel2:#f4efe6; --line:#e7dfd2; --line-soft:#f2ebdd; --line-strong:#d8cdbb;
+  --txt:#2b2723; --mid:#5c5548; --dim:#8b8272; --faint:#b3aa99;
+  --accent:#6c8cff; --accent-ink:#4d68d8;
+  --champ:#c8ab77; --champ-ink:#8a6f3f; --champ-line:#ead9bd;
+  --ok-ink:#2f9e6e; --warn-ink:#a1782a; --late-ink:#cf5570;
+  --r-card:14px; --r-field:8px; --r-track:10px;
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{background:var(--bg);color:var(--txt);font:14px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Inter,sans-serif;-webkit-font-smoothing:antialiased}
+.num{font-variant-numeric:tabular-nums}
+.wrap{max-width:1180px;margin:0 auto;padding:16px 16px 22px;display:flex;flex-direction:column;gap:12px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:var(--r-card)}
+.lbl{font-size:11px;text-transform:uppercase;letter-spacing:.5px;font-weight:600;color:var(--dim)}
+button{font:inherit;cursor:pointer}
+.btn{height:44px;padding:0 16px;border-radius:var(--r-field);border:1px solid var(--line);background:var(--panel);color:var(--txt);font-size:14px}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:600}
+.btn.wide{width:100%}
+
+/* ---- grind ---- */
+#gate{min-height:100dvh;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:12px;padding:22px}
+.invite{max-width:330px;width:100%;padding:8px}
+.invite-in{border:1px solid var(--champ-line);border-radius:var(--r-track);padding:28px 22px;text-align:center}
+.mono{width:56px;height:56px;border-radius:999px;border:1px solid var(--champ-line);display:flex;align-items:center;justify-content:center;margin:0 auto 16px;font-size:18px;font-weight:650;color:var(--champ-ink)}
+.rule{width:44px;height:1px;background:var(--champ);margin:16px auto}
+#code{width:100%;height:52px;margin-top:16px;text-align:center;font-size:18px;letter-spacing:6px;border:1px solid var(--line);border-radius:var(--r-field);background:var(--panel);color:var(--txt)}
+#code:focus{outline:none;border-color:var(--accent)}
+@keyframes shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-6px)}75%{transform:translateX(6px)}}
+.shake{animation:shake .3s ease}
+
+/* ---- hjärtat ---- */
+.heart{padding:8px}
+.heart-in{border:1px solid var(--champ-line);border-radius:var(--r-track);padding:22px 16px;text-align:center}
+.heart h1{margin:8px 0 0;font-size:26px;font-weight:650;letter-spacing:-.2px}
+.pill{display:inline-block;padding:5px 14px;border-radius:999px;font-size:12px;font-weight:600;background:rgba(200,171,119,.14);border:1px solid rgba(200,171,119,.4);color:var(--champ-ink)}
+.track{height:5px;border-radius:999px;background:#f0e8d9;margin:16px auto 8px;max-width:280px;overflow:hidden}
+.fill{height:100%;background:rgba(55,193,132,.8);border-radius:999px;transition:width .12s ease}
+
+/* ---- sektioner ---- */
+.sec{padding:16px}
+.sec-head{display:flex;align-items:baseline;justify-content:space-between;gap:12px;margin-bottom:12px}
+.sec-head h2{margin:0;font-size:18px;font-weight:650}
+.seg{display:flex;background:var(--panel2);border:1px solid var(--line);border-radius:var(--r-track);padding:3px;gap:3px;margin-bottom:12px}
+.seg button{flex:1;height:38px;border:1px solid transparent;background:transparent;border-radius:var(--r-field);color:var(--dim);font-size:13px}
+.seg button.on{background:var(--panel);border-color:var(--line);color:var(--txt);font-weight:600;box-shadow:0 1px 2px rgba(0,0,0,.04)}
+.chips{display:flex;gap:6px;overflow-x:auto;padding-bottom:4px;margin-bottom:8px;-webkit-overflow-scrolling:touch}
+.chips::-webkit-scrollbar{display:none}
+.chip{white-space:nowrap;padding:5px 12px;border-radius:999px;font-size:12px;border:1px solid var(--line);background:var(--panel2);color:var(--mid)}
+.chip.on{background:rgba(108,140,255,.12);border-color:rgba(108,140,255,.45);color:var(--accent-ink);font-weight:600}
+.row{display:flex;align-items:flex-start;gap:12px;padding:12px 0;border-bottom:1px solid var(--line-soft)}
+.row:last-child{border-bottom:0}
+.box{flex:0 0 auto;width:26px;height:26px;border-radius:999px;border:1.5px solid var(--line-strong);background:var(--panel);display:flex;align-items:center;justify-content:center;font-size:13px;color:transparent;transition:.12s ease}
+.row.done .box{background:rgba(55,193,132,.15);border-color:rgba(55,193,132,.5);color:var(--ok-ink)}
+.row-txt{flex:1;min-width:0}
+.row-txt .t{font-size:15px;transition:.12s ease}
+.row.done .t{color:var(--dim);text-decoration:line-through;text-decoration-color:rgba(139,130,114,.45)}
+.tag{display:inline-block;margin-top:4px;padding:3px 10px;border-radius:999px;font-size:11px;background:var(--panel2);border:1px solid var(--line);color:var(--mid)}
+.row.done .tag{background:#f8f4ec;border-color:#efe8da;color:var(--faint)}
+.due{flex:0 0 auto;font-size:12px;font-weight:600;color:var(--dim)}
+.due.today{color:var(--warn-ink)}.due.late{color:var(--late-ink)}
+.divider{margin:12px 0 4px}
+.add{display:flex;gap:8px;margin-top:12px}
+.add input{flex:1;height:44px;padding:0 12px;border:1px solid var(--line);border-radius:var(--r-field);background:var(--panel);color:var(--txt);font-size:14px}
+.add input:focus{outline:none;border-color:var(--accent)}
+.act{margin-top:12px;font-size:12px;color:var(--dim)}
+.callout{padding:12px;border-radius:var(--r-field);background:rgba(55,193,132,.1);border:1px solid rgba(55,193,132,.3);color:var(--ok-ink);font-size:13px;font-weight:600}
+
+/* program */
+.tl{display:flex;gap:12px;align-items:flex-start}
+.tl .time{flex:0 0 42px;text-align:right;font-size:13px;color:var(--dim)}
+.tl .dotcol{flex:0 0 9px;display:flex;flex-direction:column;align-items:center;align-self:stretch;padding-top:6px}
+.tl .dot{width:9px;height:9px;border-radius:999px;background:var(--champ);flex:0 0 auto}
+.tl .line{width:1px;flex:1;background:var(--champ-line);margin-top:4px}
+.tl .txt{flex:1;font-size:14px;padding-bottom:16px}
+
+/* gäster */
+.stats{display:flex;border-top:1px solid var(--line-soft);border-bottom:1px solid var(--line-soft)}
+.stat{flex:1;padding:12px 0;text-align:center;border-right:1px solid var(--line-soft)}
+.stat:last-child{border-right:0}
+.stat b{display:block;font-size:22px;font-weight:650}
+.g-row{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 0;border-bottom:1px solid var(--line-soft)}
+.spill{padding:5px 14px;border-radius:999px;font-size:12px;font-weight:600;border:1px solid;background:var(--panel2);border-color:var(--line);color:var(--mid)}
+.spill.ja{background:rgba(55,193,132,.15);border-color:rgba(55,193,132,.35);color:var(--ok-ink)}
+.spill.vantar{background:rgba(230,180,80,.16);border-color:rgba(230,180,80,.4);color:var(--warn-ink)}
+
+details.foldable{padding:0}
+details.foldable summary{list-style:none;display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:52px;padding:0 16px;cursor:pointer}
+details.foldable summary::-webkit-details-marker{display:none}
+.b-row{display:flex;justify-content:space-between;gap:12px;padding:10px 16px;border-top:1px solid var(--line-soft);font-size:13px}
+.foot{text-align:center;font-size:11px;color:var(--faint);padding:8px 0 0}
+#toast{position:fixed;left:16px;right:16px;bottom:16px;max-width:520px;margin:0 auto;background:#2b2723;color:#faf7f2;border-radius:999px;padding:12px 18px;display:none;align-items:center;justify-content:space-between;gap:12px;font-size:13px;box-shadow:0 10px 30px rgba(0,0,0,.25);z-index:20}
+#toast button{background:none;border:0;color:#aabdff;font-weight:650;font-size:13px}
+.sticky{position:sticky;top:0;z-index:10;background:rgba(250,247,242,.95);backdrop-filter:blur(8px);border-bottom:1px solid var(--line);display:none;align-items:center;justify-content:space-between;padding:10px 16px;margin:-16px -16px 0}
+@media(min-width:900px){
+  .wrap{padding:22px;gap:16px}
+  .grid{display:grid;grid-template-columns:1.45fr 1fr;gap:16px;align-items:start}
+  .gcol{display:flex;flex-direction:column;gap:16px}
+  .seg{display:none}
+  .row{padding:9px 0}.box{width:22px;height:22px}.row-txt .t{font-size:14px}
+}
+@media(max-width:899px){ .desk-cats{display:none} }
+</style>
+</head>
+<body>
+<div id="gate">
+  <div class="invite card">
+    <div class="invite-in">
+      <div class="mono num">40</div>
+      <div class="lbl" id="g-date">Laddar…</div>
+      <h1 style="margin:8px 0 0;font-size:24px;font-weight:650" id="g-title">&nbsp;</h1>
+      <div style="font-size:13px;color:var(--dim);margin-top:4px" id="g-sub"></div>
+      <div class="rule"></div>
+      <div style="font-size:14px">Skriv koden från inbjudan, så öppnas sidan.</div>
+      <input id="code" inputmode="numeric" autocomplete="off" placeholder="KOD" />
+      <button class="btn primary wide" id="g-go" style="margin-top:12px;height:48px">Öppna kalaset</button>
+      <div style="font-size:12px;color:var(--dim);margin-top:12px" id="g-help">Ingen kod? Skriv till Calle eller Jossi.</div>
+    </div>
+  </div>
+  <div style="font-size:11px;color:var(--faint)">carlpalmquist.com</div>
+</div>
+
+<div class="wrap" id="app" style="display:none"></div>
+<div id="toast"><span id="toast-txt"></span><button id="toast-undo">Ångra</button></div>
+
+<script define:vars={{ slug }}>
+const S = { pw: "", ev: null, log: [], cat: null, tag: null, me: "", undo: null };
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s == null ? "" : s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const api = async (path, opts) => { const r = await fetch(path, opts); const d = await r.json().catch(() => ({})); if (!r.ok) throw new Error(d.error || r.status); return d; };
+const cats = () => (S.ev.categories && S.ev.categories.length) ? S.ev.categories : ["Inhandling", "Fixa"];
+const plan = () => Array.isArray(S.ev.plan) ? S.ev.plan : [];
+
+// ---- datum ----
+const DAYS = ["sön","mån","tis","ons","tors","fre","lör"];
+const midnight = (d) => { const x = new Date(d); x.setHours(0,0,0,0); return x; };
+const daysTo = (iso) => { if (!iso) return null; const d = midnight(new Date(iso)), t = midnight(new Date()); return Math.round((d - t) / 864e5); };
+function dueLabel(iso) {
+  const n = daysTo(iso);
+  if (n == null) return { t: "", c: "" };
+  if (n < 0) return { t: n === -1 ? "i går" : `${-n} d sen`, c: "late" };
+  if (n === 0) return { t: "idag", c: "today" };
+  const d = new Date(iso);
+  return { t: `${DAYS[d.getDay()]} ${d.getDate()}/${d.getMonth() + 1}`, c: "" };
+}
+
+// ---- grind ----
+async function load(pw) {
+  const d = await api(`/api/fest40?slug=${encodeURIComponent(slug)}&pw=${encodeURIComponent(pw || "")}`);
+  S.pw = pw || ""; S.ev = d.event; S.log = d.changelog || [];
+  if (!S.cat) S.cat = cats()[0];
+  try { localStorage.setItem("fest40:pw", S.pw); } catch (e) {}
+  $("gate").style.display = "none"; $("app").style.display = "";
+  if (!S.me) askName();
+  draw();
+}
+function askName() {
+  let n = ""; try { n = localStorage.getItem("fest40:me") || ""; } catch (e) {}
+  if (!n) { n = (prompt("Vem är du? (visas vid dina ändringar)") || "").trim().slice(0, 40); try { localStorage.setItem("fest40:me", n); } catch (e) {} }
+  S.me = n || "Någon";
+}
+async function tryOpen() {
+  const v = $("code").value.trim();
+  try { await load(v); }
+  catch (e) {
+    const inv = document.querySelector(".invite");
+    inv.classList.remove("shake"); void inv.offsetWidth; inv.classList.add("shake");
+    $("g-help").textContent = e.message === "rate_limited" ? "För många försök, vänta en stund." : "Hm, den koden stämmer inte. Kolla inbjudan igen.";
+  }
+}
+$("g-go").onclick = tryOpen;
+$("code").addEventListener("keydown", (e) => { if (e.key === "Enter") tryOpen(); });
+
+// ---- skrivningar ----
+async function write(kind, payload, silent) {
+  try {
+    const d = await api(`/api/fest40?slug=${encodeURIComponent(slug)}&kind=${kind}`, {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(Object.assign({ pw: S.pw, name: S.me }, payload)),
+    });
+    S.ev = d.event; S.log = d.changelog || []; draw();
+  } catch (e) { if (!silent) alert("Kunde inte spara: " + e.message); }
+}
+function toggle(id) {
+  const it = plan().find((p) => p.id === id); if (!it) return;
+  const wasDone = it.done;
+  it.done = !it.done; draw();                       // optimistiskt, känns direkt under tummen
+  write("toggle", { id }, true);
+  if (!wasDone) showToast(`”${it.text}” avbockad`, () => write("toggle", { id }, true));
+}
+let toastT = null;
+function showToast(txt, undo) {
+  $("toast-txt").textContent = txt; S.undo = undo;
+  $("toast").style.display = "flex";
+  clearTimeout(toastT); toastT = setTimeout(() => { $("toast").style.display = "none"; }, 5000);
+}
+$("toast-undo").onclick = () => { $("toast").style.display = "none"; if (S.undo) S.undo(); S.undo = null; };
+
+// ---- render ----
+function draw() {
+  const ev = S.ev, p = plan();
+  const done = p.filter((x) => x.done).length;
+  const pct = p.length ? Math.round(done / p.length * 100) : 0;
+  const dl = daysTo(ev.info && ev.info.date);
+  const cd = dl == null ? "" : dl > 1 ? `${dl} dagar kvar` : dl === 1 ? "i morgon" : dl === 0 ? "idag!" : "genomfört";
+  const gj = (ev.guests || []).filter((g) => g.status === "ja").length;
+  const gv = (ev.guests || []).filter((g) => g.status === "väntar").length;
+  const gn = (ev.guests || []).filter((g) => g.status === "nej").length;
+
+  const inCat = p.filter((x) => x.category === S.cat);
+  const tags = [...new Set(inCat.map((x) => x.tag).filter(Boolean))];
+  const shown = S.tag ? inCat.filter((x) => x.tag === S.tag) : inCat;
+  const open = shown.filter((x) => !x.done), closed = shown.filter((x) => x.done);
+
+  const rowHtml = (it) => { const d = dueLabel(it.due); return `<div class="row${it.done ? " done" : ""}" data-id="${esc(it.id)}">
+      <div class="box">✓</div><div class="row-txt"><div class="t">${esc(it.text)}</div>${it.tag ? `<span class="tag">${esc(it.tag)}</span>` : ""}</div>
+      ${d.t ? `<div class="due num ${d.c}">${esc(d.t)}</div>` : ""}</div>`; };
+
+  const last = S.log.slice(-2).reverse().map((e) => {
+    const t = new Date(e.ts), hh = String(t.getHours()).padStart(2, "0"), mm = String(t.getMinutes()).padStart(2, "0");
+    return `${esc(e.by)} ${esc(e.text)} · ${daysTo(t) === 0 ? "idag" : t.toLocaleDateString("sv-SE")} ${hh}:${mm}`;
+  });
+
+  const checklist = `<section class="card sec">
+    <div class="sec-head"><h2>Checklistan</h2><span style="font-size:12px;color:var(--dim)" class="num">${S.tag ? `visar ${shown.length} av ${inCat.length}` : `${done} av ${p.length} klara`}</span></div>
+    <div class="seg">${cats().map((c) => { const l = p.filter((x) => x.category === c && !x.done).length;
+      return `<button data-cat="${esc(c)}" class="${c === S.cat ? "on" : ""}">${esc(c)} · ${l} kvar</button>`; }).join("")}</div>
+    ${tags.length ? `<div class="chips"><button class="chip${S.tag ? "" : " on"}" data-tag="">Alla</button>${tags.map((t) => {
+      const n = inCat.filter((x) => x.tag === t).length;
+      return `<button class="chip${S.tag === t ? " on" : ""}" data-tag="${esc(t)}">${esc(t)} ${S.tag === t ? "✕" : n}</button>`; }).join("")}</div>` : ""}
+    ${open.length ? open.map(rowHtml).join("") : `<div class="callout">${S.tag ? `Allt till ${esc(S.tag)} är hemma ✓` : "Allt på listan är klart ✓"}</div>`}
+    ${closed.length ? `<div class="lbl divider">Klart · ${closed.length}</div>${closed.map(rowHtml).join("")}` : ""}
+    ${S.tag ? `<button class="btn wide" id="clearTag" style="margin-top:12px">Rensa filtret · visa alla ${inCat.length}</button>` : ""}
+    <div class="add"><input id="addTxt" placeholder="Lägg till… (t.ex. Servetter)" /><button class="btn primary" id="addBtn">Lägg till</button></div>
+    ${last.length ? `<div class="act">${last.map(esc).join("<br>")}</div>` : ""}
+  </section>`;
+
+  const program = `<section class="card sec"><div class="sec-head"><h2>Programmet</h2></div>
+    ${(ev.program || []).map((x, i, a) => `<div class="tl"><div class="time num">${esc(x.time)}</div>
+      <div class="dotcol"><div class="dot"></div>${i < a.length - 1 ? '<div class="line"></div>' : ""}</div>
+      <div class="txt">${esc(x.text)}</div></div>`).join("")}</section>`;
+
+  const households = [...new Set((ev.guests || []).map((g) => g.household))];
+  const guests = `<section class="card sec"><div class="sec-head"><h2>Gästerna</h2></div>
+    <div class="stats">
+      <div class="stat"><b class="num" style="color:var(--ok-ink)">${gj}</b><span class="lbl">Ja</span></div>
+      <div class="stat"><b class="num" style="color:var(--warn-ink)">${gv}</b><span class="lbl">Väntar</span></div>
+      <div class="stat"><b class="num" style="color:var(--dim)">${gn}</b><span class="lbl">Nej</span></div>
+    </div>
+    <div style="font-size:12px;color:var(--dim);padding:12px 0 4px" class="num">${(ev.guests || []).length} på listan${ev.info && ev.info.target ? ` · mål ~${ev.info.target}` : ""}</div>
+    <div id="guestList">${households.slice(0, S.allG ? 999 : 2).map((h) => `<div class="lbl" style="padding-top:12px">${esc(h)}</div>${
+      (ev.guests || []).filter((g) => g.household === h).map((g) => `<div class="g-row"><div>${esc(g.name)}${g.barn ? ' <span class="tag">barn</span>' : ""}</div>
+        <button class="spill ${g.status === "ja" ? "ja" : g.status === "väntar" ? "vantar" : ""}" data-guest="${esc(g.id)}">${esc(g.status === "ja" ? "Ja" : g.status === "väntar" ? "Väntar" : "Nej")}</button></div>`).join("")}`).join("")}</div>
+    ${households.length > 2 ? `<button class="btn wide" id="allG" style="margin-top:12px">${S.allG ? "Visa färre" : `Visa alla ${households.length} hushåll`}</button>` : ""}
+  </section>`;
+
+  const bsum = (ev.budget || []).reduce((a, b) => a + (Number(b.est) || 0), 0);
+  const budget = `<details class="card foldable"><summary><span style="font-weight:600">Budget</span>
+      <span style="font-size:12px;color:var(--dim)" class="num">≈ ${bsum.toLocaleString("sv-SE")} kr · ${(ev.budget || []).length} poster ▾</span></summary>
+      ${(ev.budget || []).map((b) => `<div class="b-row"><span>${esc(b.label)}</span><span class="num">${(Number(b.est) || 0).toLocaleString("sv-SE")} kr</span></div>`).join("")}
+    </details>`;
+
+  const docs = (ev.docs || []).map((d) => `<details class="card foldable"><summary><span style="font-weight:600">${esc(d.title)}</span><span style="color:var(--dim)">›</span></summary>
+      <div style="padding:0 16px 16px;font-size:13px;white-space:pre-wrap;color:var(--mid)">${esc(d.body)}</div></details>`).join("");
+
+  const upd = S.log.length ? new Date(S.log[S.log.length - 1].ts) : null;
+  $("app").innerHTML = `
+    <div class="sticky" id="sticky"><span style="font-size:14px;font-weight:650">${esc(ev.info.title)}</span><span style="font-size:12px;font-weight:600;color:var(--champ-ink)">${esc(cd)}</span></div>
+    <section class="card heart"><div class="heart-in">
+      <div class="lbl">${esc(ev.info.dateLabel || ev.info.date || "")}</div>
+      <h1>${esc(ev.info.title)}</h1>
+      ${ev.info.subtitle ? `<div style="font-size:13px;color:var(--dim);margin-top:4px">${esc(ev.info.subtitle)}</div>` : ""}
+      <div class="rule"></div>
+      <div style="font-size:13px">${esc(ev.info.place || "")}</div>
+      ${cd ? `<div style="margin-top:16px"><span class="pill num">${esc(cd)}</span></div>` : ""}
+      <div class="track"><div class="fill" style="width:${pct}%"></div></div>
+      <div style="font-size:12px;color:var(--dim)" class="num">${done} av ${p.length} på listan klara · ${gj} gäster har svarat ja</div>
+      <button class="btn" id="share" style="margin-top:16px;height:38px;font-size:13px">Dela sidan</button>
+    </div></section>
+    <div class="grid"><div class="gcol">${checklist}${budget}</div><div class="gcol">${program}${guests}${docs}</div></div>
+    <div class="foot">Sidan delas av planeringsgänget${upd ? ` · uppdaterad ${daysTo(upd) === 0 ? "idag" : upd.toLocaleDateString("sv-SE")} ${String(upd.getHours()).padStart(2, "0")}:${String(upd.getMinutes()).padStart(2, "0")}` : ""}</div>`;
+  wire();
+}
+
+function wire() {
+  document.querySelectorAll("[data-cat]").forEach((b) => b.onclick = () => { S.cat = b.dataset.cat; S.tag = null; draw(); });
+  document.querySelectorAll("[data-tag]").forEach((b) => b.onclick = () => { S.tag = b.dataset.tag || null; draw(); });
+  document.querySelectorAll(".row").forEach((r) => r.onclick = () => toggle(r.dataset.id));
+  document.querySelectorAll("[data-guest]").forEach((b) => b.onclick = () => {
+    const g = (S.ev.guests || []).find((x) => x.id === b.dataset.guest); if (!g) return;
+    const next = { "ja": "väntar", "väntar": "nej", "nej": "ja" }[g.status] || "ja";
+    g.status = next; draw(); write("guest", { id: b.dataset.guest, status: next }, true);
+  });
+  const cl = $("clearTag"); if (cl) cl.onclick = () => { S.tag = null; draw(); };
+  const ag = $("allG"); if (ag) ag.onclick = () => { S.allG = !S.allG; draw(); };
+  const add = () => { const t = $("addTxt").value.trim(); if (!t) return; $("addTxt").value = ""; write("add", { text: t, category: S.cat, tag: S.tag || "" }); };
+  const ab = $("addBtn"); if (ab) ab.onclick = add;
+  const at = $("addTxt"); if (at) at.addEventListener("keydown", (e) => { if (e.key === "Enter") add(); });
+  const sh = $("share"); if (sh) sh.onclick = async () => {
+    const url = location.href, title = S.ev.info.title;
+    try { if (navigator.share) return await navigator.share({ title, text: `${title} — planeringssidan`, url }); } catch (e) { return; }
+    try { await navigator.clipboard.writeText(url); sh.textContent = "Länk kopierad ✓"; setTimeout(() => sh.textContent = "Dela sidan", 2000); } catch (e) {}
+  };
+  const st = $("sticky"); if (st) window.onscroll = () => { st.style.display = window.scrollY > 220 ? "flex" : "none"; };
+}
+
+// autologin om koden redan är sparad, annars grind (öppet event släpper in direkt)
+(async () => {
+  let saved = ""; try { saved = localStorage.getItem("fest40:pw") || ""; } catch (e) {}
+  try { await load(saved); } catch (e) { $("g-title").textContent = "Kalaset"; $("g-date").textContent = "Privat planeringssida"; }
+})();
+</script>
+</body>
+</html>
