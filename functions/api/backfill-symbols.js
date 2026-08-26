@@ -7,7 +7,11 @@
 // Skälet finns: tidigare forges sparades utan symboler (lazy-gen + symbolPrompts persistades aldrig),
 // så reel-vyn visade A/K/Q/J/10 istället för produktionslika ikoner. Detta fyller i dem i efterhand.
 
-const TOKEN = "forge-bf-9x7k2qm4"; // obfuskerad gate; Pages Functions-källa serveras aldrig till klient
+// Gaten ligger i env (Pages → Settings → Environment variables), inte i koden.
+// Den var tidigare hårdkodad med motiveringen "Pages Functions-källa serveras aldrig till
+// klient". Det stämmer om man bara tänker på webbläsaren — men repot är PUBLIKT på GitHub,
+// så vem som helst kunde läsa token och anropa endpointen. Saknas env-varen nekar vi (fail
+// closed): en trasig konfiguration ska stänga dörren, inte öppna den.
 
 const INDEX_KEY = "forge:index";
 const RES_KEY = (id) => "forge:res:" + id;
@@ -178,7 +182,8 @@ async function backfillOne(env, id, dry) {
 export async function onRequestGet(context) {
   const { request, env } = context;
   const u = new URL(request.url);
-  if (u.searchParams.get("token") !== TOKEN) return Response.json({ error: "unauthorized" }, { status: 401 });
+  const gate = env.BACKFILL_TOKEN || "";
+  if (gate.length < 16 || u.searchParams.get("token") !== gate) return Response.json({ error: "unauthorized" }, { status: 401 });
   if (!kvOk(env)) return Response.json({ error: "kv_not_configured" });
   if (!(env.ANTHROPIC_API_KEY || env.ANTROPHIC_API_KEY)) return Response.json({ error: "no_anthropic_key" });
   if (!env.FLUX_API_KEY) return Response.json({ error: "no_flux_key" });

@@ -28,7 +28,9 @@ async function kvDel(env, key) {
 }
 const clientIp = (request) => request.headers.get("cf-connecting-ip") || (request.headers.get("x-forwarded-for") || "").split(",")[0].trim() || "local";
 
-const ADMIN_TOKEN = "forge-mod-7x4k2qm9";   // token-gate för radering (sätts i klientens localStorage av Carl)
+// Moderator-gaten ligger i env (Pages → Settings → Environment variables), inte i koden —
+// repot är publikt, så en hårdkodad token är ingen gate alls. Klienten skickar värdet ur
+// localStorage['forge-mod']. Saknas env-varen är ingen moderator (fail closed).
 const CAP = 200;          // max kommentarer per scope (äldsta trillar av)
 const RL_MAX = 6;         // max nya kommentarer per IP per fönster
 const RL_WINDOW = 600;    // 10 min
@@ -148,7 +150,8 @@ export async function onRequestDelete(context) {
   const scope = cleanScope(url.searchParams.get("scope"));
   const id = url.searchParams.get("id");
   if (!id) return Response.json({ error: "missing id" }, { status: 400 });
-  const isMod = url.searchParams.get("token") === ADMIN_TOKEN;
+  const modGate = env.ADMIN_TOKEN || "";
+  const isMod = modGate.length >= 16 && url.searchParams.get("token") === modGate;
   const author = (url.searchParams.get("author") || "").slice(0, 64);
   try {
     const list = await readList(env, scope);

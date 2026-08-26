@@ -26,3 +26,8 @@ pnpm-debug.log*
 
 # wrangler cache
 .wrangler/
+
+# Projektinstruktioner för Claude — samlar KV-namespace-id, PostHog-nyckel och andra
+# infra-identifierare på ett ställe. Repot är publikt; den filen är det inte.
+CLAUDE.md
+SESSION-HANDOFF.md
