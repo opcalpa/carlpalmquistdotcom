@@ -268,7 +268,11 @@ function draw() {
   </section>`;
 
   const bsum = (ev.budget || []).reduce((a, b) => a + (Number(b.est) || 0), 0);
-  const budget = `<details class="card foldable"><summary><span style="font-weight:600">Budget</span>
+  // Budget är hopfälld på mobil men ÖPPEN på desktop (facit 1d vs 5). Skälet står i briefen:
+  // Maria möter sidan i mobilen och ska inte mötas av siffror först; på desktop är det
+  // planerarnas vy och tabellen är själva poängen. 900px = samma brytpunkt som CSS-griden.
+  const wide = window.matchMedia("(min-width:900px)").matches;
+  const budget = `<details class="card foldable"${wide ? " open" : ""}><summary><span style="font-weight:600">Budget</span>
       <span style="font-size:12px;color:var(--dim)" class="num">≈ ${bsum.toLocaleString("sv-SE")} kr · ${(ev.budget || []).length} poster ▾</span></summary>
       ${(ev.budget || []).map((b) => `<div class="b-row"><span>${esc(b.label)}</span><span class="num">${(Number(b.est) || 0).toLocaleString("sv-SE")} kr</span></div>`).join("")}
     </details>`;
