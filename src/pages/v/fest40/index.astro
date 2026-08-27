@@ -23,7 +23,11 @@ const slug = "calle40";
 html,body{margin:0;padding:0}
 body{background:var(--bg);color:var(--txt);font:14px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Inter,sans-serif;-webkit-font-smoothing:antialiased}
 .num{font-variant-numeric:tabular-nums}
+/* Korten är flex-barn i en kolumn. Utan min-width:0 kan ett barn med brett innehåll spränga
+   .wrap, och då blir sektionerna olika breda — hjärtat ovanför lika brett som listorna under
+   är hela poängen med att de ligger i samma spalt. */
 .wrap{max-width:1180px;margin:0 auto;padding:16px 16px 22px;display:flex;flex-direction:column;gap:12px}
+.wrap>*{min-width:0}
 .card{background:var(--panel);border:1px solid var(--line);border-radius:var(--r-card)}
 .lbl{font-size:11px;text-transform:uppercase;letter-spacing:.5px;font-weight:600;color:var(--dim)}
 button{font:inherit;cursor:pointer}
@@ -51,14 +55,22 @@ button{font:inherit;cursor:pointer}
 .fill{height:100%;background:rgba(55,193,132,.8);border-radius:999px;transition:width .12s ease}
 
 /* ---- sektioner ---- */
-.sec{padding:16px}
+.sec{padding:16px;min-width:0}
 .sec-head{display:flex;align-items:baseline;justify-content:space-between;gap:12px;margin-bottom:12px}
 .sec-head h2{margin:0;font-size:18px;font-weight:650}
 .seg{display:flex;background:var(--panel2);border:1px solid var(--line);border-radius:var(--r-track);padding:3px;gap:3px;margin-bottom:12px}
 .seg button{flex:1;height:38px;border:1px solid transparent;background:transparent;border-radius:var(--r-field);color:var(--dim);font-size:13px}
 .seg button.on{background:var(--panel);border-color:var(--line);color:var(--txt);font-weight:600;box-shadow:0 1px 2px rgba(0,0,0,.04)}
-.chips{display:flex;gap:6px;overflow-x:auto;padding-bottom:4px;margin-bottom:8px;-webkit-overflow-scrolling:touch}
+/* min-width:0 + max-width:100%: raden SCROLLAR vågrätt, alltså ska den aldrig få rösta om
+   hur bred kolumnen behöver vara. Utan det växte kortet i stället för att chipsen scrollade. */
+.chips{display:flex;gap:6px;overflow-x:auto;padding-bottom:4px;margin-bottom:8px;-webkit-overflow-scrolling:touch;
+  min-width:0;max-width:100%}
 .chips::-webkit-scrollbar{display:none}
+/* Samma grepp som i feeden: en toning i kanten BARA när det finns fler chips åt höger, så
+   den hårda kapningen läses som "det finns mer" i stället för som ett fel. Klassen sätts i
+   wire() efter varje omritning — bredden beror på hur många taggar listan har just nu. */
+.chips.mer{mask-image:linear-gradient(to right,#000 calc(100% - 28px),transparent);
+  -webkit-mask-image:linear-gradient(to right,#000 calc(100% - 28px),transparent)}
 .chip{white-space:nowrap;padding:5px 12px;border-radius:999px;font-size:12px;border:1px solid var(--line);background:var(--panel2);color:var(--mid)}
 .chip.on{background:rgba(108,140,255,.12);border-color:rgba(108,140,255,.45);color:var(--accent-ink);font-weight:600}
 .row{display:flex;align-items:flex-start;gap:12px;padding:12px 0;border-bottom:1px solid var(--line-soft)}
@@ -266,7 +278,8 @@ details.klart[open]>summary::after{content:"▴"}
 .row.done .mini,.s-row.done .mini{opacity:.5}
 
 /* ── Delad vy: checklista och inköpslista bredvid varandra i samma kort ── */
-.split{display:grid;grid-template-columns:1fr 1fr;gap:18px;align-items:start}
+.split{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:18px;align-items:start}
+.split>div{min-width:0}
 .split-h{font-size:12px;font-weight:700;letter-spacing:.4px;text-transform:uppercase;color:var(--dim);
   padding-bottom:8px;margin-bottom:4px;border-bottom:1px solid var(--line)}
 .split .row,.split .s-row{padding:8px 0}
@@ -375,6 +388,11 @@ body.drar .mini.grp{cursor:grabbing}
 .feed{text-align:left}
 .feed .lbl{display:block;margin-bottom:8px}
 .feed-lista{max-height:168px;overflow-y:auto;display:flex;flex-direction:column;gap:8px}
+/* Listan klipper sin sista rad mitt i texten, vilket såg ut som ett fel snarare än som "det
+   finns mer". Toningen sätts BARA när det faktiskt går att scrolla (klassen sätts i wire()),
+   annars hade den sista raden bleknat även i en kort feed. */
+.feed-lista.mer{mask-image:linear-gradient(to bottom,#000 calc(100% - 22px),transparent);
+  -webkit-mask-image:linear-gradient(to bottom,#000 calc(100% - 22px),transparent)}
 .feed-rad{font-size:12px;line-height:1.4;color:var(--mid)}
 .feed-rad b{font-weight:650;color:var(--txt)}
 .feed-rad span{color:var(--faint)}
@@ -412,8 +430,12 @@ body.drar .mini.grp{cursor:grabbing}
 .sticky{position:sticky;top:0;z-index:10;background:rgba(250,247,242,.95);backdrop-filter:blur(8px);border-bottom:1px solid var(--line);display:none;align-items:center;justify-content:space-between;padding:10px 16px;margin:-16px -16px 0}
 @media(min-width:900px){
   .wrap{padding:22px;gap:16px}
-  .grid{display:grid;grid-template-columns:1.45fr 1fr;gap:16px;align-items:start}
-  .gcol{display:flex;flex-direction:column;gap:16px}
+  /* min-width:0 på BÅDA kolumnerna. Utan det får en 1.45fr-kolumn aldrig bli smalare än sitt
+     min-content, och taggraden (tolv chips i inköpsläget) satte då kolumnens bredd — hela
+     rutnätet spillde ut förbi .wrap och blev bredare än hjärtat ovanför. Det såg ut som att
+     hjärtat var för smalt; i själva verket var det raden under som rymde. */
+  .grid{display:grid;grid-template-columns:minmax(0,1.45fr) minmax(0,1fr);gap:16px;align-items:start}
+  .gcol{display:flex;flex-direction:column;gap:16px;min-width:0}
   .seg{display:none}
   .row{padding:9px 0}.box{width:22px;height:22px}.row-txt .t{font-size:14px}
   .b-row{grid-template-columns:1fr auto auto 30px;grid-template-areas:"lbl stat est del";gap:10px}
@@ -1695,6 +1717,15 @@ function wire() {
         aktiv: false, mal: null, rad: h.closest(".row,.s-row") };
     };
   });
+  // Toning bara när det faktiskt finns mer att se — i feeden nedåt, i taggraden åt höger.
+  const feedEl = document.querySelector(".feed-lista");
+  if (feedEl) feedEl.classList.toggle("mer", feedEl.scrollHeight > feedEl.clientHeight + 2);
+  document.querySelectorAll(".chips").forEach((c) => {
+    const uppdatera = () => c.classList.toggle("mer", c.scrollWidth > c.clientWidth + c.scrollLeft + 2);
+    uppdatera();
+    c.onscroll = uppdatera;              // toningen försvinner när man scrollat hela vägen ut
+  });
+
   document.querySelectorAll("[data-plus]").forEach((b) => b.onclick = (e) => {
     e.preventDefault(); e.stopPropagation();
     oppnaPlus(b, b.dataset.plus);
