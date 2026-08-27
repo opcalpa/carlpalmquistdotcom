@@ -248,7 +248,10 @@ details.klart[open]>summary::after{content:"▴"}
 .grp-h{display:flex;align-items:center;gap:8px;padding:14px 0 4px;border-top:1px solid var(--line-soft)}
 .grp-h:first-child{border-top:0;padding-top:4px}
 .grp-h .lbl{cursor:text}
-.grp-h .n{font-size:11px;color:var(--faint)}
+.grp-h .n{font-size:11px;color:var(--faint);margin-right:auto}
+.grp-add{border:1px solid var(--line);background:var(--panel);color:var(--dim);border-radius:6px;
+  width:22px;height:22px;font-size:13px;line-height:1;padding:0;flex:0 0 auto}
+.grp-add:hover{border-color:var(--accent);color:var(--accent-ink)}
 /* Fast bredd i px, inte i procent: i delad vy blev 34 % av en smal kolumn så lite att
    taggarna kapades till "L…" och "D…", vilket är sämre än ingen tagg alls. */
 .chips-col{flex:0 0 auto;display:flex;flex-direction:column;align-items:flex-end;gap:3px;
@@ -418,15 +421,33 @@ const chipsKol = (lista, rad) => `<div class="chips-col">
   <button class="mini grp${rad.group ? "" : " tom"}" data-grp="${lista}:${esc(rad.id)}" title="Rubrik raden hamnar under">${rad.group ? esc(rad.group) : "+"}</button>
   <button class="mini${rad.tag ? "" : " tom"}"${rad.tag ? ` style="${taggStil(rad.tag)}"` : ""} data-ptag="${lista}:${esc(rad.id)}" title="Tagg, t.ex. vilken rätt raden hör till">${rad.tag ? esc(rad.tag) : "+"}</button>
 </div>`;
-// Gruppera på rubrik. Rader utan rubrik ligger först och utan överskrift — de flesta listor
-// har ingen indelning alls, och då ska den inte synas.
+// Gruppera på rubrik.
+// ORDNINGEN: grupper med deadline sorteras KRONOLOGISKT, inte alfabetiskt. Med rubriker som
+// "Torsdag kväll / Fredag / Lördag" la bokstavsordningen den mest brådskande dagen sist, vilket
+// är precis fel för en plan man betar av. Grupper utan datum faller tillbaka på bokstavsordning.
+// Rader UTAN rubrik hamnar sist under "Övrigt" — annars låg 30 osorterade varor före hela den
+// indelning man just gjort. Har ingen rad någon rubrik visas ingen överskrift alls.
 function grupperaRader(rader) {
   const utan = rader.filter((x) => !x.group);
-  const namn = [...new Set(rader.map((x) => x.group).filter(Boolean))].sort((a, b) => a.localeCompare(b, "sv"));
-  return [["", utan], ...namn.map((g) => [g, rader.filter((x) => x.group === g)])].filter(([, r]) => r.length);
+  const namn = [...new Set(rader.map((x) => x.group).filter(Boolean))];
+  const tidigast = (g) => rader.filter((x) => x.group === g && x.due).map((x) => x.due).sort()[0] || "";
+  namn.sort((a, b) => {
+    const da = tidigast(a), db = tidigast(b);
+    if (da && db && da !== db) return da < db ? -1 : 1;
+    if (da && !db) return -1;
+    if (!da && db) return 1;
+    return a.localeCompare(b, "sv");
+  });
+  const ut = namn.map((g) => [g, rader.filter((x) => x.group === g)]);
+  if (utan.length) ut.push([namn.length ? "Övrigt" : "", utan]);
+  return ut.filter(([, r]) => r.length);
 }
+// "+" i rubriken lägger en rad DIREKT i gruppen. Utan den blir en indelad lista tungrodd:
+// man lägger till raden längst ner och får sedan klicka upp den i rätt grupp, varje gång.
 const grpRubrik = (lista, namn, n) => namn
-  ? `<div class="grp-h"><span class="lbl" data-grpname="${lista}:${esc(namn)}" title="Dubbelklicka för att döpa om rubriken">${esc(namn)}</span><span class="n num">${n}</span></div>`
+  ? `<div class="grp-h"><span class="lbl" data-grpname="${lista}:${esc(namn)}" title="Dubbelklicka för att döpa om rubriken">${esc(namn)}</span>
+      <span class="n num">${n}</span>
+      <button class="grp-add" data-grpadd="${lista}:${esc(namn)}" title="Lägg till en rad under ${esc(namn)}" aria-label="Lägg till här">+</button></div>`
   : "";
 
 // ---- datum ----
@@ -1096,6 +1117,17 @@ function wire() {
       const [lista, namn] = delaNyckel(el.dataset.grpname);
       editable(el, namn, (t) => write("grpname", { lista, from: namn, to: t }), { allowEmpty: true });
     };
+  });
+  // "+" i en rubrik: lägg raden direkt i gruppen. Prompt i stället för ett inline-fält —
+  // ett fält per rubrik hade fyllt listan med tomma rutor man aldrig använder.
+  document.querySelectorAll("[data-grpadd]").forEach((b) => b.onclick = async (e) => {
+    e.stopPropagation();
+    const [lista, grupp] = delaNyckel(b.dataset.grpadd);
+    const v = prompt(lista === "shop" ? `Ny vara under ”${grupp}”:` : `Ny rad under ”${grupp}”:`, "");
+    if (v === null) return;
+    const t = v.trim(); if (!t) return;
+    if (lista === "shop") await write("shopadd", { item: t, group: grupp });
+    else await write("add", { text: t, category: S.cat, group: grupp, tag: S.tag || "" });
   });
   // 🛒 på en checklistrad: DUPLICERAR den till inköpslistan. "Köp is" kan behöva stå kvar som
   // en punkt att bocka av även när varan ligger på listan.
