@@ -444,7 +444,23 @@ async function poll() {
   } catch (e) {}                       // nätstrul ska aldrig döda sidan man står och jobbar i
 }
 setInterval(poll, POLL_MS);
-document.addEventListener("visibilitychange", () => { if (!document.hidden) poll(); });
+// En flik som legat öppen länge kör fortfarande den KOD den laddades med. Pollningen håller
+// datan färsk, inte sidan — så mamma kunde sitta kvar i en gammal version utan att veta om det.
+// HTML:en är max-age=0 och CSS/JS har fingeravtryck i filnamnet, så en omladdning räcker; det
+// behövs ingen hard refresh och ingen extra trafik. Vi laddar bara om när fliken varit dold
+// länge och ingen står mitt i en redigering. Tidstämpeln i sessionStorage, inte i en variabel,
+// så beteendet går att testa.
+const OMLADD_EFTER = 30 * 60 * 1000;
+const DOLD_KEY = "fest40:dold";
+document.addEventListener("visibilitychange", () => {
+  try {
+    if (document.hidden) { sessionStorage.setItem(DOLD_KEY, String(Date.now())); return; }
+    const sedan = Number(sessionStorage.getItem(DOLD_KEY) || 0);
+    sessionStorage.removeItem(DOLD_KEY);
+    if (sedan && Date.now() - sedan > OMLADD_EFTER && !upptagen()) return location.reload();
+  } catch (e) {}
+  poll();
+});
 function toggle(id) {
   const it = plan().find((p) => p.id === id); if (!it) return;
   const wasDone = it.done;
