@@ -78,6 +78,10 @@ const projects = [
     image: '/images/Screenshots/renofine.png',
     imageAlt: 'Renofine app',
     imagePosition: 'left',
+    // Live mirror of the landing-page demo (scripted, zero backend). Improves with the product.
+    embed: 'https://renofine.com/embed/renaida?lng=en',
+    embedTitle: 'Renaida — Renofine\'s AI colleague, live scripted demo',
+    embedNote: 'Live from renofine.com — tap a prompt and watch Renaida build a project.',
     href: 'https://renofine.com',
     cta: 'renofine.com',
   },
@@ -97,6 +101,9 @@ const projects = [
       'React and TypeScript for the screens. Supabase for the database, login, and file storage. Cloudflare to host it. Claude and OpenAI for the AI helpers.',
     image: '/images/Screenshots/produlog-hero.png',
     imageAlt: 'Produlog landing page',
+    embed: 'https://getprodulog.com/embed/kaisa?lang=en',
+    embedTitle: 'Kaisa — Produlog\'s catalog assistant, live scripted demo',
+    embedNote: 'Live from getprodulog.com — pick a prompt and watch Kaisa build a catalog page.',
     href: 'https://getprodulog.com',
     cta: 'getprodulog.com',
   },
@@ -106,8 +113,9 @@ const projects = [
     role: 'Live demo · Product · Engineering',
     intro:
       'Throw it a vibe and it forges a whole slot-game concept in one pass — name, art direction, a themed reel, a generated soundtrack, sound effects and launch hooks. One prompt, a full creative pipeline you can play with in the browser.',
-    image: '/images/Screenshots/concept-forge.png',
-    imageAlt: 'Concept Forge demo',
+    image: '/images/Screenshots/concept-forge.webp',
+    imageAlt: 'Concept Forge — a forged slot concept with reel, key art and theme names',
+    imagePosition: 'top',
     href: '/forge',
     cta: 'Try the live demo',
   },
@@ -125,8 +133,8 @@ const projects = [
       'Customer success at scale. Onboarded partners from cold inbound to multi-million-user integrations. The companies who scaled with us did because the partnership worked, not because the API alone did.',
       "The bridge between commercial and engineering. Translated partner pain into engineering work, and engineering trade-offs back into language commercial leaders understood. That's where most API platforms fail.",
     ],
-    image: '/images/Screenshots/api.avif',
-    imageAlt: 'API integration illustration',
+    image: '/images/Screenshots/api.webp',
+    imageAlt: 'API reference page — endpoint, query parameters, example request and response schema',
     href: null,
     cta: '2022 — 2025',
   },
@@ -267,21 +275,43 @@ const links = [
           {
             projects.map((project) => (
               <article>
-                <div class="relative mb-10 aspect-[16/10] w-full overflow-hidden rounded-2xl bg-gradient-to-br from-stone-100 to-stone-200 ring-1 ring-stone-200">
-                  <img
-                    src={project.image}
-                    alt={project.imageAlt}
-                    class={`absolute inset-0 h-full w-full object-cover ${
-                      project.imagePosition === 'left'
-                        ? 'object-left'
-                        : project.imagePosition === 'right'
-                          ? 'object-right'
-                          : project.imagePosition === 'top'
-                            ? 'object-top'
-                            : ''
-                    }`}
-                  />
-                </div>
+                {project.embed ? (
+                  <div class="mb-10">
+                    {/* Live embed of the product's own demo component. Tall enough on phones for
+                        the chat + chips; 16/10 like the screenshots on desktop. sandbox keeps the
+                        frame contained but lets its CTAs open the product site in a new tab. */}
+                    <div class="relative h-[640px] w-full overflow-hidden rounded-2xl bg-stone-100 ring-1 ring-stone-200 md:aspect-[16/10] md:h-auto">
+                      <iframe
+                        src={project.embed}
+                        title={project.embedTitle}
+                        loading="lazy"
+                        referrerpolicy="strict-origin-when-cross-origin"
+                        sandbox="allow-scripts allow-same-origin allow-popups allow-popups-to-escape-sandbox allow-forms"
+                        class="absolute inset-0 h-full w-full border-0"
+                      />
+                    </div>
+                    <p class="mt-3 text-xs text-stone-500">
+                      <span class="mr-2 inline-block h-1.5 w-1.5 rounded-full bg-emerald-500 align-middle" aria-hidden="true" />
+                      {project.embedNote}
+                    </p>
+                  </div>
+                ) : (
+                  <div class="relative mb-10 aspect-[16/10] w-full overflow-hidden rounded-2xl bg-gradient-to-br from-stone-100 to-stone-200 ring-1 ring-stone-200">
+                    <img
+                      src={project.image}
+                      alt={project.imageAlt}
+                      class={`absolute inset-0 h-full w-full object-cover ${
+                        project.imagePosition === 'left'
+                          ? 'object-left'
+                          : project.imagePosition === 'right'
+                            ? 'object-right'
+                            : project.imagePosition === 'top'
+                              ? 'object-top'
+                              : ''
+                      }`}
+                    />
+                  </div>
+                )}
 
                 <div class="grid grid-cols-12 gap-4 md:gap-8">
                   <div class="col-span-12 md:col-span-3">
