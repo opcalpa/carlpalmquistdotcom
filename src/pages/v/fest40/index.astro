@@ -207,8 +207,12 @@ details.klart>summary::after{content:"▾";font-size:11px;color:var(--faint)}
 details.klart[open]>summary::after{content:"▴"}
 
 /* ── Checklistan ⇄ Inköpslistan ── */
-.flip{display:flex;gap:4px;flex:1;min-width:0}
-.flip button{padding:0;border:0;background:none;font-size:18px;font-weight:650;color:var(--faint);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.flip{display:flex;gap:5px;flex:1;min-width:0;align-items:baseline}
+/* 16 px, inte 18: två rubriker + separator + räknare fick inte plats på 390 px och kapades
+   till "Checklis… / Inköpslista…". Räknaren till höger göms i stället på små skärmar —
+   siffrorna finns ändå i flippen och i kategoriväxlaren. */
+.flip button{padding:0;border:0;background:none;font-size:16px;font-weight:650;color:var(--faint);white-space:nowrap}
+@media(max-width:439px){ .sec-head .flip ~ .num{display:none} }
 .flip button.on{color:var(--txt)}
 .flip button:not(.on):hover{color:var(--mid)}
 .flip .sep{color:var(--line-strong);font-weight:400;align-self:center}
@@ -229,6 +233,23 @@ details.klart[open]>summary::after{content:"▴"}
 .s-add input:focus{outline:none;border-color:var(--accent)}
 .s-add .s-in-item{flex:1 1 auto}
 .s-add .s-in-qty{flex:0 0 82px;text-align:center}
+
+/* ── Portioner och "har hemma" ── */
+.cook-row{display:flex;align-items:center;gap:6px;flex-wrap:wrap;font-size:13px;color:var(--mid);
+  padding:0 0 12px;border-bottom:1px solid var(--line-soft);margin-bottom:4px}
+.cook-row .ed{font-weight:650;color:var(--txt);min-width:22px;display:inline-block}
+.r-serv{font-size:12px;color:var(--dim);margin:8px 0 6px}
+.r-serv .ed{font-weight:600;color:var(--mid)}
+.r-serv .fak{color:var(--champ-ink);font-weight:600}
+.ing{display:block;width:100%;text-align:left;font:inherit;font-size:13px;line-height:1.45;
+  padding:7px 10px;margin:2px 0;border:1px solid transparent;border-radius:var(--r-field);
+  background:var(--panel2);color:var(--txt)}
+.ing.har{background:rgba(55,193,132,.13);border-color:rgba(55,193,132,.35);color:var(--ok-ink)}
+.ing.har::before{content:"✓ ";font-weight:700}
+.ing:hover{border-color:var(--line-strong)}
+.ing.har:hover{border-color:rgba(55,193,132,.6)}
+.ing-head{display:flex;align-items:baseline;justify-content:space-between;gap:8px}
+.ing-head .r-btn{width:30px;height:26px}
 
 /* ── Rätten öppnad: ingredienser och utförande ── */
 .r-row{cursor:pointer}
@@ -291,6 +312,39 @@ const plan = () => Array.isArray(S.ev.plan) ? S.ev.plan : [];
 const shop = () => Array.isArray(S.ev.shop) ? S.ev.shop : [];
 // Sektionerna är öppna som default; S.open minns bara avvikelserna.
 const oppen = (k) => S.open[k] !== false;
+// Portionsskalning. SPEGEL av samma funktioner i functions/api/fest40.js — ändras den ena
+// måste den andra ändras, annars visar sidan en mängd och inköpslistan får en annan.
+function talAv(t) {
+  let m = t.match(/^(\d+(?:[.,]\d+)?)\s+(\d+)\/(\d+)/);
+  if (m) return { v: parseFloat(m[1].replace(",", ".")) + Number(m[2]) / Number(m[3]), len: m[0].length };
+  m = t.match(/^(\d+)\/(\d+)/);
+  if (m) return { v: Number(m[1]) / Number(m[2]), len: m[0].length };
+  m = t.match(/^(\d+(?:[.,]\d+)?)/);
+  return m ? { v: parseFloat(m[1].replace(",", ".")), len: m[0].length } : null;
+}
+function rundaMangd(v) {
+  if (!isFinite(v) || v <= 0) return "0";
+  if (v >= 100) return String(Math.round(v / 10) * 10);
+  if (v >= 10) return String(Math.round(v));
+  if (v >= 1) return String(Math.round(v * 2) / 2).replace(".", ",");
+  return String(Math.round(v * 10) / 10).replace(".", ",");
+}
+function skalaQty(qty, f) {
+  const t = String(qty || "").trim();
+  if (!t || !f || Math.abs(f - 1) < 0.001) return t;
+  const n = talAv(t);
+  if (!n) return t;
+  let rest = t.slice(n.len);
+  const r = rest.match(/^\s*[-–]\s*(\d+(?:[.,]\d+)?)/);
+  if (r) rest = " – " + rundaMangd(parseFloat(r[1].replace(",", ".")) * f) + rest.slice(r[0].length);
+  return (rundaMangd(n.v * f) + rest).replace(/\s+/g, " ").trim();
+}
+const skalfaktor = (r) => {
+  const lagar = Number(S.ev.info && S.ev.info.cook) || 0;
+  const bas = Number(r && r.servings) || 0;
+  return (lagar > 0 && bas > 0) ? lagar / bas : 1;
+};
+const haveKey = (rad) => String(rad || "").toLowerCase().replace(/\s+/g, " ").trim();
 
 // ---- datum ----
 const DAYS = ["sön","mån","tis","ons","tors","fre","lör"];
@@ -624,15 +678,29 @@ function draw() {
       <button class="r-btn" data-rimg="${esc(r.id)}" title="Sätt bild (bild-URL eller sidlänk)">🖼</button>
       <button class="r-btn" data-rdel="${esc(r.id)}" title="Ta bort rätten">✕</button>
     </div>
-  </div>${upp ? `<div class="r-detalj">
-      <span class="lbl">Ingredienser <span style="text-transform:none;font-weight:400">— en per rad, klicka för att skriva</span></span>
-      <div class="r-txt ed${(r.ingredients || []).length ? "" : " tom"}" data-ring="${esc(r.id)}">${(r.ingredients || []).length ? esc((r.ingredients || []).join("\n")) : "Inga ingredienser än — klicka och skriv en per rad."}</div>
+  </div>${upp ? (() => {
+    const f = skalfaktor(r);
+    const har = new Set((r.have || []).map(haveKey));
+    const lagar = Number(ev.info && ev.info.cook) || 0;
+    return `<div class="r-detalj">
+      <div class="r-serv">Receptet är skrivet för <span class="ed" data-rserv="${esc(r.id)}">${r.servings || "?"}</span> personer${
+        lagar && r.servings ? ` · vi lagar för ${lagar} → mängderna <span class="fak">×${String(Math.round(f * 10) / 10).replace(".", ",")}</span>`
+        : lagar ? ` · fyll i det så räknas mängderna om till ${lagar} personer` : ""}</div>
+      <div class="ing-head"><span class="lbl">Ingredienser <span style="text-transform:none;font-weight:400">— klicka det ni har hemma</span></span>
+        <button class="r-btn" data-ringbtn="${esc(r.id)}" title="Skriv om hela listan">✎</button></div>
+      ${(r.ingredients || []).length
+        ? (r.ingredients || []).map((rad) => `<button class="ing${har.has(haveKey(rad)) ? " har" : ""}" data-rhave="${esc(r.id)}" data-line="${esc(rad)}">${esc(skalaQty(rad, f))}</button>`).join("")
+        : `<div class="r-txt tom">Inga ingredienser än — tryck ✎ och skriv en per rad.</div>`}
+      <div class="r-txt ed" data-ring="${esc(r.id)}" hidden></div>
       <span class="lbl">Utförande</span>
       <div class="r-txt ed${(r.steps || []).length ? "" : " tom"}" data-rstep="${esc(r.id)}">${(r.steps || []).length ? esc((r.steps || []).map((t, i) => `${i + 1}. ${t}`).join("\n")) : "Inget utförande än — klicka och skriv, eller läs på källan."}</div>
-      <button class="btn wide" data-rshop="${esc(r.id)}">🛒 Lägg varorna i inköpslistan</button>
-    </div>` : ""}`;
+      <button class="btn wide" data-rshop="${esc(r.id)}">🛒 Lägg varorna i inköpslistan${har.size ? ` — hoppar över ${har.size} ni har` : ""}</button>
+    </div>`; })() : ""}`;
   };
-  const menyKropp = `${recs.length ? `
+  const lagarFor = Number(ev.info && ev.info.cook) || 0;
+  const menyKropp = `<div class="cook-row">Vi lagar för <span class="ed num" data-cook="1" title="Klicka för att ändra">${lagarFor || "?"}</span> personer${
+      lagarFor ? "" : ` <span style="color:var(--faint)">— fyll i så räknas recepten om</span>`}</div>
+    ${recs.length ? `
       ${rUt.length ? `<div class="r-grp">Blir mat</div>${rUt.map(rRow).join("")}` : ""}
       ${rFo.length ? `<div class="r-grp">Förslag</div>${rFo.map(rRow).join("")}` : ""}`
       : `<div style="font-size:13px;color:var(--dim)">Inga rätter än — föreslå den första.</div>`}
@@ -834,8 +902,30 @@ function wire() {
     if (e.target.closest("a")) return;                        // källänken ska öppna källan
     const k = "r:" + el.dataset.ropen; S.open[k] = !S.open[k]; draw();
   });
+  // ✎ öppnar hela ingredienslistan som text. Fältet ligger dolt tills man trycker — annars
+  // hade varje rad varit både en "har hemma"-knapp och ett textfält, och de två krockar.
   bindEdit("data-ring", (id) => ((byId("recipes", id) || {}).ingredients || []).join("\n"),
     (id, v) => write("ringred", { id, text: v }), { multi: true, allowEmpty: true });
+  document.querySelectorAll("[data-ringbtn]").forEach((b) => b.onclick = () => {
+    const el = document.querySelector(`[data-ring="${b.dataset.ringbtn}"]`); if (!el) return;
+    el.hidden = false; el.click();
+  });
+  // Grönt = har hemma. Hoppas över när listan hämtas in, och plockas bort ur listan direkt
+  // om varan redan låg där.
+  document.querySelectorAll("[data-rhave]").forEach((b) => b.onclick = () => {
+    const r = byId("recipes", b.dataset.rhave); if (!r) return;
+    r.have = Array.isArray(r.have) ? r.have : [];
+    const k = haveKey(b.dataset.line);
+    const i = r.have.findIndex((x) => haveKey(x) === k);
+    if (i === -1) r.have.push(b.dataset.line); else r.have.splice(i, 1);
+    draw();                                                   // optimistiskt
+    write("rhave", { id: b.dataset.rhave, line: b.dataset.line }, true);
+  });
+  // Antalet personer: ett tal för hela festen, och receptets eget.
+  bindEdit("data-cook", () => String(Number(S.ev.info && S.ev.info.cook) || ""),
+    (_id, v) => write("cook", { n: v.replace(/[^0-9]/g, "") || 0 }), { allowEmpty: true });
+  bindEdit("data-rserv", (id) => { const r = byId("recipes", id); return r ? String(r.servings || "") : null; },
+    (id, v) => write("rserv", { id, n: v.replace(/[^0-9]/g, "") || 0 }), { allowEmpty: true });
   // Stegen visas numrerade men lagras utan nummer — annars hade en omskrivning gett "1. 1. …".
   bindEdit("data-rstep", (id) => ((byId("recipes", id) || {}).steps || []).join("\n"),
     (id, v) => write("rsteps", { id, text: v }), { multi: true, allowEmpty: true });

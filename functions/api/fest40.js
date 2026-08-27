@@ -21,6 +21,9 @@
 //   POST .. kind=ringred|rsteps                recept  {id,text}              -> ingredienser/utförande
 //   POST .. kind=shopadd|shopedit|shoptoggle|shopdel   inköpslistan (artikel+antal+tagg)
 //   POST .. kind=shopfrom                      {id?}                          -> hämta in utvalda rätter
+//   POST .. kind=cook                          {n}                            -> vi lagar för N personer
+//   POST .. kind=rserv                         {id,n}                         -> receptets egna portioner
+//   POST .. kind=rhave                         {id,line}                      -> "har hemma" på/av
 // FULL PARITET (2026-08-27): allt Calle kan redigera i pappen går att redigera här. Sidan är
 // ett delat planeringsverktyg som ersätter ett Google Sheet, inte en avbockningsvy.
 //
@@ -64,21 +67,70 @@ const ITEM_MAX = 70, QTY_MAX = 20, SHOP_CAP = 400, STEPS_MAX = 6000;
 // Enheter vi vågar plocka ut som "antal". Allt annat blir en del av varunamnet — hellre en
 // klumpig rad man kan redigera än en varusträng som tappat halva sitt namn.
 const ENHETER = ["g","kg","hg","dl","cl","ml","l","msk","tsk","krm","st","pkt","paket","burk","burkar","påse","påsar","klyfta","klyftor","knippe","näve","port","skiva","skivor"];
+// ── Portionsskalning ──────────────────────────────────────────────────────────
+// Receptet är skrivet för N personer, festen lagar för M. Mängderna räknas om med M/N, och
+// det är de OMRÄKNADE mängderna som hamnar på inköpslistan — annars handlar man för fyra
+// när man ska laga till fyrtio. Samma funktion finns i sidan för visningen; ändras den här
+// måste den ändras där (skalaQty i index.astro).
+function talAv(s) {
+  const t = String(s).trim();
+  let m = t.match(/^(\d+(?:[.,]\d+)?)\s+(\d+)\/(\d+)/);              // "1 1/2"
+  if (m) return { v: parseFloat(m[1].replace(",", ".")) + Number(m[2]) / Number(m[3]), len: m[0].length };
+  m = t.match(/^(\d+)\/(\d+)/);                                        // "1/2"
+  if (m) return { v: Number(m[1]) / Number(m[2]), len: m[0].length };
+  m = t.match(/^(\d+(?:[.,]\d+)?)/);
+  return m ? { v: parseFloat(m[1].replace(",", ".")), len: m[0].length } : null;
+}
+// Runda till något man kan handla efter. Ingen vill läsa "483,33 g nötfärs" i en butik.
+function rundaMangd(v) {
+  if (!isFinite(v) || v <= 0) return "0";
+  if (v >= 100) return String(Math.round(v / 10) * 10);
+  if (v >= 10) return String(Math.round(v));
+  if (v >= 1) return String(Math.round(v * 2) / 2).replace(".", ",");
+  return String(Math.round(v * 10) / 10).replace(".", ",");
+}
+function skalaQty(qty, f) {
+  const t = String(qty || "").trim();
+  if (!t || !f || Math.abs(f - 1) < 0.001) return t;
+  const n = talAv(t);
+  if (!n) return t;
+  let rest = t.slice(n.len);
+  // Intervall ("2–3 dl") måste skalas i BÅDA ändar, annars blir "2–3" till "20–3".
+  const r = rest.match(/^\s*[-–]\s*(\d+(?:[.,]\d+)?)/);
+  if (r) rest = " – " + rundaMangd(parseFloat(r[1].replace(",", ".")) * f) + rest.slice(r[0].length);
+  return (rundaMangd(n.v * f) + rest).replace(/\s+/g, " ").trim();
+}
+// Hur mycket receptet ska skalas. Saknas receptets egna portioner går det inte att räkna om —
+// då lämnas mängderna som de står, hellre än att gissa.
+const skalfaktor = (ev, r) => {
+  const lagar = Number(ev.info && ev.info.cook) || 0;
+  const bas = Number(r && r.servings) || 0;
+  return (lagar > 0 && bas > 0) ? lagar / bas : 1;
+};
+// Nyckeln för "har hemma". Rå radtext, normaliserad — redigeras raden tappar den bara sin
+// markering, vilket är ofarligt (varan kommer tillbaka på listan och kan markeras igen).
+const haveKey = (rad) => String(rad || "").toLowerCase().replace(/\s+/g, " ").trim();
+
 // "400 g kantareller" → { qty: "400 g", item: "kantareller" }. Medvetet enkel: familjen kan
 // redigera båda fälten efteråt, så en missad delning kostar ett klick, inte en felaktig lista.
 function delaIngrediens(rad) {
   const t = sanitize(rad, ITEM_MAX + QTY_MAX).replace(/^[-*•]\s*/, "");
-  const m = t.match(/^(\d+(?:[.,]\d+)?(?:\s*[-–]\s*\d+(?:[.,]\d+)?)?)\s*(.*)$/);
-  if (!m) return { qty: "", item: t.slice(0, ITEM_MAX) };
-  const rest = (m[2] || "").trim();
+  // talAv förstår även "1 1/2" och "1/2". Med en ren siffer-regex här blev "1 1/2 dl vatten"
+  // till mängden "1" och varan "1/2 dl vatten" — och skalningen räknade sedan på fel tal.
+  const n = talAv(t);
+  if (!n) return { qty: "", item: t.slice(0, ITEM_MAX) };
+  let tal = t.slice(0, n.len);
+  let rest = t.slice(n.len).trim();
+  const rng = rest.match(/^[-–]\s*(\d+(?:[.,]\d+)?)\s*/);     // "2-3 dl"
+  if (rng) { tal = tal + "-" + rng[1]; rest = rest.slice(rng[0].length).trim(); }
   if (!rest) return { qty: "", item: t.slice(0, ITEM_MAX) };   // bara en siffra: låt den vara varan
   // Enheten räknas bara som enhet om något följer efter den. "3 ägg" har ingen enhet — ägg ÄR
   // varan — medan "2 dl grädde" har det. Utan det villkoret blev "3 ägg" en rad utan antal.
   const um = rest.match(/^([A-Za-zÅÄÖåäö]{1,7})\.?\s+(.+)$/);
   if (um && ENHETER.includes(um[1].toLowerCase())) {
-    return { qty: (m[1] + " " + um[1].toLowerCase()).slice(0, QTY_MAX), item: um[2].trim().slice(0, ITEM_MAX) };
+    return { qty: (tal + " " + um[1].toLowerCase()).slice(0, QTY_MAX), item: um[2].trim().slice(0, ITEM_MAX) };
   }
-  return { qty: m[1].slice(0, QTY_MAX), item: rest.slice(0, ITEM_MAX) };
+  return { qty: tal.slice(0, QTY_MAX), item: rest.slice(0, ITEM_MAX) };
 }
 const BUDGET_STATUS = ["ej_bokad", "offert", "bokad", "betald"];   // samma kedja som pappen
 const GUEST_STATUS = ["ja", "nej", "väntar", "ej_bjuden"];
@@ -506,6 +558,38 @@ export async function onRequestPost(context) {
     const [gone] = ev.shop.splice(i, 1);
     tomb("shop", gone.id);
     note(`tog bort ”${gone.item}” från inköpslistan`);
+  } else if (kind === "cook") {
+    // Ett tal för hela festen: hur många vi lagar för. Receptsektionen styr det, och det slår
+    // igenom på varje rätts mängder och därmed på inköpslistan.
+    const n = Math.max(0, Math.min(999, Math.round(Number(body.n) || 0)));
+    ev.info = ev.info || {};
+    ev.info.cook = n;
+    note(n ? `satte antalet till ${n} personer` : `tog bort antalet personer`);
+  } else if (kind === "rserv") {
+    const r = ev.recipes.find((x) => x.id === body.id);
+    if (!r) return Response.json({ error: "not_found_recipe" }, { status: 404 });
+    r.servings = Math.max(0, Math.min(999, Math.round(Number(body.n) || 0)));
+    note(`satte ”${r.title}” till ${r.servings || "okänt antal"} portioner`);
+  } else if (kind === "rhave") {
+    // Grönt = vi har det hemma. Markerade rader hoppas över när listan hämtas in.
+    const r = ev.recipes.find((x) => x.id === body.id);
+    if (!r) return Response.json({ error: "not_found_recipe" }, { status: 404 });
+    const rad = sanitize(body.line, ING_MAX);
+    if (!rad) return Response.json({ error: "empty" }, { status: 400 });
+    r.have = Array.isArray(r.have) ? r.have : [];
+    const k = haveKey(rad);
+    const i = r.have.findIndex((x) => haveKey(x) === k);
+    if (i === -1) {
+      r.have.push(rad);
+      // Ligger varan redan på inköpslistan från den här rätten ska den bort direkt — annars
+      // hade "vi har det hemma" bara gällt nästa hämtning, vilket känns trasigt.
+      const { item } = delaIngrediens(rad);
+      if (item) ev.shop = ev.shop.filter((x) => !(x.fromRecipe === r.id && x.item.toLowerCase() === item.toLowerCase()));
+      note(`markerade ”${rad}” som hemma (${r.title})`);
+    } else {
+      r.have.splice(i, 1);
+      note(`avmarkerade ”${rad}” (${r.title})`);
+    }
   } else if (kind === "shopfrom") {
     // Hämta in ingredienserna från de UTVALDA rätterna (eller en enskild, om id skickas med).
     // Varje rad taggas med rättens namn, så man ser i butiken vad den hör till.
@@ -514,11 +598,15 @@ export async function onRequestPost(context) {
     // vid nästa hämtning — det är en hämtning, inte en synk.
     const valda = ev.recipes.filter((r) => body.id ? r.id === body.id : r.status !== "forslag");
     if (!valda.length) return Response.json({ error: "inga_utvalda" }, { status: 400 });
-    let nya = 0;
+    let nya = 0, hoppade = 0;
     for (const r of valda) {
       const tag = sanitize(r.title, TAG_MAX);
+      const f = skalfaktor(ev, r);
+      const have = new Set((r.have || []).map(haveKey));
       for (const rad of (r.ingredients || [])) {
-        const { qty, item } = delaIngrediens(rad);
+        if (have.has(haveKey(rad))) { hoppade++; continue; }   // grönmarkerad = har hemma
+        const { qty: rå, item } = delaIngrediens(rad);
+        const qty = skalaQty(rå, f);
         if (!item) continue;
         const finns = ev.shop.some((x) => x.tag === tag && x.item.toLowerCase() === item.toLowerCase());
         if (finns) continue;
@@ -527,8 +615,8 @@ export async function onRequestPost(context) {
         nya++;
       }
     }
-    note(nya ? `hämtade in ${nya} varor från ${valda.length} rätt${valda.length > 1 ? "er" : ""}`
-             : `hämtade in inköpslistan (inget nytt)`);
+    note(nya ? `hämtade in ${nya} varor från ${valda.length} rätt${valda.length > 1 ? "er" : ""}${hoppade ? ` (${hoppade} fanns hemma)` : ""}`
+             : `hämtade in inköpslistan (inget nytt${hoppade ? `, ${hoppade} fanns hemma` : ""})`);
   } else {
     return Response.json({ error: "bad_kind" }, { status: 400 });
   }
@@ -567,6 +655,14 @@ export async function onRequestPut(context) {
   if (!ev.pw && prev && prev.pw) ev.pw = prev.pw;
   // Ändringsloggen och rate-limit-hinkarna hör till SIDAN, inte till pappens strukturspegling.
   // Sedan de flyttade in i eventet hade varje Publicera annars raderat hela historiken.
+  // Antalet personer sätts på SIDAN. Skickar pappen ett info-block utan cook hade speglingen
+  // annars nollställt det och alla mängder hoppat tillbaka.
+  // Pappen skickar alltid ett tal, ofta 0 innan den hunnit hämta hem sidans värde. 0 betyder
+  // "jag vet inte", inte "sätt till noll" — utan detta hoppade alla mängder tillbaka till
+  // oskalade så fort Calle tryckte Publicera. Nollställning sker på sidan, inte via speglingen.
+  if (prev && prev.info && Number(prev.info.cook) > 0 && !(Number(ev.info && ev.info.cook) > 0)) {
+    ev.info = Object.assign({}, ev.info, { cook: Number(prev.info.cook) });
+  }
   if (prev && Array.isArray(prev.log)) ev.log = prev.log;
   if (prev && prev.rl) ev.rl = prev.rl;
   // PUT ERSÄTTER HELA EVENTET. Rader som familjen skapat HÄR och pappen ännu inte hämtat hem
