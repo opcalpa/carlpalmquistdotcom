@@ -106,6 +106,16 @@ details.foldable summary::-webkit-details-marker{display:none}
   background:transparent;color:var(--faint);font-size:13px;padding:0;display:flex;align-items:center;justify-content:center}
 .row-btn:hover{border-color:var(--line);color:var(--txt)}
 .row.done .row-btn{opacity:.5}
+/* Dubbelklick på texten öppnar redigering. touch-action:manipulation stänger av
+   dubbeltryck-zoom, annars zoomar mobilen i stället för att ge oss dblclick-eventet. */
+.row{touch-action:manipulation}
+.t[data-t]{cursor:text}
+.t-edit{width:100%;box-sizing:border-box;font:inherit;font-size:inherit;color:var(--txt);
+  background:var(--panel);border:1px solid var(--accent);border-radius:var(--r-field);padding:4px 8px}
+/* Pennan behålls BARA på pekskärm. På desktop är dubbelklick hela poängen; på mobilen är
+   dubbeltryck för opålitligt för att vara den enda vägen in i redigering. */
+.touch-only{display:none}
+@media (pointer:coarse){.touch-only{display:flex}}
 
 /* 🍳 Menyn. Gästerna kan föreslå rätter och välja ut dem; utvalda är det som lagas.
    Förslagen tonas ned men göms aldrig — brainstormen ska synas. */
@@ -253,9 +263,9 @@ function draw() {
   const open = shown.filter((x) => !x.done), closed = shown.filter((x) => x.done);
 
   const rowHtml = (it) => { const d = dueLabel(it.due); return `<div class="row${it.done ? " done" : ""}" data-id="${esc(it.id)}">
-      <div class="box">✓</div><div class="row-txt"><div class="t">${esc(it.text)}</div>${it.tag ? `<span class="tag">${esc(it.tag)}</span>` : ""}</div>
+      <div class="box">✓</div><div class="row-txt"><div class="t" data-t="${esc(it.id)}" title="Dubbelklicka för att ändra texten">${esc(it.text)}</div>${it.tag ? `<span class="tag">${esc(it.tag)}</span>` : ""}</div>
       ${d.t ? `<div class="due num ${d.c}">${esc(d.t)}</div>` : ""}
-      <button class="row-btn" data-edit="${esc(it.id)}" title="Ändra texten" aria-label="Ändra">✎</button>
+      <button class="row-btn touch-only" data-edit="${esc(it.id)}" title="Ändra texten" aria-label="Ändra">✎</button>
       <button class="row-btn" data-del="${esc(it.id)}" title="Ta bort raden" aria-label="Ta bort">✕</button></div>`; };
 
   const last = S.log.slice(-2).reverse().map((e) => {
@@ -366,10 +376,45 @@ function draw() {
 function wire() {
   document.querySelectorAll("[data-cat]").forEach((b) => b.onclick = () => { S.cat = b.dataset.cat; S.tag = null; draw(); });
   document.querySelectorAll("[data-tag]").forEach((b) => b.onclick = () => { S.tag = b.dataset.tag || null; draw(); });
-  document.querySelectorAll(".row").forEach((r) => r.onclick = (e) => {
-    if (e.target.closest("button")) return;      // ✎/✕ ska inte bocka av raden
-    toggle(r.dataset.id);
+  // Ett klick bockar av, två öppnar redigering. Toggeln fördröjs därför en kort stund och
+  // ställs in om ett dubbelklick hinner först — annars hade varje redigering först skickat
+  // två avbockningar till servern och fått raden att blinka.
+  let clickT = null;
+  document.querySelectorAll(".row").forEach((r) => {
+    r.onclick = (e) => {
+      if (e.target.closest("button") || e.target.closest(".t-edit")) return;
+      const id = r.dataset.id;
+      // Bara klick PÅ TEXTEN kan följas av ett dubbelklick, så bara där behövs fördröjningen.
+      // Klickar man på kryssrutan eller resten av raden ska avbockningen kännas direkt.
+      if (e.target.closest(".t[data-t]")) { clearTimeout(clickT); clickT = setTimeout(() => toggle(id), 260); }
+      else toggle(id);
+    };
   });
+  // Dubbelklick PÅ SJÄLVA TEXTEN öppnar redigering — inte på raden i övrigt, och ingen
+  // penn-ikon att leta efter. Enter eller klick utanför sparar, Esc ångrar.
+  document.querySelectorAll(".t[data-t]").forEach((el) => {
+    el.ondblclick = (e) => { e.stopPropagation(); clearTimeout(clickT); startEdit(el, el.dataset.t); };
+  });
+  // Inline-redigering på plats: Enter/klick utanför sparar, Esc ångrar.
+  function startEdit(el, id) {
+    if (el.querySelector("input")) return;
+    const it = plan().find((p) => p.id === id); if (!it) return;
+    const inp = document.createElement("input");
+    inp.type = "text"; inp.value = it.text; inp.className = "t-edit";
+    el.textContent = ""; el.appendChild(inp);
+    inp.focus(); inp.select();
+    let closed = false;
+    const finish = async (save) => {
+      if (closed) return; closed = true;
+      const t = inp.value.trim();
+      if (save && t && t !== it.text) await write("edit", { id, text: t });
+      else draw();
+    };
+    inp.onclick = (e) => e.stopPropagation();
+    inp.ondblclick = (e) => e.stopPropagation();
+    inp.onkeydown = (e) => { if (e.key === "Enter") finish(true); if (e.key === "Escape") finish(false); };
+    inp.onblur = () => finish(true);
+  }
   document.querySelectorAll("[data-edit]").forEach((b) => b.onclick = async () => {
     const it = plan().find((p) => p.id === b.dataset.edit); if (!it) return;
     const v = prompt("Ändra texten:", it.text);
