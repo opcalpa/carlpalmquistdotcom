@@ -284,13 +284,27 @@ details.klart[open]>summary::after{content:"▴"}
 .r-serv{font-size:12px;color:var(--dim);margin:8px 0 6px}
 .r-serv .ed{font-weight:600;color:var(--mid)}
 .r-serv .fak{color:var(--champ-ink);font-weight:600}
-.ing{display:block;width:100%;text-align:left;font:inherit;font-size:13px;line-height:1.45;
-  padding:7px 10px;margin:2px 0;border:1px solid transparent;border-radius:var(--r-field);
-  background:var(--panel2);color:var(--txt)}
-.ing.har{background:rgba(55,193,132,.13);border-color:rgba(55,193,132,.35);color:var(--ok-ink)}
-.ing.har::before{content:"✓ ";font-weight:700}
-.ing:hover{border-color:var(--line-strong)}
-.ing.har:hover{border-color:rgba(55,193,132,.6)}
+/* En ingrediensrad: statusknappen till vänster är den ENDA ytan som byter status. Texten
+   öppnar redigering. Förut var hela raden en knapp, och då bytte man status varje gång man
+   ville läsa eller rätta en rad. */
+.ing-rad{display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid var(--line-soft)}
+.ing-rad:last-of-type{border-bottom:0}
+.ing-st{flex:0 0 auto;width:74px;padding:3px 0;border-radius:6px;font-size:10px;font-weight:700;
+  letter-spacing:.3px;text-transform:uppercase;border:1px solid var(--line);background:var(--panel2);
+  color:var(--dim);text-align:center;white-space:nowrap}
+.ing-st.klar{background:rgba(55,193,132,.15);border-color:rgba(55,193,132,.4);color:var(--ok-ink)}
+.ing-txt{flex:1;min-width:0;font-size:13px;line-height:1.45;cursor:text}
+.ing-rad.klar .ing-txt{color:var(--dim)}
+.ing-rad .row-btn{width:26px;height:26px}
+.ing-add{display:flex;gap:6px;margin-top:10px}
+.ing-add input{height:40px;padding:0 10px;border:1px solid var(--line);border-radius:var(--r-field);
+  background:var(--panel);color:var(--txt);font-size:13px;min-width:0}
+.ing-add input:focus{outline:none;border-color:var(--accent)}
+.ing-add .ing-in-qty{flex:0 0 76px;text-align:center}
+.ing-add .ing-in-item{flex:1 1 auto}
+.ing-sum{font-size:11px;color:var(--dim)}
+.ing-sum b{color:var(--ok-ink);font-weight:700}
+.ing-sum i{font-style:normal;color:var(--warn-ink);font-weight:700}
 .ing-head{display:flex;align-items:baseline;justify-content:space-between;gap:8px}
 .ing-head .r-btn{width:30px;height:26px}
 
@@ -338,7 +352,7 @@ details.klart[open]>summary::after{content:"▴"}
 <script define:vars={{ slug }}>
 // S.open håller <details>-lägena. Varje skrivning ritar om HELA appen, så utan detta
 // slog Budget och underlagen igen mitt i att någon skrev i dem.
-const S = { pw: "", ev: null, log: [], cat: null, tag: null, me: "", undo: null, open: {}, sedd: 0, vy: "check" };
+const S = { pw: "", ev: null, log: [], cat: null, tag: null, stag: null, me: "", undo: null, open: {}, sedd: 0, vy: "check" };
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s == null ? "" : s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 const api = async (path, opts) => { const r = await fetch(path, opts); const d = await r.json().catch(() => ({})); if (!r.ok) throw new Error(d.error || r.status); return d; };
@@ -685,10 +699,18 @@ function draw() {
   const vy = S.vy === "shop" ? "shop" : "check";
   // De två listorna byggs var för sig, så de kan visas antingen en i taget (flip) eller
   // sida vid sida i samma kort. Båda grupperas på rubrik; rader utan rubrik ligger först.
+  // Taggfiltret på inköpslistan — samma mönster som checklistan, så man kan plocka allt till
+  // en rätt i taget i butiken.
+  const shTags = [...new Set(sh.map((x) => x.tag).filter(Boolean))].sort((a, b) => a.localeCompare(b, "sv"));
+  if (S.stag && !shTags.includes(S.stag)) S.stag = null;
+  const shOpenF = S.stag ? shOpen.filter((x) => x.tag === S.stag) : shOpen;
   const shopKropp = `
-    ${shOpen.length ? grupperaRader(shOpen).map(([g, rader]) =>
+    ${shTags.length ? `<div class="chips"><button class="chip${S.stag ? "" : " on"}" data-stag="">Alla</button>${shTags.map((t) => {
+      const n = shOpen.filter((x) => x.tag === t).length;
+      return `<button class="chip${S.stag === t ? " on" : ""}" data-stag="${esc(t)}" style="${S.stag === t ? "" : taggStil(t)}">${esc(t)} ${S.stag === t ? "✕" : n}</button>`; }).join("")}</div>` : ""}
+    ${shOpenF.length ? grupperaRader(shOpenF).map(([g, rader]) =>
         grpRubrik("shop", g, rader.length) + rader.map(shRow).join("")).join("")
-      : `<div class="callout">${sh.length ? "Allt är inhandlat ✓" : "Listan är tom — hämta in de utvalda rätterna eller skriv en vara."}</div>`}
+      : `<div class="callout">${S.stag ? `Allt till ${esc(S.stag)} är hemma ✓` : sh.length ? "Allt är inhandlat ✓" : "Listan är tom — hämta in de utvalda rätterna eller skriv en vara."}</div>`}
     ${klart(shDone.map(shRow), "shklart")}
     <div class="s-add"><input class="s-in-item" id="sItem" placeholder="Vara, t.ex. Isbitar" />
       <input class="s-in-qty num" id="sQty" placeholder="Antal" /><button class="btn primary" id="sAdd">+</button></div>
@@ -823,7 +845,12 @@ function draw() {
     <div class="r-main" data-ropen="${esc(r.id)}" title="Klicka för ingredienser och utförande">
       <div class="r-title" data-rt="${esc(r.id)}" title="Dubbelklicka för att döpa om">${esc(r.title)}</div>
       <div class="r-sub">${[
-        (r.ingredients && r.ingredients.length) ? `${r.ingredients.length} ingredienser` : "inga ingredienser än",
+        (r.ingredients && r.ingredients.length)
+          ? (() => { const h = new Set((r.have || []).map(haveKey));
+              const klar = (r.ingredients || []).filter((x) => h.has(haveKey(x))).length;
+              const kvar = r.ingredients.length - klar;
+              return `<span class="ing-sum"><b>${klar} klar</b> · <i>${kvar} saknas</i></span>`; })()
+          : "inga ingredienser än",
         (r.steps && r.steps.length) ? `${r.steps.length} steg` : "",
         r.by ? `av ${esc(r.by)}` : "",
         r.source ? `<a href="${esc(r.source)}" target="_blank" rel="noopener">källa ↗</a>` : "",
@@ -846,8 +873,18 @@ function draw() {
       <div class="ing-head"><span class="lbl">Ingredienser <span style="text-transform:none;font-weight:400">— klicka det ni har hemma</span></span>
         <button class="r-btn" data-ringbtn="${esc(r.id)}" title="Skriv om hela listan">✎</button></div>
       ${(r.ingredients || []).length
-        ? (r.ingredients || []).map((rad) => `<button class="ing${har.has(haveKey(rad)) ? " har" : ""}" data-rhave="${esc(r.id)}" data-line="${esc(rad)}">${esc(skalaQty(rad, f))}</button>`).join("")
-        : `<div class="r-txt tom">Inga ingredienser än — tryck ✎ och skriv en per rad.</div>`}
+        ? (r.ingredients || []).map((rad) => { const klar = har.has(haveKey(rad)); return `<div class="ing-rad${klar ? " klar" : ""}">
+            <button class="ing-st${klar ? " klar" : ""}" data-rhave="${esc(r.id)}" data-line="${esc(rad)}" title="${klar ? "Klar — klicka för att lägga tillbaka på inköpslistan" : "Ska handlas — klicka när den är klar"}">${klar ? "Klar" : "Inköpslista"}</button>
+            <div class="ing-txt ed" data-ringone="${esc(r.id)}|${esc(rad)}" title="Klicka för att ändra">${esc(skalaQty(rad, f))}</div>
+            <button class="row-btn" data-ringdel="${esc(r.id)}|${esc(rad)}" title="Ta bort ingrediensen" aria-label="Ta bort">✕</button>
+          </div>`; }).join("")
+        : `<div class="r-txt tom">Inga ingredienser än — skriv in dem en i taget nedan.</div>`}
+      <div class="ing-add">
+        <input class="ing-in-qty" data-ingq="${esc(r.id)}" placeholder="3 dl" />
+        <input class="ing-in-item" data-ingi="${esc(r.id)}" placeholder="Vara, t.ex. grädde" />
+        <button class="btn primary" data-ingadd="${esc(r.id)}" style="height:40px;padding:0 14px">+</button>
+      </div>
+      <div style="font-size:11px;color:var(--faint);margin-top:6px">Skriv mängden som receptet står i — appen räknar om den mot antalet personer.</div>
       <div class="r-txt ed" data-ring="${esc(r.id)}" hidden></div>
       <span class="lbl">Utförande</span>
       <div class="r-txt ed${(r.steps || []).length ? "" : " tom"}" data-rstep="${esc(r.id)}">${(r.steps || []).length ? esc((r.steps || []).map((t, i) => `${i + 1}. ${t}`).join("\n")) : "Inget utförande än — klicka och skriv, eller läs på källan."}</div>
@@ -890,6 +927,7 @@ function draw() {
 function wire() {
   document.querySelectorAll("[data-cat]").forEach((b) => b.onclick = () => { S.cat = b.dataset.cat; S.tag = null; draw(); });
   document.querySelectorAll("[data-tag]").forEach((b) => b.onclick = () => { S.tag = b.dataset.tag || null; draw(); });
+  document.querySelectorAll("[data-stag]").forEach((b) => b.onclick = () => { S.stag = b.dataset.stag || null; draw(); });
   // Bocken bockar av, texten döps om. Förut bockade ett klick på TEXTEN av efter en fördröjning
   // — vilket gjorde att man inte kunde läsa en lång rad utan att råka bocka av den, och att
   // varje omdöpning kändes som en kamp. Nu har de två helt skilda ytor.
@@ -1074,6 +1112,26 @@ function wire() {
     (id, v) => write("rport", { id, n: v.replace(/[^0-9]/g, "") || 0 }), { allowEmpty: true });
   // ✎ öppnar hela ingredienslistan som text. Fältet ligger dolt tills man trycker — annars
   // hade varje rad varit både en "har hemma"-knapp och ett textfält, och de två krockar.
+  // EN ingrediens i taget. Redigeraren öppnar med receptets EGNA mängd, inte den omräknade
+  // som visas — annars hade en rättad stavning sparat "7,5 dl" som receptets grundmängd och
+  // skalat den en gång till nästa gång.
+  const delaIng = (v) => { const i = String(v).indexOf("|"); return [v.slice(0, i), v.slice(i + 1)]; };
+  bindEdit("data-ringone", (k) => delaIng(k)[1],
+    (k, v) => { const [id, from] = delaIng(k); return write("ringedit", { id, from, qty: "", item: v }); });
+  document.querySelectorAll("[data-ringdel]").forEach((b) => b.onclick = async (e) => {
+    e.stopPropagation();
+    const [id, line] = delaIng(b.dataset.ringdel);
+    if (!confirm(`Ta bort ”${line}” ur receptet?`)) return;
+    await write("ringdel", { id, line });
+  });
+  document.querySelectorAll("[data-ingadd]").forEach((b) => {
+    const id = b.dataset.ingadd;
+    const q = document.querySelector(`[data-ingq="${id}"]`), it = document.querySelector(`[data-ingi="${id}"]`);
+    const lagg = () => { const vara = (it.value || "").trim(); if (!vara) return;
+      write("ringadd", { id, qty: (q.value || "").trim(), item: vara }); };
+    b.onclick = lagg;
+    [q, it].forEach((el) => el && (el.onkeydown = (e) => { if (e.key === "Enter") lagg(); }));
+  });
   bindEdit("data-ring", (id) => ((byId("recipes", id) || {}).ingredients || []).join("\n"),
     (id, v) => write("ringred", { id, text: v }), { multi: true, allowEmpty: true });
   document.querySelectorAll("[data-ringbtn]").forEach((b) => b.onclick = () => {

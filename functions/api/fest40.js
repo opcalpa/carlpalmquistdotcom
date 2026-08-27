@@ -29,7 +29,10 @@
 //   POST .. kind=grpname                       {lista,from,to}                -> döp om en rubrik
 //   POST .. kind=ptag                          {lista,id,tag}                 -> sätt tagg på en rad
 //   POST .. kind=toshop                        {id}                           -> checklistrad -> inköpslistan
-//   POST .. kind=rhave                         {id,line}                      -> "har hemma" på/av
+//   POST .. kind=rhave                         {id,line}                      -> klar / till inköpslistan
+//   POST .. kind=ringadd                       {id,qty,item}                  -> lägg till EN ingrediens
+//   POST .. kind=ringedit                      {id,from,qty,item}             -> ändra EN ingrediens
+//   POST .. kind=ringdel                       {id,line}                      -> ta bort EN ingrediens
 // FULL PARITET (2026-08-27): allt Calle kan redigera i pappen går att redigera här. Sidan är
 // ett delat planeringsverktyg som ersätter ett Google Sheet, inte en avbockningsvy.
 //
@@ -615,6 +618,42 @@ export async function onRequestPost(context) {
     // annars pekar de på en rätt som inte finns och hämtningen skulle lägga in allt igen.
     for (const x of ev.shop) if (x.fromRecipe === r.id || x.tag === forut) x.tag = sanitize(t, TAG_MAX);
     note(`döpte om ”${forut}” till ”${t}”`);
+  } else if (kind === "ringadd" || kind === "ringedit" || kind === "ringdel") {
+    // En ingrediens i taget. Antal och vara är SKILDA fält — "3 flaskor ketchup" i ett enda
+    // fritextfält tvingade delaren att gissa var mängden slutade. De sätts ihop till en rad
+    // vid lagring, så resten av kedjan (skalning, inköpslista) är oförändrad.
+    const r = ev.recipes.find((x) => x.id === body.id);
+    if (!r) return Response.json({ error: "not_found_recipe" }, { status: 404 });
+    r.ingredients = Array.isArray(r.ingredients) ? r.ingredients : [];
+    r.have = Array.isArray(r.have) ? r.have : [];
+    if (kind === "ringdel") {
+      const k = haveKey(body.line);
+      const i = r.ingredients.findIndex((x) => haveKey(x) === k);
+      if (i === -1) return Response.json({ error: "not_found_item" }, { status: 404 });
+      const [bort] = r.ingredients.splice(i, 1);
+      r.have = r.have.filter((x) => haveKey(x) !== k);
+      note(`tog bort ”${bort}” ur ${r.title}`);
+    } else {
+      const vara = sanitize(body.item, ING_MAX);
+      if (!vara) return Response.json({ error: "empty" }, { status: 400 });
+      const rad = (sanitize(body.qty, QTY_MAX) + " " + vara).trim().slice(0, ING_MAX);
+      if (kind === "ringadd") {
+        if (r.ingredients.length >= ING_LINES) return Response.json({ error: "full" }, { status: 400 });
+        r.ingredients.push(rad);
+        note(`la till ”${rad}” i ${r.title}`);
+      } else {
+        const k = haveKey(body.from);
+        const i = r.ingredients.findIndex((x) => haveKey(x) === k);
+        if (i === -1) return Response.json({ error: "not_found_item" }, { status: 404 });
+        const forut = r.ingredients[i];
+        r.ingredients[i] = rad;
+        // Markeringen "klar" är nycklad på radtexten — flytta den med, annars tappar en
+        // rättad stavning sin status.
+        r.have = r.have.map((x) => (haveKey(x) === k ? rad : x));
+        note(`ändrade ”${forut}” till ”${rad}” i ${r.title}`);
+      }
+    }
+    r.edited = true;
   } else if (kind === "rhave") {
     // Grönt = vi har det hemma. Markerade rader hoppas över när listan hämtas in.
     const r = ev.recipes.find((x) => x.id === body.id);
