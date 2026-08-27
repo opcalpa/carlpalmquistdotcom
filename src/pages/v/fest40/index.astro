@@ -363,6 +363,8 @@ function draw() {
       <button class="row-btn touch-only" data-edit="${esc(it.id)}" title="Ändra texten" aria-label="Ändra">✎</button>
       <button class="row-btn" data-del="${esc(it.id)}" title="Ta bort raden" aria-label="Ta bort">✕</button></div>`; };
 
+  // OBS: raderna escapas HÄR och får inte escapas igen där de sätts in — en andra esc()
+  // gjorde "Michael & Julia" till "Michael &amp; Julia" i klartext på sidan.
   const last = S.log.slice(-2).reverse().map((e) => {
     const t = new Date(e.ts), hh = String(t.getHours()).padStart(2, "0"), mm = String(t.getMinutes()).padStart(2, "0");
     return `${esc(e.by)} ${esc(e.text)} · ${daysTo(t) === 0 ? "idag" : t.toLocaleDateString("sv-SE")} ${hh}:${mm}`;
@@ -379,7 +381,7 @@ function draw() {
     ${closed.length ? `<div class="lbl divider">Klart · ${closed.length}</div>${closed.map(rowHtml).join("")}` : ""}
     ${S.tag ? `<button class="btn wide" id="clearTag" style="margin-top:12px">Rensa filtret · visa alla ${inCat.length}</button>` : ""}
     <div class="add"><input id="addTxt" placeholder="Lägg till… (t.ex. Servetter)" /><button class="btn primary" id="addBtn">Lägg till</button></div>
-    ${last.length ? `<div class="act">${last.map(esc).join("<br>")}</div>` : ""}
+    ${last.length ? `<div class="act">${last.join("<br>")}</div>` : ""}
   </section>`;
 
   // Programmet sorteras på tid, precis som i pappen — annars hamnar en punkt någon lägger till
