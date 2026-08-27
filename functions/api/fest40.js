@@ -89,16 +89,25 @@ function rundaMangd(v) {
   if (v >= 1) return String(Math.round(v * 2) / 2).replace(".", ",");
   return String(Math.round(v * 10) / 10).replace(".", ",");
 }
+// EN mängd, alltid som decimaltal. Beslut 2026-08-27 (Calle): inga bråk och inga intervall i
+// resultatet. "1/2 dl" blir "0,5 dl", och "2–3 dl" blir "3 dl" — i en butik är ett spann inget
+// man kan handla efter, och för en fest är det övre talet det som räcker. Vi normaliserar även
+// när ingen skalning sker (faktor 1), så texten aldrig visar ett format man inte kan räkna med.
+// Receptets EGEN text rörs inte — den ligger kvar rå bakom ✎.
 function skalaQty(qty, f) {
   const t = String(qty || "").trim();
-  if (!t || !f || Math.abs(f - 1) < 0.001) return t;
+  if (!t) return t;
   const n = talAv(t);
   if (!n) return t;
+  let v = n.v;
   let rest = t.slice(n.len);
-  // Intervall ("2–3 dl") måste skalas i BÅDA ändar, annars blir "2–3" till "20–3".
-  const r = rest.match(/^\s*[-–]\s*(\d+(?:[.,]\d+)?)/);
-  if (r) rest = " – " + rundaMangd(parseFloat(r[1].replace(",", ".")) * f) + rest.slice(r[0].length);
-  return (rundaMangd(n.v * f) + rest).replace(/\s+/g, " ").trim();
+  const r = rest.match(/^\s*[-–]\s*(\d+(?:[.,]\d+)?(?:\s+\d+\/\d+)?|\s*\d+\/\d+)/);
+  if (r) {                                   // intervall: ta det övre talet och släng spannet
+    const ovre = talAv(r[1].trim());
+    if (ovre) v = ovre.v;
+    rest = rest.slice(r[0].length);
+  }
+  return (rundaMangd(v * (f || 1)) + rest).replace(/\s+/g, " ").trim();
 }
 // Hur mycket receptet ska skalas. Saknas receptets egna portioner går det inte att räkna om —
 // då lämnas mängderna som de står, hellre än att gissa.
