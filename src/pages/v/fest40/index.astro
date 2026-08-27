@@ -261,6 +261,8 @@ details.klart[open]>summary::after{content:"▴"}
   white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .mini.tom{border-style:dashed;border-color:var(--line-strong);color:var(--faint);background:transparent;font-weight:400;padding:2px 6px}
 .mini.grp{text-transform:uppercase;letter-spacing:.4px;font-size:9.5px}
+.mini.grp.satt{font-size:11px;letter-spacing:0;padding:1px 6px;color:var(--faint);background:transparent;border-color:var(--line)}
+.mini.grp.satt:hover{color:var(--accent-ink);border-color:var(--accent)}
 .row.done .mini,.s-row.done .mini{opacity:.5}
 
 /* ── Delad vy: checklista och inköpslista bredvid varandra i samma kort ── */
@@ -268,9 +270,7 @@ details.klart[open]>summary::after{content:"▴"}
 .split-h{font-size:12px;font-weight:700;letter-spacing:.4px;text-transform:uppercase;color:var(--dim);
   padding-bottom:8px;margin-bottom:4px;border-bottom:1px solid var(--line)}
 .split .row,.split .s-row{padding:8px 0}
-/* I delad vy står rubriken redan som överskrift ovanför raden. Att upprepa den i varje rad
-   åt bara upp bredden. Rader UTAN rubrik behåller sin "+" så de går att sortera in. */
-.split .mini.grp:not(.tom){display:none}
+
 .split .row-txt .t,.split .s-item{font-size:13.5px}
 .splitbtn{border:1px solid var(--line);background:var(--panel);color:var(--dim);border-radius:var(--r-field);
   width:30px;height:26px;font-size:12px;padding:0;flex:0 0 auto;margin-left:6px}
@@ -417,8 +417,11 @@ function taggStil(t) {
 }
 // Rubrik + tagg som två små rutor till höger om titeln. Tomma rutor är streckade "+" så det
 // syns att de går att fylla — dolda affordances hittar ingen på en telefon.
+// Har raden en rubrik står den redan som överskrift ovanför — att upprepa den i varje rad var
+// ren dubblering (59 inköpsrader som alla sa "HUSHÅLL", "KYL & MEJERI"…). Då räcker ett litet
+// ⇅ som ändå går att klicka för att flytta raden. Rader UTAN rubrik behåller sitt "+".
 const chipsKol = (lista, rad) => `<div class="chips-col">
-  <button class="mini grp${rad.group ? "" : " tom"}" data-grp="${lista}:${esc(rad.id)}" title="Rubrik raden hamnar under">${rad.group ? esc(rad.group) : "+"}</button>
+  <button class="mini grp${rad.group ? " satt" : " tom"}" data-grp="${lista}:${esc(rad.id)}" title="${rad.group ? `Under ”${esc(rad.group)}” — klicka för att flytta` : "Lägg raden under en rubrik"}">${rad.group ? "⇅" : "+"}</button>
   <button class="mini${rad.tag ? "" : " tom"}"${rad.tag ? ` style="${taggStil(rad.tag)}"` : ""} data-ptag="${lista}:${esc(rad.id)}" title="Tagg, t.ex. vilken rätt raden hör till">${rad.tag ? esc(rad.tag) : "+"}</button>
 </div>`;
 // Gruppera på rubrik.
