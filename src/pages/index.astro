@@ -324,7 +324,7 @@ const links = [
                         portfolio never downloads two React apps for visitors who only scroll by.
                         Same composition in poster and frame, so the swap is seamless. */}
                     <div
-                      class="embed-facade group relative h-[640px] w-full cursor-pointer overflow-hidden rounded-2xl bg-stone-100 ring-1 ring-stone-200 md:aspect-[16/10] md:h-auto"
+                      class="embed-facade group relative h-[640px] w-full cursor-pointer overflow-hidden rounded-2xl bg-stone-100 ring-1 ring-stone-200 sm:aspect-[16/10] sm:h-auto"
                       data-embed={project.embed}
                       data-title={project.embedTitle}
                       data-name={project.name}
@@ -333,7 +333,7 @@ const links = [
                       aria-label={project.embedCta}
                     >
                       <picture>
-                        <source media="(max-width: 767px)" srcset={project.embedPosterMobile} />
+                        <source media="(max-width: 639px)" srcset={project.embedPosterMobile} />
                         <img
                           src={project.embedPoster}
                           alt={project.embedTitle}
@@ -588,7 +588,10 @@ const links = [
       // exactly that size and is SCALED like the image — so logo, headline and chat sit
       // pixel-for-pixel where the poster had them, at any card width. Without this the page
       // would reflow at the card's real width and everything would jump on activation.
-      var desktop = window.matchMedia("(min-width: 768px)").matches;
+      // 640 = Tailwind sm, same breakpoint as the poster <source> and the card's aspect box, so
+      // poster and frame always pick the same layout. (768 left 640–767 px scaling the phone
+      // layout UP 1.8× — huge and blurry on small tablets.)
+      var desktop = window.matchMedia("(min-width: 640px)").matches;
       var W = desktop ? 1152 : 390, H = desktop ? 720 : 640;
       f.style.width = W + "px"; f.style.height = H + "px"; f.style.transformOrigin = "0 0";
       function fit() {
