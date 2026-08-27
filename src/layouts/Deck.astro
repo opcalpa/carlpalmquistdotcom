@@ -1,0 +1,53 @@
+---
+// Deck.astro — minimal, olistad presentations-shell (Slides/Canva-alternativ).
+// Helt skild från huvudsajtens Layout: ingen nav, ingen PostHog, noindex. Skalar en fast
+// A4-liggande slide-canvas (1123x794) till att fylla viewporten i "presentation mode",
+// och skriver ut rent till PDF (@media print återställer skalningen till A4).
+interface Props { title?: string }
+const { title = 'Presentation — Carl Palmquist' } = Astro.props;
+---
+<!doctype html>
+<html lang="sv">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex,nofollow" />
+    <link rel="icon" type="image/x-icon" href="/images/Favikon/favicon.ico" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet" />
+    <title>{title}</title>
+    <style is:global>
+      *{box-sizing:border-box;margin:0;padding:0}
+      html,body{height:100%}
+      body{ background:#15171c; font-family:"IBM Plex Sans",system-ui,sans-serif; display:flex; align-items:center; justify-content:center; overflow:hidden; -webkit-print-color-adjust:exact; print-color-adjust:exact; }
+      .deck-stage{ transform-origin:center center; }
+      .slide{ width:1123px; height:794px; background:#f6f4ef; overflow:hidden; display:flex; flex-direction:column; position:relative; box-shadow:0 30px 90px rgba(0,0,0,.55); }
+      @media print{
+        @page{ size:A4 landscape; margin:0; }
+        html,body{ background:#fff; display:block; height:auto; overflow:visible; }
+        .deck-stage{ transform:none !important; }
+        .slide{ box-shadow:none; width:297mm; height:210mm; }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="deck-stage" id="deckStage">
+      <slot />
+    </div>
+    <script is:inline>
+      (function () {
+        var stage = document.getElementById('deckStage');
+        function fit() {
+          if (!stage) return;
+          var k = Math.min(window.innerWidth / 1123, window.innerHeight / 794) * 0.94;
+          stage.style.transform = 'scale(' + k + ')';
+        }
+        addEventListener('resize', fit);
+        addEventListener('load', fit);
+        if (document.fonts && document.fonts.ready) document.fonts.ready.then(fit);
+        fit();
+      })();
+    </script>
+  </body>
+</html>

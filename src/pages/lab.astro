@@ -1,0 +1,327 @@
+---
+import Layout from '../layouts/Layout.astro';
+---
+
+<Layout
+  title="AI Eval Lab — evals, costs, control plane"
+  description="An internal AI control plane: author evals as real, inspectable artifacts, run them against generated concepts, track scores and token cost. A learning sandbox by Carl Palmquist.">
+  <main class="min-h-screen bg-[#0a0a0f] text-stone-100 font-sans">
+    <div class="mx-auto max-w-6xl px-5 py-10 sm:py-12">
+
+      <header class="mb-7">
+        <p class="mb-3 inline-flex items-center gap-2 rounded-full border border-[#2a2a3a] bg-[#15151f] px-3 py-1 text-xs font-medium tracking-wide text-stone-400">
+          <span class="h-1.5 w-1.5 rounded-full bg-[#c6ff00]"></span>
+          AI Eval Lab · evals + token-cost + control plane
+        </p>
+        <h1 class="text-4xl font-black uppercase leading-[0.95] tracking-tight sm:text-5xl">
+          Eval <span class="text-[#c6ff00]">Lab</span>
+        </h1>
+        <p class="mt-3 max-w-2xl text-base leading-relaxed text-stone-400">
+          Författa evals som <span class="font-semibold text-[#ff2d78]">riktiga, inspekterbara artefakter</span> — fyll i formuläret,
+          se den hopbyggda domar-prompten, kör mot ett koncept, spåra poäng och token-kostnad. Motorn är handbyggd; UI:t är ställningen ovanpå.
+        </p>
+      </header>
+
+      <div class="mb-6 flex flex-wrap items-center gap-3">
+        <button id="new-eval" class="rounded-xl bg-[#c6ff00] px-5 py-2.5 text-sm font-black uppercase tracking-tight text-black transition hover:bg-[#d6ff3a]">➕ Ny eval</button>
+        <button id="refresh" class="rounded-full border border-[#2a2a3a] px-4 py-2 text-sm text-stone-300 hover:border-[#c6ff00]">↻ Uppdatera</button>
+        <span id="kv-note" class="text-xs text-stone-600"></span>
+      </div>
+
+      <!-- Registret -->
+      <section class="mb-8">
+        <h2 class="mb-2 text-xs font-bold uppercase tracking-widest text-stone-500">Registret</h2>
+        <div id="registry" class="grid grid-cols-1 gap-2 sm:grid-cols-2"></div>
+      </section>
+
+      <!-- Detaljvy (skapa/inspektera + kör + historik) -->
+      <section id="detail" class="hidden"></section>
+
+      <footer class="mt-14 border-t border-[#1c1c28] pt-6 text-xs leading-relaxed text-stone-500">
+        En eval = en domarmodell + en viktad rubrik + en skala + en tröskel. Golden-exempel validerar domaren mot dina förväntningar.
+        Kostnad räknas från riktig token-usage (claude-sonnet-4-6: $3/$15 per 1M).
+      </footer>
+    </div>
+  </main>
+
+  <style is:global>
+    .lab-bar { transition: height .2s; }
+    .lab-input { width:100%; border-radius:.6rem; border:1px solid #2a2a3a; background:#15151f; padding:.55rem .7rem; color:#e7e5e4; outline:none; }
+    .lab-input:focus { border-color:#c6ff00; }
+    .lab-input::placeholder { color:#6b7280; }
+    .lab-btn { border-radius:.6rem; border:1px solid #2a2a3a; padding:.4rem .8rem; color:#d6d3d1; font-size:.8rem; }
+    .lab-btn:hover { border-color:#c6ff00; }
+  </style>
+
+  <script is:inline>
+    const $ = (s, r = document) => r.querySelector(s);
+    const el = (t, c, h) => { const e = document.createElement(t); if (c) e.className = c; if (h != null) e.innerHTML = h; return e; };
+    const esc = (s) => String(s == null ? '' : s).replace(/[&<>"]/g, (m) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[m]));
+    const api = async (url, opt) => { const r = await fetch(url, opt); return await r.json(); };
+
+    let SELECTED = null;   // spec som är öppen
+
+    // ---------------- Registret ----------------
+    async function loadRegistry() {
+      const data = await api('/api/lab/evals');
+      $('#kv-note').textContent = data.note === 'kv_not_configured' ? '⚠️ KV ej konfigurerad — sätt CF-secrets lokalt (.dev.vars)' : '';
+      const reg = $('#registry'); reg.innerHTML = '';
+      const list = data.list || [];
+      if (!list.length) { reg.appendChild(el('div', 'text-sm text-stone-600', 'Inga evals än. Klicka <b>Ny eval</b> för att skapa din första.')); return; }
+      for (const m of list) {
+        const card = el('button', 'text-left rounded-xl border border-[#2a2a3a] bg-[#15151f] p-3 hover:border-[#c6ff00] transition');
+        const last = m.lastTotal == null ? '—' : m.lastTotal;
+        card.innerHTML = `<div class="flex items-center justify-between gap-2">
+          <div class="font-semibold">${esc(m.name)}</div>
+          <span class="text-xs rounded-full border border-[#2a2a3a] px-2 py-0.5 text-stone-400">${esc(m.target)}</span></div>
+          <div class="mt-1 text-xs text-stone-500">${m.criteria} kriterier · ${m.runs || 0} körningar · senast ${last}</div>`;
+        card.onclick = () => openEval(m.id);
+        reg.appendChild(card);
+      }
+    }
+
+    // ---------------- Guidad create ----------------
+    function critRow(c = {}) {
+      const row = el('div', 'flex flex-wrap items-center gap-2 mb-2');
+      row.innerHTML = `<input class="lab-input crit-name" style="flex:1;min-width:120px" placeholder="kriterium (t.ex. Tema-koherens)" value="${esc(c.criterion || '')}">
+        <input class="lab-input crit-desc" style="flex:2;min-width:160px" placeholder="vad bedöms?" value="${esc(c.desc || '')}">
+        <input class="lab-input crit-weight" type="number" step="0.1" style="width:90px" placeholder="vikt" value="${c.weight != null ? c.weight : ''}">
+        <button class="lab-btn crit-del">✕</button>`;
+      row.querySelector('.crit-del').onclick = () => row.remove();
+      return row;
+    }
+    function goldenRow(g = {}) {
+      const row = el('div', 'flex flex-wrap items-center gap-2 mb-2');
+      row.innerHTML = `<input class="lab-input g-input" style="flex:3;min-width:200px" placeholder="golden-exempel (input-text)" value="${esc(g.input || '')}">
+        <input class="lab-input g-min" type="number" step="0.1" style="width:130px" placeholder="förväntad min" value="${g.expectedMin != null ? g.expectedMin : ''}">
+        <button class="lab-btn g-del">✕</button>`;
+      row.querySelector('.g-del').onclick = () => row.remove();
+      return row;
+    }
+
+    function showCreate(spec) {
+      SELECTED = null;
+      const d = $('#detail'); d.classList.remove('hidden');
+      d.innerHTML = `
+      <div class="rounded-2xl border border-[#2a2a3a] bg-[#13131c] p-5">
+        <h2 class="mb-1 text-lg font-bold">${spec ? 'Redigera eval' : 'Ny eval'} <span class="text-stone-500 text-sm font-normal">— guidad form</span></h2>
+        <p class="mb-4 text-xs text-stone-500">Att fylla i det här lär dig en evals anatomi: en domare, en viktad rubrik, en skala, en tröskel, golden-exempel. På spara skapas en riktig spec-fil du kan inspektera och redigera rått.</p>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
+          <label class="text-sm">Namn<input id="f-name" class="lab-input mt-1" placeholder="Koncept-koherens" value="${esc(spec?.name || '')}"></label>
+          <label class="text-sm">Target (vad döms)<input id="f-target" class="lab-input mt-1" placeholder="concept" value="${esc(spec?.target || 'concept')}"></label>
+          <label class="text-sm">Domarmodell<input id="f-model" class="lab-input mt-1" value="${esc(spec?.judge?.model || 'claude-sonnet-4-6')}"></label>
+          <div class="flex gap-2">
+            <label class="text-sm flex-1">Skala min<input id="f-min" class="lab-input mt-1" type="number" value="${spec?.scale?.min ?? 1}"></label>
+            <label class="text-sm flex-1">Skala max<input id="f-max" class="lab-input mt-1" type="number" value="${spec?.scale?.max ?? 5}"></label>
+            <label class="text-sm flex-1">Tröskel<input id="f-thr" class="lab-input mt-1" type="number" step="0.1" value="${spec?.threshold ?? 3.5}"></label>
+          </div>
+        </div>
+        <div class="mb-3">
+          <div class="flex items-center justify-between mb-1"><span class="text-sm font-semibold">Rubrik (kriterier)</span><button id="add-crit" class="lab-btn">+ kriterium</button></div>
+          <div id="crit-list"></div>
+          <p class="text-xs text-stone-600">Vikterna normaliseras automatiskt till summa 1.</p>
+        </div>
+        <div class="mb-4">
+          <div class="flex items-center justify-between mb-1"><span class="text-sm font-semibold">Golden-exempel <span class="text-stone-500 font-normal">(för domar-validering)</span></span><button id="add-golden" class="lab-btn">+ exempel</button></div>
+          <div id="golden-list"></div>
+          <p class="text-xs text-stone-600">Minst ~5–10 för en meningsfull agreement-siffra.</p>
+        </div>
+        <div class="flex items-center gap-3">
+          <button id="save-eval" class="rounded-xl bg-[#c6ff00] px-5 py-2.5 text-sm font-black uppercase text-black hover:bg-[#d6ff3a]">💾 Spara → skapar artefakt</button>
+          <span id="save-msg" class="text-sm text-stone-400"></span>
+        </div>
+      </div>`;
+      const cl = $('#crit-list'); (spec?.rubric || [{}, {}]).forEach((c) => cl.appendChild(critRow(c)));
+      const gl = $('#golden-list'); (spec?.golden || []).forEach((g) => gl.appendChild(goldenRow(g)));
+      $('#add-crit').onclick = () => cl.appendChild(critRow());
+      $('#add-golden').onclick = () => gl.appendChild(goldenRow());
+      $('#save-eval').onclick = saveFromForm;
+      d.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+
+    function collectSpec() {
+      const rubric = [...document.querySelectorAll('#crit-list > div')].map((r) => ({
+        criterion: r.querySelector('.crit-name').value.trim(),
+        desc: r.querySelector('.crit-desc').value.trim(),
+        weight: parseFloat(r.querySelector('.crit-weight').value) || 0,
+      })).filter((c) => c.criterion);
+      const golden = [...document.querySelectorAll('#golden-list > div')].map((r) => ({
+        input: r.querySelector('.g-input').value.trim(),
+        expectedMin: parseFloat(r.querySelector('.g-min').value),
+      })).filter((g) => g.input);
+      return {
+        id: SELECTED?.id, name: $('#f-name').value.trim(), target: $('#f-target').value.trim() || 'concept',
+        judge: { model: $('#f-model').value.trim() || 'claude-sonnet-4-6' },
+        scale: { min: parseFloat($('#f-min').value), max: parseFloat($('#f-max').value) },
+        threshold: parseFloat($('#f-thr').value), rubric, golden,
+      };
+    }
+
+    async function saveFromForm() {
+      const msg = $('#save-msg'); msg.textContent = 'Sparar…';
+      const out = await api('/api/lab/evals', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ spec: collectSpec() }) });
+      if (out.error) { msg.textContent = '⚠️ ' + out.error; return; }
+      msg.textContent = '✓ sparad';
+      await loadRegistry();
+      openEval(out.id);
+    }
+
+    // ---------------- Inspektera / kör / historik ----------------
+    async function openEval(id) {
+      const spec = await api('/api/lab/evals?id=' + encodeURIComponent(id));
+      if (spec.error) return;
+      SELECTED = spec;
+      const promptPreview = buildPreviewPrompt(spec);
+      const d = $('#detail'); d.classList.remove('hidden');
+      d.innerHTML = `
+      <div class="rounded-2xl border border-[#2a2a3a] bg-[#13131c] p-5 space-y-5">
+        <div class="flex flex-wrap items-center justify-between gap-2">
+          <div><h2 class="text-lg font-bold">${esc(spec.name)}</h2>
+            <div class="text-xs text-stone-500">${spec.rubric.length} kriterier · skala ${spec.scale.min}–${spec.scale.max} · tröskel ${spec.threshold} · ${esc(spec.judge.model)}</div></div>
+          <div class="flex gap-2">
+            <button id="edit-eval" class="lab-btn">✎ Redigera</button>
+            <button id="del-eval" class="lab-btn" style="border-color:#7f1d1d;color:#fca5a5">🗑 Ta bort</button>
+          </div>
+        </div>
+
+        <details class="rounded-xl border border-[#22222e] bg-[#0c0c12] p-3">
+          <summary class="cursor-pointer text-sm font-semibold text-[#c6ff00]">▸ Den genererade domar-prompten (artefakten)</summary>
+          <pre class="mt-2 max-h-72 overflow-auto whitespace-pre-wrap text-xs text-stone-400">${esc(promptPreview)}</pre>
+        </details>
+
+        <details class="rounded-xl border border-[#22222e] bg-[#0c0c12] p-3">
+          <summary class="cursor-pointer text-sm font-semibold text-stone-300">▸ Rå spec (redigera direkt)</summary>
+          <textarea id="raw-spec" class="lab-input mt-2 font-mono text-xs" rows="12">${esc(JSON.stringify(stripMeta(spec), null, 2))}</textarea>
+          <button id="save-raw" class="lab-btn mt-2">💾 Spara rå spec</button> <span id="raw-msg" class="text-xs text-stone-500"></span>
+        </details>
+
+        <div class="rounded-xl border border-[#22222e] bg-[#0c0c12] p-3">
+          <div class="flex items-center justify-between mb-2"><span class="text-sm font-semibold">Kör mot ett exempel</span>
+            <button id="load-forge" class="lab-btn">⟲ Hämta från Forge-galleriet</button></div>
+          <textarea id="run-input" class="lab-input font-mono text-xs" rows="6" placeholder="Klistra in ett koncept (eller hämta ett riktigt från Forge ovan)…"></textarea>
+          <div class="mt-2 flex items-center gap-3">
+            <button id="run-eval" class="rounded-xl bg-[#ff2d78] px-4 py-2 text-sm font-bold text-white hover:opacity-90">▶ Kör eval</button>
+            <button id="validate" class="lab-btn">⚖ Validera domare (golden)</button>
+            <span id="run-msg" class="text-sm text-stone-400"></span>
+          </div>
+          <div id="run-out" class="mt-3"></div>
+        </div>
+
+        <div class="rounded-xl border border-[#22222e] bg-[#0c0c12] p-3">
+          <div class="flex items-center justify-between mb-2"><span class="text-sm font-semibold">Historik &amp; kostnad</span><span id="hist-stat" class="text-xs text-stone-500"></span></div>
+          <div id="chart" class="flex items-end gap-1 h-24 mb-2"></div>
+          <div id="hist-list" class="space-y-1 max-h-64 overflow-auto"></div>
+        </div>
+      </div>`;
+      $('#edit-eval').onclick = () => showCreate(spec);
+      $('#del-eval').onclick = async () => { if (!confirm('Ta bort evalen och dess historik?')) return; await api('/api/lab/evals?id=' + encodeURIComponent(id), { method: 'DELETE' }); $('#detail').classList.add('hidden'); SELECTED = null; loadRegistry(); };
+      $('#save-raw').onclick = saveRaw;
+      $('#run-eval').onclick = runEval;
+      $('#validate').onclick = validateJudge;
+      $('#load-forge').onclick = loadFromForge;
+      d.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      loadHistory(id);
+    }
+
+    const stripMeta = (s) => { const c = { ...s }; delete c.created; delete c.updated; return c; };
+
+    // Klientsidig spegel av motorns prompt-bygge — bara för förhandsvisning av artefakten.
+    function buildPreviewPrompt(spec) {
+      const crit = spec.rubric.map((c, i) => `${i + 1}. "${c.criterion}" (vikt ${c.weight}) — ${c.desc || 'bedöm detta kriterium'}`).join('\n');
+      const keys = spec.rubric.map((c) => `"${c.criterion}": <heltal ${spec.scale.min}-${spec.scale.max}>`).join(', ');
+      return `Du är en sträng, rättvis utvärderare. Betygsätt nedanstående ${spec.target} mot rubriken.\n\nRUBRIK:\n${crit}\n\nSKALA: ${spec.scale.min}–${spec.scale.max} (heltal).\n\nINSTRUKTION: Resonera kort steg för steg per kriterium, sätt sedan siffran.\n\nSvara med ENBART giltig JSON:\n{ "scores": { ${keys} }, "reasoning": "<motivering>" }\n\n${spec.target.toUpperCase()} ATT BEDÖMA: """ … """`;
+    }
+
+    async function saveRaw() {
+      const msg = $('#raw-msg'); let spec;
+      try { spec = JSON.parse($('#raw-spec').value); } catch (e) { msg.textContent = '⚠️ ogiltig JSON'; return; }
+      msg.textContent = 'Sparar…';
+      const out = await api('/api/lab/evals', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ spec }) });
+      msg.textContent = out.error ? '⚠️ ' + out.error : '✓ sparad';
+      if (!out.error) { await loadRegistry(); openEval(out.id); }
+    }
+
+    function scoreColor(total, thr) { return total >= thr ? '#c6ff00' : (total >= thr * 0.7 ? '#fbbf24' : '#ef4444'); }
+
+    async function runEval() {
+      if (!SELECTED) return;
+      const input = $('#run-input').value.trim();
+      if (!input) { $('#run-msg').textContent = 'Klistra in ett exempel först.'; return; }
+      $('#run-msg').textContent = 'Domaren bedömer…'; $('#run-eval').disabled = true;
+      const out = await api('/api/lab/run', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ evalId: SELECTED.id, input }) });
+      $('#run-eval').disabled = false; $('#run-msg').textContent = '';
+      if (out.error) { $('#run-out').innerHTML = `<div class="text-sm text-red-400">⚠️ ${esc(out.error)}</div>`; return; }
+      const r = out.result;
+      const perCrit = Object.entries(r.scores).map(([k, v]) => `<span class="rounded-full border border-[#2a2a3a] px-2 py-0.5 text-xs">${esc(k)}: <b>${v}</b></span>`).join(' ');
+      $('#run-out').innerHTML = `<div class="rounded-xl border p-3" style="border-color:${scoreColor(r.total, SELECTED.threshold)}">
+        <div class="flex items-center justify-between"><span class="text-2xl font-black" style="color:${scoreColor(r.total, SELECTED.threshold)}">${r.total}</span>
+          <span class="text-xs text-stone-500">${r.passed ? '✓ över tröskel' : '✗ under tröskel'} · ${r.tokens.in}+${r.tokens.out} tok · $${r.cost} · ${r.latencyMs}ms</span></div>
+        <div class="mt-2 flex flex-wrap gap-1">${perCrit}</div>
+        <div class="mt-2 text-sm text-stone-400">${esc(r.reasoning)}</div></div>`;
+      loadHistory(SELECTED.id);
+    }
+
+    async function validateJudge() {
+      if (!SELECTED) return;
+      $('#run-msg').textContent = 'Kör golden-setet…';
+      const out = await api('/api/lab/run', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ evalId: SELECTED.id, mode: 'golden' }) });
+      $('#run-msg').textContent = '';
+      if (out.error) { $('#run-out').innerHTML = `<div class="text-sm text-red-400">⚠️ ${esc(out.error)}</div>`; return; }
+      const rows = (out.rows || []).map((r) => `<div class="flex items-center gap-2 text-xs"><span class="${r.agree ? 'text-[#c6ff00]' : (r.agree === false ? 'text-red-400' : 'text-stone-500')}">${r.agree == null ? '—' : (r.agree ? '✓' : '✗')}</span>
+        <span class="text-stone-500">förv ≥${r.expectedMin}, fick <b class="text-stone-300">${r.total}</b></span>
+        <span class="text-stone-600 truncate" style="max-width:50%">${esc(r.input)}</span></div>`).join('');
+      $('#run-out').innerHTML = `<div class="rounded-xl border border-[#2a2a3a] p-3">
+        <div class="text-sm font-semibold">Domar-validering: <span style="color:${(out.agreement ?? 0) >= 0.8 ? '#c6ff00' : '#fbbf24'}">${out.agreement == null ? '—' : Math.round(out.agreement * 100) + '%'}</span> agreement <span class="text-stone-500 font-normal">(${out.count} exempel)</span></div>
+        <div class="mt-1 text-xs text-stone-500">Låg agreement = rubriken/domaren håller inte med dig. Justera rubriken, inte outputen.</div>
+        <div class="mt-2 space-y-1">${rows}</div></div>`;
+    }
+
+    async function loadHistory(id) {
+      const data = await api('/api/lab/evals?results=' + encodeURIComponent(id));
+      const results = data.results || [];
+      const chart = $('#chart'); chart.innerHTML = '';
+      const thr = SELECTED ? SELECTED.threshold : 0;
+      const max = SELECTED ? SELECTED.scale.max : 5;
+      [...results].slice(0, 30).reverse().forEach((r) => {
+        const bar = el('div', 'lab-bar flex-1 rounded-t');
+        bar.style.height = Math.max(4, (r.total / max) * 100) + '%';
+        bar.style.background = scoreColor(r.total, thr);
+        bar.title = `${r.total} · $${r.cost}`;
+        chart.appendChild(bar);
+      });
+      const totalCost = results.reduce((a, r) => a + (r.cost || 0), 0);
+      const avg = results.length ? (results.reduce((a, r) => a + r.total, 0) / results.length).toFixed(2) : '—';
+      $('#hist-stat').textContent = `${results.length} körningar · snitt ${avg} · total $${totalCost.toFixed(4)}`;
+      $('#hist-list').innerHTML = results.map((r) => `<div class="flex items-center justify-between gap-2 text-xs border-b border-[#1c1c28] py-1">
+        <span class="font-bold" style="color:${scoreColor(r.total, thr)}">${r.total}</span>
+        <span class="text-stone-500 truncate flex-1">${esc((r.label || r.input || '').slice(0, 60))}</span>
+        <span class="text-stone-600">${r.tokens.in}+${r.tokens.out}t · $${r.cost}</span></div>`).join('') || '<div class="text-xs text-stone-600">Inga körningar än.</div>';
+    }
+
+    // Hämta ett riktigt Forge-koncept att döma (strippar media-base64 så bara texten kommer med).
+    function stripMedia(v) {
+      if (Array.isArray(v)) return v.map(stripMedia);
+      if (v && typeof v === 'object') { const o = {}; for (const k of Object.keys(v)) { if (['url', 'thumb', 'image', 'gameview', 'symbols', 'soundtrack', 'audio'].includes(k)) continue; o[k] = stripMedia(v[k]); } return o; }
+      if (typeof v === 'string' && v.startsWith('data:')) return '[media]';
+      return v;
+    }
+    async function loadFromForge() {
+      const msg = $('#run-msg'); msg.textContent = 'Hämtar galleri…';
+      const g = await api('/api/gallery');
+      const list = g.list || [];
+      if (!list.length) { msg.textContent = 'Forge-galleriet är tomt.'; return; }
+      // Enkel picker: prompta med temana, hämta vald entry.
+      const pick = prompt('Vilket Forge-koncept? Skriv numret:\n' + list.slice(0, 10).map((m, i) => `${i + 1}. ${m.theme}`).join('\n'));
+      const idx = parseInt(pick, 10) - 1;
+      if (!(idx >= 0 && idx < list.length)) { msg.textContent = ''; return; }
+      const entry = await api('/api/gallery?id=' + encodeURIComponent(list[idx].id));
+      msg.textContent = '';
+      const clean = stripMedia(entry.state || entry);
+      $('#run-input').value = JSON.stringify(clean, null, 2).slice(0, 8000);
+    }
+
+    $('#new-eval').onclick = () => showCreate(null);
+    $('#refresh').onclick = loadRegistry;
+    loadRegistry();
+  </script>
+</Layout>

@@ -1,0 +1,56 @@
+---
+// Olistad Hacksaw-dossier: buntar ihop de bolagsspecifika artefakterna för EN publik.
+// Länkar till kanoniska noder (Concept Forge bor på /forge, ramas bara in här).
+---
+<!doctype html>
+<html lang="sv">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex,nofollow" />
+    <link rel="icon" type="image/x-icon" href="/images/Favikon/favicon.ico" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500&display=swap" rel="stylesheet" />
+    <title>For Hacksaw — Carl Palmquist</title>
+    <style is:global>
+      *{box-sizing:border-box;margin:0;padding:0}
+      :root{ --band:#12151c; --accent:#ff4b35; --muted:#aeb6c4; --line:#262b36; }
+      body{ background:#12151c; color:#fff; font-family:"IBM Plex Sans",system-ui,sans-serif; min-height:100vh; display:flex; align-items:center; justify-content:center; padding:32px; -webkit-print-color-adjust:exact; }
+      .wrap{ width:100%; max-width:640px; }
+      .kicker{ font-family:"Space Grotesk"; font-size:11px; letter-spacing:.22em; text-transform:uppercase; color:var(--accent); font-weight:600; }
+      h1{ font-family:"Space Grotesk"; font-weight:700; font-size:40px; line-height:1.04; letter-spacing:-.02em; margin:8px 0 6px; }
+      .lede{ color:var(--muted); font-size:15px; line-height:1.55; max-width:52ch; }
+      .cards{ margin-top:30px; display:flex; flex-direction:column; gap:12px; }
+      a.card{ display:block; text-decoration:none; color:#fff; background:#171b24; border:1px solid var(--line); border-radius:12px; padding:18px 20px; transition:border-color .15s, transform .15s; }
+      a.card:hover{ border-color:var(--accent); transform:translateY(-1px); }
+      .card .t{ font-family:"Space Grotesk"; font-weight:600; font-size:17px; }
+      .card .d{ color:var(--muted); font-size:13px; line-height:1.5; margin-top:4px; }
+      .card .go{ color:var(--accent); font-size:13px; font-weight:600; margin-top:8px; display:inline-block; }
+      .foot{ margin-top:28px; color:#6b7280; font-size:12px; }
+      .foot b{ color:#fff; font-family:"Space Grotesk"; font-weight:600; }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <div class="kicker">For Hacksaw Gaming</div>
+      <h1>Två saker jag byggde med er i åtanke.</h1>
+      <p class="lede">Inte teori. En plan för hur AI rullas ut i en slot-studio, och ett fungerande verktyg som visar den första vågen redan byggd.</p>
+
+      <div class="cards">
+        <a class="card" href="/v/hacksaw/utrullning">
+          <div class="t">AI-utrullningsplan, på en sida</div>
+          <div class="d">Pilot → standardisera → skala. Mätbart, augment inte ersätt, rent mot compliance. Ge mig pilot-teamet, så finns en före/efter-siffra på sex veckor.</div>
+          <span class="go">Öppna planen →</span>
+        </a>
+        <a class="card" href="/forge">
+          <div class="t">Concept Forge, en slot-koncept-generator</div>
+          <div class="d">Ett tema in, ett komplett koncept ut: namn, art direction, mekanik, musik och ljud i er röst. Idéfasen ur utrullningsplanen, byggd och live.</div>
+          <span class="go">Testa Forge →</span>
+        </a>
+      </div>
+
+      <div class="foot"><b>Carl Palmquist</b> · AI-builder · carlpalmquist.com</div>
+    </div>
+  </body>
+</html>

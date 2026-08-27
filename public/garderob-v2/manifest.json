@@ -151,8 +151,9 @@
    "id": "ballerina",
    "category": "shoes",
    "z": 12,
-   "label": "Ballerina",
-   "file": "/garderob-v2/ballerina.png"
+   "label": "Ballerinaskor",
+   "file": "/garderob-v2/ballerina.png",
+   "defaultColor": "#ffffff"
   },
   {
    "id": "leggings",
@@ -265,6 +266,22 @@
    "label": "Regnjacka",
    "file": "/garderob-v2/raincoat.png",
    "defaultColor": "#f7a072"
+  },
+  {
+   "id": "sandals",
+   "category": "shoes",
+   "z": 12,
+   "label": "Sandaler",
+   "file": "/garderob-v2/sandals.png",
+   "defaultColor": "#6d4423"
+  },
+  {
+   "id": "sporttank",
+   "category": "tank",
+   "z": 20,
+   "label": "Sportlinne",
+   "file": "/garderob-v2/sporttank.png",
+   "defaultColor": "#7cc7c0"
   }
  ]
 }

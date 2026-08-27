@@ -1,0 +1,102 @@
+---
+import Deck from '../../../layouts/Deck.astro';
+---
+<Deck title="AI-utrullning på en sida — Carl Palmquist">
+  <div class="slide">
+    <div class="band">
+      <div class="byline"><b>Carl Palmquist</b><br />AI-builder · carlpalmquist.com</div>
+      <div class="kicker">Utrullningsplan · AI i produktionen</div>
+      <h1>Pilot → standardisera → skala. Aldrig big bang.</h1>
+      <div class="meta"><b>Riptide Studios</b> (fiktivt exempel) <span class="dot">·</span> 80 utvecklare <span class="dot">·</span> 4 spel i månaden <span class="dot">·</span> 35+ marknader</div>
+    </div>
+
+    <div class="premiss">AI gör de tråkiga, upprepade stegen snabbare. <b>Människan bestämmer och godkänner.</b></div>
+
+    <div class="phases">
+      <div class="phase">
+        <div class="pnum">01</div>
+        <div class="ptitle">Pilot</div>
+        <div class="pweeks">Vecka 1–6 · ett team, ett flöde</div>
+        <ul>
+          <li><b>Ett flöde:</b> översätt spelens text till 35 marknader. Tråkigt, mätbart, ofarligt (text, inte bilder).</li>
+          <li><b>Ett team</b> med en chef som vill. Frivilligt, annars får man tyst motstånd.</li>
+          <li><b>Mät INNAN vi börjar:</b> timmar per spel, antal omtag. Utan en före-siffra kan vi inte bevisa att det blev bättre.</li>
+          <li><b>Jag bygger:</b> en ton-mall per speltyp ger ett utkast per marknad, människan godkänner.</li>
+        </ul>
+      </div>
+      <div class="phase">
+        <div class="pnum">02</div>
+        <div class="ptitle">Standardisera</div>
+        <div class="pweeks">Vecka 6–12 · skriv ner det som funkar</div>
+        <ul>
+          <li><b>Det som funkar blir standard:</b> ton-mallar och godkända verktyg.</li>
+          <li><b>En regel:</b> människan har sista ordet, och allt loggas för granskning.</li>
+          <li><b>Kollega lär kollega.</b> Jag stöttar, jag är inte flaskhalsen.</li>
+          <li><b>Skriv även ner var AI:n gjorde det sämre.</b> Ärlighet bygger förtroende.</li>
+        </ul>
+      </div>
+      <div class="phase">
+        <div class="pnum">03</div>
+        <div class="ptitle">Skala</div>
+        <div class="pweeks">Kvartal 2+ · team för team</div>
+        <ul>
+          <li><b>Nästa team, samma recept.</b> Mät varje gång.</li>
+          <li><b>Fler flöden:</b> idéfasen (prototyp redan byggd), testning, marknadstexter.</li>
+          <li><b>En AI-ansvarig per team</b> som driver användningen där.</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="strip">
+      <div class="cell">
+        <h3>Mätetal — resultat, inte aktivitet</h3>
+        <p>Tid från idé till klart spel · tid per översättning · hur ofta ni släpper · buggar vi fångar i tid. <span class="never">Aldrig "antal prompts".</span></p>
+      </div>
+      <div class="cell">
+        <h3>Risker jag äger</h3>
+        <p>AI rakt in i färdig produkt klarar inte granskningen. Därför: <b>AI snabbar upp tidigt, människan finputsar och godkänner.</b> Vi ser över planen var tredje månad.</p>
+      </div>
+    </div>
+
+    <div class="closer">
+      <div class="big">Det här är inte bara en idé. Idéfasen har jag <span class="hl">redan byggt</span> (Concept Forge). Ge mig pilot-teamet, så har du en före/efter-siffra på sex veckor.</div>
+      <div class="tag">Show, don't tell.<br />Samma drag som Concept Forge.</div>
+    </div>
+  </div>
+
+  <style is:global>
+    .slide{ --ink:#11141a; --ink2:#3a4150; --muted:#717a8a; --paper:#f6f4ef; --surface:#ffffff; --line:#e4e0d7; --accent:#ff4b35; --accent-ink:#c5341f; --band:#12151c; color:var(--ink); }
+    .band{ background:var(--band); color:#fff; padding:18px 30px 16px; position:relative; }
+    .band::after{ content:""; position:absolute; left:30px; bottom:0; width:64px; height:4px; background:var(--accent); }
+    .kicker{ font-family:"Space Grotesk"; font-size:11px; letter-spacing:.22em; text-transform:uppercase; color:var(--accent); font-weight:600; }
+    .band h1{ font-family:"Space Grotesk"; font-weight:700; font-size:34px; line-height:1.02; margin-top:5px; letter-spacing:-.01em; }
+    .meta{ display:flex; gap:18px; margin-top:9px; font-size:11.5px; color:#aeb6c4; flex-wrap:wrap; align-items:center; }
+    .meta b{ color:#fff; font-weight:600; }
+    .meta .dot{ color:var(--accent); }
+    .byline{ position:absolute; top:18px; right:30px; text-align:right; font-size:11px; color:#aeb6c4; line-height:1.5; }
+    .byline b{ color:#fff; font-family:"Space Grotesk"; font-weight:600; letter-spacing:.01em; }
+    .premiss{ padding:11px 30px; font-size:12.5px; color:var(--ink2); border-bottom:1px solid var(--line); background:var(--surface); }
+    .premiss b{ color:var(--ink); font-weight:600; }
+    .phases{ display:grid; grid-template-columns:1fr 1fr 1fr; flex:1; }
+    .phase{ padding:18px 24px 14px; border-right:1px solid var(--line); display:flex; flex-direction:column; }
+    .phase:last-child{ border-right:0; }
+    .pnum{ font-family:"Space Grotesk"; font-weight:700; font-size:13px; color:var(--accent-ink); letter-spacing:.04em; }
+    .ptitle{ font-family:"Space Grotesk"; font-weight:600; font-size:19px; margin-top:2px; letter-spacing:-.01em; }
+    .pweeks{ font-size:11px; color:var(--muted); font-weight:500; margin-top:3px; text-transform:uppercase; letter-spacing:.08em; }
+    .phase ul{ list-style:none; margin-top:12px; display:flex; flex-direction:column; gap:9px; }
+    .phase li{ font-size:12px; line-height:1.42; color:var(--ink2); padding-left:15px; position:relative; }
+    .phase li::before{ content:""; position:absolute; left:0; top:7px; width:5px; height:5px; background:var(--accent); border-radius:1px; }
+    .phase li b{ color:var(--ink); font-weight:600; }
+    .strip{ display:grid; grid-template-columns:1fr 1fr; border-top:2px solid var(--ink); }
+    .cell{ padding:13px 30px 14px; }
+    .cell:first-child{ border-right:1px solid var(--line); }
+    .cell h3{ font-family:"Space Grotesk"; font-size:11px; letter-spacing:.14em; text-transform:uppercase; color:var(--muted); font-weight:600; margin-bottom:6px; }
+    .cell p{ font-size:12px; line-height:1.45; color:var(--ink2); }
+    .cell p b{ color:var(--ink); font-weight:600; }
+    .never{ color:var(--accent-ink); font-weight:600; }
+    .closer{ background:var(--band); color:#fff; padding:14px 30px; display:flex; align-items:center; gap:16px; }
+    .closer .big{ font-family:"Space Grotesk"; font-weight:600; font-size:16px; line-height:1.25; letter-spacing:-.01em; flex:1; }
+    .closer .big .hl{ color:var(--accent); }
+    .closer .tag{ font-size:10.5px; color:#aeb6c4; text-align:right; line-height:1.5; white-space:nowrap; }
+  </style>
+</Deck>
