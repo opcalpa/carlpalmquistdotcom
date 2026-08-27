@@ -57,9 +57,24 @@ const BUDGET_STATUS = ["ej_bokad", "offert", "bokad", "betald"];   // samma kedj
 const GUEST_STATUS = ["ja", "nej", "väntar", "ej_bjuden"];
 const SLUG_RE = /^[a-z0-9][a-z0-9-]{1,40}$/;
 const K_EVENT = (s) => `event:${s}`, K_LOG = (s) => `event:${s}:log`;
-const rlKey = (s, i) => `event:${s}:rl:${i}`, failKey = (s, i) => `event:${s}:fail:${i}`;
-const RL_MAX = 200, RL_WINDOW = 600;      // max 200 skrivningar per IP / 10 min (familj som bockar av)
+const failKey = (s, i) => `event:${s}:fail:${i}`;
+const RL_MAX = 200, RL_WINDOW = 600;      // max 200 skrivningar per klient / 10 min (familj som bockar av)
 const FAIL_MAX = 20, FAIL_WINDOW = 600;
+// SKRIVBUDGET (2026-08-27). Gratisnivån ger 1 000 KV-SKRIVNINGAR per dygn, och ett enda
+// knapptryck kostade tre: eventet, ändringsloggen och en rate-limit-räknare. Tre personer som
+// planerar en festhelg slog därför i taket efter ~330 tryck — och då svarar sidan 429 och
+// SLUTAR SPARA mitt i planeringen. Loggen och räknaren bor numera inuti eventet, som ändå
+// läses och skrivs. Ett tryck = EN skrivning. Läsningar (100 000/dygn) är inte flaskhalsen.
+// Klienten identifieras med en kort hash av IP:n, inte IP:n i klartext — det räcker för att
+// skilja klienter åt utan att lägga en personuppgift i lagret.
+const ipHash = (ip) => { let h = 2166136261; for (let i = 0; i < ip.length; i++) { h ^= ip.charCodeAt(i); h = Math.imul(h, 16777619) >>> 0; } return h.toString(36); };
+// Eventet kan komma från tiden då loggen låg i en egen nyckel. Läs över den en gång; nästa
+// skrivning lägger den på plats inuti eventet och den gamla nyckeln blir bara liggande.
+async function lasEvent(env, slug) {
+  const ev = await readJson(env, K_EVENT(slug), null);
+  if (ev && !Array.isArray(ev.log)) ev.log = await readJson(env, K_LOG(slug), []);
+  return ev;
+}
 
 const sanitize = (s, max) => (s || "").toString().replace(/[\x00-\x1F\x7F]/g, " ").replace(/\s+/g, " ").trim().slice(0, max);
 // Underlagen är prosa — radbrytningarna ÄR innehållet (menyresonemang, transportlistor).
@@ -148,7 +163,7 @@ export async function onRequestGet(context) {
     const fails = parseInt((await kvGet(env, failKey(slug, ip)).catch(() => null)) || "0", 10) || 0;
     if (fails >= FAIL_MAX) return Response.json({ error: "rate_limited" }, { status: 429 });
   }
-  const ev = await readJson(env, K_EVENT(slug), null);
+  const ev = await lasEvent(env, slug);
   if (!ev) return Response.json({ error: "not_found" }, { status: 404 });
   if (!gateOk(ev, env, u.searchParams.get("pw"))) {
     if (pub) {
@@ -157,8 +172,8 @@ export async function onRequestGet(context) {
     }
     return Response.json({ error: "unauthorized" }, { status: 401 });
   }
-  const changelog = await readJson(env, K_LOG(slug), []);
-  const { pw, ...safe } = ev;               // skicka aldrig ut koden till klienten
+  const changelog = Array.isArray(ev.log) ? ev.log : [];
+  const { pw, log, rl, ...safe } = ev;      // koden, loggen och rate-limit-hinkarna stannar här
   return Response.json({ event: safe, changelog });
 }
 
@@ -169,18 +184,23 @@ export async function onRequestPost(context) {
   const slug = slugOf(u);
   if (!slug) return Response.json({ error: "bad_slug" }, { status: 400 });
   let body = {}; try { body = await request.json(); } catch {}
-  const ev = await readJson(env, K_EVENT(slug), null);
+  const ev = await lasEvent(env, slug);
   if (!ev) return Response.json({ error: "not_found" }, { status: 404 });
   if (!gateOk(ev, env, body.pw)) return Response.json({ error: "unauthorized" }, { status: 401 });
 
   const ip = clientIp(request);
-  const rl = parseInt((await kvGet(env, rlKey(slug, ip)).catch(() => null)) || "0", 10) || 0;
+  const ts = Date.now();
+  // Rate-limit-hinken låg förut i en egen KV-nyckel med TTL. Nu i eventet, med tiden i hinken
+  // som TTL-ersättare: en hink som inte rörts på RL_WINDOW sekunder börjar om från noll.
+  ev.rl = (ev.rl && typeof ev.rl === "object") ? ev.rl : {};
+  const rlk = ipHash(ip);
+  const hink = ev.rl[rlk];
+  const rl = (hink && hink.t > ts - RL_WINDOW * 1000) ? (hink.n || 0) : 0;
   if (isPublicHost(u) && rl >= RL_MAX) return Response.json({ error: "rate_limited" }, { status: 429 });
 
   const kind = u.searchParams.get("kind");
   const by = sanitize(body.name, NAME_MAX) || "Någon";
-  const ts = Date.now();
-  let log = await readJson(env, K_LOG(slug), []);
+  let log = Array.isArray(ev.log) ? ev.log : [];
   const note = (text) => log.push({ id: mkId(), by, ts, text: sanitize(text, 160) });
 
   ev.plan = Array.isArray(ev.plan) ? ev.plan : [];
@@ -400,10 +420,12 @@ export async function onRequestPost(context) {
 
   ev.updatedAt = ts;
   if (log.length > LOG_CAP) log.splice(0, log.length - LOG_CAP);
-  await kvPut(env, K_EVENT(slug), JSON.stringify(ev));
-  await kvPut(env, K_LOG(slug), JSON.stringify(log));
-  await kvPut(env, rlKey(slug, ip), String(rl + 1), RL_WINDOW);
-  const { pw, ...safe } = ev;
+  ev.log = log;
+  ev.rl[rlk] = { n: rl + 1, t: ts };
+  // Städa hinkar som gjort sitt, annars växer objektet för varje besökare som någonsin varit här.
+  for (const k of Object.keys(ev.rl)) if (!(ev.rl[k].t > ts - RL_WINDOW * 1000)) delete ev.rl[k];
+  await kvPut(env, K_EVENT(slug), JSON.stringify(ev));   // ← EN skrivning, inte tre
+  const { pw, log: _l, rl: _r, ...safe } = ev;
   return Response.json({ event: safe, changelog: log });
 }
 
@@ -421,6 +443,10 @@ export async function onRequestPut(context) {
   // Bevara koden om pappen inte skickar med den (den bor bara i KV).
   const ev = Object.assign({}, body.event, { updatedAt: Date.now() });
   if (!ev.pw && prev && prev.pw) ev.pw = prev.pw;
+  // Ändringsloggen och rate-limit-hinkarna hör till SIDAN, inte till pappens strukturspegling.
+  // Sedan de flyttade in i eventet hade varje Publicera annars raderat hela historiken.
+  if (prev && Array.isArray(prev.log)) ev.log = prev.log;
+  if (prev && prev.rl) ev.rl = prev.rl;
   // PUT ERSÄTTER HELA EVENTET. Rader som familjen skapat HÄR och pappen ännu inte hämtat hem
   // skulle därför raderas tyst av nästa push. Behåll dem tills pappen skickar tillbaka dem.
   // Gäller alla listor sedan sidan fick full paritet (2026-08-27), inte bara recepten:
