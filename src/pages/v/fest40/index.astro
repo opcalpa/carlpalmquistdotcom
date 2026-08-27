@@ -96,6 +96,9 @@ button{font:inherit;cursor:pointer}
 .spill{padding:5px 14px;border-radius:999px;font-size:12px;font-weight:600;border:1px solid;background:var(--panel2);border-color:var(--line);color:var(--mid)}
 .spill.ja{background:rgba(55,193,132,.15);border-color:rgba(55,193,132,.35);color:var(--ok-ink)}
 .spill.vantar{background:rgba(230,180,80,.16);border-color:rgba(230,180,80,.4);color:var(--warn-ink)}
+/* "Ej bjuden" är INTE ett nej. Utan eget läge ritades tretton objudna släktingar som avböjda,
+   och ett tryck skickade dem rakt till "Ja" utan väg tillbaka. */
+.spill.ejbj{background:transparent;border-style:dashed;border-color:var(--line-strong);color:var(--faint)}
 
 details.foldable{padding:0}
 details.foldable summary{list-style:none;display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:52px;padding:0 16px;cursor:pointer}
@@ -226,11 +229,19 @@ textarea.t-edit{min-height:140px;line-height:1.5;resize:vertical;white-space:pre
 <script define:vars={{ slug }}>
 // S.open håller <details>-lägena. Varje skrivning ritar om HELA appen, så utan detta
 // slog Budget och underlagen igen mitt i att någon skrev i dem.
-const S = { pw: "", ev: null, log: [], cat: null, tag: null, me: "", undo: null, open: {} };
+const S = { pw: "", ev: null, log: [], cat: null, tag: null, me: "", undo: null, open: {}, sedd: 0 };
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s == null ? "" : s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 const api = async (path, opts) => { const r = await fetch(path, opts); const d = await r.json().catch(() => ({})); if (!r.ok) throw new Error(d.error || r.status); return d; };
 const cats = () => (S.ev.categories && S.ev.categories.length) ? S.ev.categories : ["Inhandling", "Fixa"];
+// Gästlägen. ej_bjuden är default för allt okänt: en gäst utan svar ska aldrig kunna se ut
+// som ett nej. NÄSTA-kedjan är livscykeln, och nej vänder tillbaka till början.
+const GST = {
+  ej_bjuden: { l: "Ej bjuden", c: "ejbj", next: "väntar" },
+  "väntar": { l: "Väntar", c: "vantar", next: "ja" },
+  ja: { l: "Ja", c: "ja", next: "nej" },
+  nej: { l: "Nej", c: "", next: "ej_bjuden" },
+};
 const plan = () => Array.isArray(S.ev.plan) ? S.ev.plan : [];
 
 // ---- datum ----
@@ -249,7 +260,7 @@ function dueLabel(iso) {
 // ---- grind ----
 async function load(pw) {
   const d = await api(`/api/fest40?slug=${encodeURIComponent(slug)}&pw=${encodeURIComponent(pw || "")}`);
-  S.pw = pw || ""; S.ev = d.event; S.log = d.changelog || [];
+  S.pw = pw || ""; S.ev = d.event; S.log = d.changelog || []; S.sedd = d.event.updatedAt || 0;
   if (!S.cat) S.cat = cats()[0];
   try { localStorage.setItem("fest40:pw", S.pw); } catch (e) {}
   $("gate").style.display = "none"; $("app").style.display = "";
@@ -274,15 +285,52 @@ $("g-go").onclick = tryOpen;
 $("code").addEventListener("keydown", (e) => { if (e.key === "Enter") tryOpen(); });
 
 // ---- skrivningar ----
+// Hämta om hela eventet från servern. Används både när något gått fel och av pollningen.
+async function hamta() {
+  const d = await api(`/api/fest40?slug=${encodeURIComponent(slug)}&pw=${encodeURIComponent(S.pw)}`);
+  S.ev = d.event; S.log = d.changelog || []; S.sedd = d.event.updatedAt || 0;
+  draw();
+}
 async function write(kind, payload, silent) {
   try {
     const d = await api(`/api/fest40?slug=${encodeURIComponent(slug)}&kind=${kind}`, {
       method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify(Object.assign({ pw: S.pw, name: S.me }, payload)),
     });
-    S.ev = d.event; S.log = d.changelog || []; draw();
-  } catch (e) { if (!silent) alert("Kunde inte spara: " + e.message); }
+    S.ev = d.event; S.log = d.changelog || []; S.sedd = d.event.updatedAt || 0; draw();
+  } catch (e) {
+    // En optimistisk ändring som INTE gick igenom får aldrig bli kvar på skärmen. På ett delat
+    // verktyg är den då ett påstående om att alla ser samma sak — och det gör de inte.
+    // Tysta skrivningar (avbockning, gäststatus) syntes förut aldrig när de misslyckades.
+    if (!silent) alert("Kunde inte spara: " + e.message);
+    else showToast("Kunde inte spara — hämtar om sidan");
+    await hamta().catch(() => draw());
+  }
 }
+
+// ── Flera användare i samma vy ────────────────────────────────────────────────
+// Utan pollning ser Calle, Jossi och mamma varsin frusen ögonblicksbild tills de laddar om,
+// och tror att de tittar på samma lista när de inte gör det. Vi ritar bara om när eventet
+// FAKTISKT ändrats (updatedAt), och aldrig medan någon håller på att skriva — en ompaintning
+// mitt i en mening hade slängt bort texten.
+const POLL_MS = 15000;
+function upptagen() {
+  if (document.querySelector(".t-edit")) return true;
+  const a = document.activeElement;
+  if (a && (a.tagName === "INPUT" || a.tagName === "TEXTAREA")) return true;
+  return [...document.querySelectorAll("#app input")].some((i) => i.type !== "checkbox" && i.value.trim());
+}
+async function poll() {
+  if (document.hidden || !S.ev || upptagen()) return;
+  try {
+    const d = await api(`/api/fest40?slug=${encodeURIComponent(slug)}&pw=${encodeURIComponent(S.pw)}`);
+    if ((d.event.updatedAt || 0) === S.sedd) return;
+    S.ev = d.event; S.log = d.changelog || []; S.sedd = d.event.updatedAt || 0;
+    draw();
+  } catch (e) {}                       // nätstrul ska aldrig döda sidan man står och jobbar i
+}
+setInterval(poll, POLL_MS);
+document.addEventListener("visibilitychange", () => { if (!document.hidden) poll(); });
 function toggle(id) {
   const it = plan().find((p) => p.id === id); if (!it) return;
   const wasDone = it.done;
@@ -336,6 +384,7 @@ const byId = (arr, id) => (S.ev[arr] || []).find((x) => x.id === id);
 let toastT = null;
 function showToast(txt, undo) {
   $("toast-txt").textContent = txt; S.undo = undo;
+  $("toast-undo").style.display = undo ? "" : "none";   // en Ångra som inte ångrar något ljuger
   $("toast").style.display = "flex";
   clearTimeout(toastT); toastT = setTimeout(() => { $("toast").style.display = "none"; }, 5000);
 }
@@ -398,7 +447,10 @@ function draw() {
       <input id="pText" placeholder="Vad händer?" /><button class="btn primary" id="pAdd">+</button></div>
   </section>`;
 
+  // Fyra gästlägen, samma som pappen. Kedjan är en livscykel: inte bjuden → bjuden, inget svar
+  // → svarat. Nej går tillbaka till "ej bjuden" så en felklickad rad kan backas hela vägen.
   const households = [...new Set((ev.guests || []).map((g) => g.household))];
+  const ej = (ev.guests || []).filter((g) => !GST[g.status] || g.status === "ej_bjuden").length;
   const guests = `<section class="card sec"><div class="sec-head"><h2>Gästerna</h2>
       <span style="font-size:12px;color:var(--dim)" class="num">${(ev.guests || []).filter((g) => g.barn).length} barn</span></div>
     <div class="stats">
@@ -406,12 +458,12 @@ function draw() {
       <div class="stat"><b class="num" style="color:var(--warn-ink)">${gv}</b><span class="lbl">Väntar</span></div>
       <div class="stat"><b class="num" style="color:var(--dim)">${gn}</b><span class="lbl">Nej</span></div>
     </div>
-    <div style="font-size:12px;color:var(--dim);padding:12px 0 4px" class="num">${(ev.guests || []).length} på listan${ev.info && ev.info.target ? ` · mål ~${ev.info.target}` : ""}</div>
+    <div style="font-size:12px;color:var(--dim);padding:12px 0 4px" class="num">${(ev.guests || []).length} på listan${ej ? ` · ${ej} ej bjudna` : ""}${ev.info && ev.info.target ? ` · mål ~${ev.info.target}` : ""}</div>
     <div id="guestList">${households.slice(0, S.allG ? 999 : 2).map((h) => `<div class="lbl" style="padding-top:12px">${esc(h)}</div>${
       (ev.guests || []).filter((g) => g.household === h).map((g) => `<div class="g-row">
         <div class="g-name"><span class="ed" data-gn="${esc(g.id)}" title="Klicka för att ändra namnet">${esc(g.name)}</span>
           <button class="g-barn${g.barn ? " on" : ""}" data-gb="${esc(g.id)}" title="${g.barn ? "Räknas som barn — klicka för vuxen" : "Räknas som vuxen — klicka för barn"}" aria-label="Barn eller vuxen">👶</button></div>
-        <div class="g-act"><button class="spill ${g.status === "ja" ? "ja" : g.status === "väntar" ? "vantar" : ""}" data-guest="${esc(g.id)}">${esc(g.status === "ja" ? "Ja" : g.status === "väntar" ? "Väntar" : "Nej")}</button>
+        <div class="g-act"><button class="spill ${GST[g.status] ? GST[g.status].c : ""}" data-guest="${esc(g.id)}" title="Klicka för nästa läge">${esc((GST[g.status] || GST.ej_bjuden).l)}</button>
           <button class="row-btn" data-gdel="${esc(g.id)}" title="Ta bort gästen" aria-label="Ta bort">✕</button></div></div>`).join("")}`).join("")}</div>
     ${households.length > 2 ? `<button class="btn wide" id="allG" style="margin-top:12px">${S.allG ? "Visa färre" : `Visa alla ${households.length} hushåll`}</button>` : ""}
     <div class="g-add">
@@ -557,7 +609,7 @@ function wire() {
   });
   document.querySelectorAll("[data-guest]").forEach((b) => b.onclick = () => {
     const g = (S.ev.guests || []).find((x) => x.id === b.dataset.guest); if (!g) return;
-    const next = { "ja": "väntar", "väntar": "nej", "nej": "ja" }[g.status] || "ja";
+    const next = (GST[g.status] || GST.ej_bjuden).next;
     g.status = next; draw(); write("guest", { id: b.dataset.guest, status: next }, true);
   });
   // ───────── Full paritet (2026-08-27): budget, program, gäster, underlag ─────────

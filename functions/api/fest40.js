@@ -216,7 +216,7 @@ export async function onRequestPost(context) {
   } else if (kind === "guest") {
     const g = ev.guests.find((x) => x.id === body.id);
     if (!g) return Response.json({ error: "not_found_guest" }, { status: 404 });
-    const st = ["ja", "nej", "väntar"].includes(body.status) ? body.status : "väntar";
+    const st = GUEST_STATUS.includes(body.status) ? body.status : "väntar";
     g.status = st;
     note(`satte ${g.name} till ${st}`);
   } else if (kind === "edit") {
