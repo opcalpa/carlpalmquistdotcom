@@ -23,6 +23,8 @@
 //   POST .. kind=shopfrom                      {id?}                          -> hämta in utvalda rätter
 //   POST .. kind=cook                          {n}                            -> vi lagar för N personer
 //   POST .. kind=rserv                         {id,n}                         -> receptets egna portioner
+//   POST .. kind=rport                         {id,n}                         -> hur många VI lagar av rätten
+//   POST .. kind=rtitle                        {id,title}                     -> döp om rätten
 //   POST .. kind=rhave                         {id,line}                      -> "har hemma" på/av
 // FULL PARITET (2026-08-27): allt Calle kan redigera i pappen går att redigera här. Sidan är
 // ett delat planeringsverktyg som ersätter ett Google Sheet, inte en avbockningsvy.
@@ -111,8 +113,12 @@ function skalaQty(qty, f) {
 }
 // Hur mycket receptet ska skalas. Saknas receptets egna portioner går det inte att räkna om —
 // då lämnas mängderna som de står, hellre än att gissa.
+// Två tal per rätt: vad receptet är SKRIVET för (servings) och hur många VI lagar av just den
+// här rätten (portions). portions ärver festens tal om ingen satt ett eget — man lagar sällan
+// olika mycket av varje rätt, men ibland: en efterrätt kan räcka till fler än en huvudrätt.
+const lagarAv = (ev, r) => Number(r && r.portions) || Number(ev.info && ev.info.cook) || 0;
 const skalfaktor = (ev, r) => {
-  const lagar = Number(ev.info && ev.info.cook) || 0;
+  const lagar = lagarAv(ev, r);
   const bas = Number(r && r.servings) || 0;
   return (lagar > 0 && bas > 0) ? lagar / bas : 1;
 };
@@ -579,6 +585,24 @@ export async function onRequestPost(context) {
     if (!r) return Response.json({ error: "not_found_recipe" }, { status: 404 });
     r.servings = Math.max(0, Math.min(999, Math.round(Number(body.n) || 0)));
     note(`satte ”${r.title}” till ${r.servings || "okänt antal"} portioner`);
+  } else if (kind === "rport") {
+    const r = ev.recipes.find((x) => x.id === body.id);
+    if (!r) return Response.json({ error: "not_found_recipe" }, { status: 404 });
+    const n = Math.max(0, Math.min(999, Math.round(Number(body.n) || 0)));
+    // 0 = "följ festens tal igen". Det är vägen tillbaka från ett eget värde.
+    r.portions = n;
+    note(n ? `lagar ${n} portioner av ”${r.title}”` : `lät ”${r.title}” följa festens antal`);
+  } else if (kind === "rtitle") {
+    const r = ev.recipes.find((x) => x.id === body.id);
+    if (!r) return Response.json({ error: "not_found_recipe" }, { status: 404 });
+    const t = sanitize(body.title, TITLE_MAX);
+    if (!t) return Response.json({ error: "empty" }, { status: 400 });
+    const forut = r.title;
+    r.title = t;
+    // Inköpsraderna är taggade med rättens NAMN. Byter namnet måste taggarna följa med,
+    // annars pekar de på en rätt som inte finns och hämtningen skulle lägga in allt igen.
+    for (const x of ev.shop) if (x.fromRecipe === r.id || x.tag === forut) x.tag = sanitize(t, TAG_MAX);
+    note(`döpte om ”${forut}” till ”${t}”`);
   } else if (kind === "rhave") {
     // Grönt = vi har det hemma. Markerade rader hoppas över när listan hämtas in.
     const r = ev.recipes.find((x) => x.id === body.id);

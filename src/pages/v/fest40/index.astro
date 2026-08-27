@@ -190,7 +190,12 @@ textarea.t-edit{min-height:140px;line-height:1.5;resize:vertical;white-space:pre
 .g-add label{display:flex;align-items:center;gap:6px;font-size:13px;color:var(--mid)}
 
 /* underlag */
-.d-body{padding:0 16px 16px;font-size:13px;white-space:pre-wrap;color:var(--mid)}
+.d-body{padding:0 0 14px;font-size:13px;white-space:pre-wrap;color:var(--mid)}
+.dok{border-top:1px solid var(--line-soft)}
+.dok>summary{list-style:none;display:flex;align-items:center;justify-content:space-between;gap:10px;
+  min-height:46px;cursor:pointer;font-weight:600;font-size:14px}
+.dok>summary::-webkit-details-marker{display:none}
+.dok-t{min-width:0}
 .d-sum-act{display:flex;align-items:center;gap:4px;flex:0 0 auto;color:var(--dim)}
 
 /* ── Hopfällbara sektioner. Rubriken ÄR knappen: en festsida på mobil blir annars en
@@ -349,8 +354,10 @@ function skalaQty(qty, f) {
   }
   return (rundaMangd(v * (f || 1)) + rest).replace(/\s+/g, " ").trim();
 }
+// Rättens eget antal ärver festens om inget eget satts. Spegel av Workern.
+const lagarAv = (r) => Number(r && r.portions) || Number(S.ev.info && S.ev.info.cook) || 0;
 const skalfaktor = (r) => {
-  const lagar = Number(S.ev.info && S.ev.info.cook) || 0;
+  const lagar = lagarAv(r);
   const bas = Number(r && r.servings) || 0;
   return (lagar > 0 && bas > 0) ? lagar / bas : 1;
 };
@@ -409,7 +416,11 @@ async function write(kind, payload, silent) {
       method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify(Object.assign({ pw: S.pw, name: S.me }, payload)),
     });
-    S.ev = d.event; S.log = d.changelog || []; S.sedd = d.event.updatedAt || 0; draw();
+    S.ev = d.event; S.log = d.changelog || []; S.sedd = d.event.updatedAt || 0;
+    // Rita INTE om medan någon har ett fält öppet. Svaret på en tidigare skrivning kan landa
+    // precis efter att man öppnat en omdöpning, och ompaintningen slängde då bort texten.
+    // Pollningen har samma spärr; här gäller den även ens egna skrivningar.
+    if (!document.querySelector(".t-edit")) draw();
   } catch (e) {
     // En optimistisk ändring som INTE gick igenom får aldrig bli kvar på skärmen. På ett delat
     // verktyg är den då ett påstående om att alla ser samma sak — och det gör de inte.
@@ -485,8 +496,12 @@ function editable(el, value, onSave, opts) {
   const finish = async (save) => {
     if (closed) return; closed = true;
     const v = inp.value.trim();
-    if (save && v !== before.trim() && (v || opts.allowEmpty)) await onSave(v);
-    else el.innerHTML = prevHtml;
+    const spara = save && v !== before.trim() && (v || opts.allowEmpty);
+    // Fältet MÅSTE bort innan sparningen. Annars ser spärren "rita inte om medan någon
+    // skriver" sitt eget fält och hoppar över ompaintningen — värdet sparades men syntes
+    // aldrig. Samma fälla som prisrutorna i pappens fest-modul.
+    el.innerHTML = prevHtml;
+    if (spara) await onSave(v);
   };
   inp.onclick = (e) => e.stopPropagation();
   inp.ondblclick = (e) => e.stopPropagation();
@@ -671,13 +686,16 @@ function draw() {
       <div class="b-foot num">Bokat eller betalt ≈ ${bkonf.toLocaleString("sv-SE")} kr · kvar att spika ≈ ${(bsum - bkonf).toLocaleString("sv-SE")} kr</div>
     </details>`;
 
-  const docs = (ev.docs || []).map((d) => `<details class="card foldable" data-k="${esc(d.id)}"${S.open[d.id] ? " open" : ""}><summary>
-      <span style="font-weight:600" class="ed" data-dt="${esc(d.id)}" title="Klicka för att ändra rubriken">${esc(d.title)}</span>
+  // Underlagen bodde förut som lösa kort med ett eget add-kort under. Nu EN sektion som fälls
+  // ihop som de andra, med Lägg till överst och varje underlag hopfällbart för sig.
+  const docsKropp = `<div class="add" style="margin-top:0">
+      <input id="dTitle" placeholder="Nytt underlag… (t.ex. Transport)" /><button class="btn primary" id="dAdd">Lägg till</button></div>
+    ${(ev.docs || []).length ? (ev.docs || []).map((d) => `<details class="dok" data-k="${esc(d.id)}"${S.open[d.id] ? " open" : ""}>
+      <summary><span class="dok-t ed" data-dt="${esc(d.id)}" title="Klicka för att ändra rubriken">${esc(d.title)}</span>
       <span class="d-sum-act"><button class="row-btn" data-ddel="${esc(d.id)}" title="Ta bort underlaget" aria-label="Ta bort">✕</button>›</span></summary>
       <div class="d-body ed" data-db="${esc(d.id)}" title="Klicka för att skriva">${d.body ? esc(d.body) : `<span style="color:var(--faint)">Tomt — klicka för att skriva.</span>`}</div>
-    </details>`).join("")
-    + `<section class="card sec"><div class="add" style="margin-top:0">
-        <input id="dTitle" placeholder="Nytt underlag… (t.ex. Transport)" /><button class="btn primary" id="dAdd">Lägg till</button></div></section>`;
+    </details>`).join("") : `<div style="font-size:13px;color:var(--dim);padding-top:12px">Inga underlag än.</div>`}`;
+  const docs = sekt("underlag", "Underlag", `${(ev.docs || []).length} st`, docsKropp);
 
   // 🍳 Menyn: utvalda först (det som faktiskt lagas), förslagen under. Alla får föreslå och
   // stjärnmärka — sidan är planeringsgängets, precis som checklistan.
@@ -691,7 +709,7 @@ function draw() {
     return `<div class="r-row" data-rid="${esc(r.id)}">
     <div class="r-thumb" data-ropen="${esc(r.id)}"${r.image ? ` style="background-image:url('${esc(r.image)}')"` : ""}>${r.image ? "" : "🍽"}</div>
     <div class="r-main" data-ropen="${esc(r.id)}" title="Klicka för ingredienser och utförande">
-      <div class="r-title">${esc(r.title)}</div>
+      <div class="r-title" data-rt="${esc(r.id)}" title="Dubbelklicka för att döpa om">${esc(r.title)}</div>
       <div class="r-sub">${[
         (r.ingredients && r.ingredients.length) ? `${r.ingredients.length} ingredienser` : "inga ingredienser än",
         (r.steps && r.steps.length) ? `${r.steps.length} steg` : "",
@@ -707,11 +725,12 @@ function draw() {
   </div>${upp ? (() => {
     const f = skalfaktor(r);
     const har = new Set((r.have || []).map(haveKey));
-    const lagar = Number(ev.info && ev.info.cook) || 0;
+    const lagar = lagarAv(r);
     return `<div class="r-detalj">
-      <div class="r-serv">Receptet är skrivet för <span class="ed" data-rserv="${esc(r.id)}">${r.servings || "?"}</span> personer${
-        lagar && r.servings ? ` · vi lagar för ${lagar} → mängderna <span class="fak">×${String(Math.round(f * 10) / 10).replace(".", ",")}</span>`
-        : lagar ? ` · fyll i det så räknas mängderna om till ${lagar} personer` : ""}</div>
+      <div class="r-serv">Receptet är skrivet för <span class="ed" data-rserv="${esc(r.id)}">${r.servings || "?"}</span> personer ·
+        vi lagar <span class="ed" data-rport="${esc(r.id)}">${lagar || "?"}</span>${r.portions ? "" : " (festens tal)"}${
+        r.servings && lagar ? ` → mängderna <span class="fak">×${String(Math.round(f * 100) / 100).replace(".", ",")}</span>`
+        : ` — fyll i vad receptet är skrivet för så räknas mängderna om`}</div>
       <div class="ing-head"><span class="lbl">Ingredienser <span style="text-transform:none;font-weight:400">— klicka det ni har hemma</span></span>
         <button class="r-btn" data-ringbtn="${esc(r.id)}" title="Skriv om hela listan">✎</button></div>
       ${(r.ingredients || []).length
@@ -759,24 +778,20 @@ function draw() {
 function wire() {
   document.querySelectorAll("[data-cat]").forEach((b) => b.onclick = () => { S.cat = b.dataset.cat; S.tag = null; draw(); });
   document.querySelectorAll("[data-tag]").forEach((b) => b.onclick = () => { S.tag = b.dataset.tag || null; draw(); });
-  // Ett klick bockar av, två öppnar redigering. Toggeln fördröjs därför en kort stund och
-  // ställs in om ett dubbelklick hinner först — annars hade varje redigering först skickat
-  // två avbockningar till servern och fått raden att blinka.
-  let clickT = null;
+  // Bocken bockar av, texten döps om. Förut bockade ett klick på TEXTEN av efter en fördröjning
+  // — vilket gjorde att man inte kunde läsa en lång rad utan att råka bocka av den, och att
+  // varje omdöpning kändes som en kamp. Nu har de två helt skilda ytor.
   document.querySelectorAll(".row").forEach((r) => {
     r.onclick = (e) => {
       if (e.target.closest("button") || e.target.closest(".t-edit")) return;
-      const id = r.dataset.id;
-      // Bara klick PÅ TEXTEN kan följas av ett dubbelklick, så bara där behövs fördröjningen.
-      // Klickar man på kryssrutan eller resten av raden ska avbockningen kännas direkt.
-      if (e.target.closest(".t[data-t]")) { clearTimeout(clickT); clickT = setTimeout(() => toggle(id), 260); }
-      else toggle(id);
+      if (e.target.closest(".t[data-t]")) return;       // texten: dubbelklick döper om
+      toggle(r.dataset.id);
     };
   });
   // Dubbelklick PÅ SJÄLVA TEXTEN öppnar redigering — inte på raden i övrigt, och ingen
   // penn-ikon att leta efter. Enter eller klick utanför sparar, Esc ångrar.
   document.querySelectorAll(".t[data-t]").forEach((el) => {
-    el.ondblclick = (e) => { e.stopPropagation(); clearTimeout(clickT); startEdit(el, el.dataset.t); };
+    el.ondblclick = (e) => { e.stopPropagation(); startEdit(el, el.dataset.t); };
   });
   // Inline-redigering på plats — samma hjälpare som resten av sidan använder.
   function startEdit(el, id) {
@@ -808,7 +823,7 @@ function wire() {
   // ───────── Full paritet (2026-08-27): budget, program, gäster, underlag ─────────
   // Varje skrivning ritar om hela appen. Utan detta slog varje öppen <details> igen mitt i
   // arbetet — värst i underlagen, där man just höll på att skriva.
-  document.querySelectorAll("details.foldable[data-k]").forEach((d) => {
+  document.querySelectorAll("details[data-k]").forEach((d) => {
     d.ontoggle = () => { S.open[d.dataset.k] = d.open; };
   });
 
@@ -891,7 +906,7 @@ function wire() {
     if (e.target.closest("button[data-vy]")) return;         // flippen är inte en fäll-knapp
     const k = el.dataset.sek; S.open[k] = !oppen(k); draw();
   });
-  document.querySelectorAll("details.klart").forEach((d) => { d.ontoggle = () => { S.open[d.dataset.k] = d.open; }; });
+
 
   // ── Checklistan ⇄ Inköpslistan ──
   document.querySelectorAll("[data-vy]").forEach((b) => b.onclick = (e) => {
@@ -924,10 +939,27 @@ function wire() {
   const sF = $("sFrom"); if (sF) sF.onclick = () => write("shopfrom", {});
 
   // ── Rätten: öppna, skriv ingredienser, läs utförande ──
+  // Ett klick öppnar rätten, ett dubbelklick på TITELN döper om den. Öppningen fördröjs därför
+  // när klicket sker på titeln, och ställs in om ett dubbelklick hinner först — annars hade
+  // varje omdöpning börjat med att rätten hoppade upp och ner.
+  let rClickT = null;
   document.querySelectorAll("[data-ropen]").forEach((el) => el.onclick = (e) => {
-    if (e.target.closest("a")) return;                        // källänken ska öppna källan
-    const k = "r:" + el.dataset.ropen; S.open[k] = !S.open[k]; draw();
+    if (e.target.closest("a") || e.target.closest(".t-edit")) return;   // källänken öppnar källan
+    const k = "r:" + el.dataset.ropen;
+    const oppna = () => { S.open[k] = !S.open[k]; draw(); };
+    if (e.target.closest(".r-title")) { clearTimeout(rClickT); rClickT = setTimeout(oppna, 260); }
+    else oppna();
   });
+  document.querySelectorAll("[data-rt]").forEach((el) => {
+    el.ondblclick = (e) => {
+      e.stopPropagation(); clearTimeout(rClickT);
+      const r = byId("recipes", el.dataset.rt); if (!r) return;
+      editable(el, r.title, (t) => write("rtitle", { id: el.dataset.rt, title: t }));
+    };
+  });
+  // Hur många vi lagar av just den här rätten. Tomt fält = följ festens tal igen.
+  bindEdit("data-rport", (id) => { const r = byId("recipes", id); return r ? String(r.portions || "") : null; },
+    (id, v) => write("rport", { id, n: v.replace(/[^0-9]/g, "") || 0 }), { allowEmpty: true });
   // ✎ öppnar hela ingredienslistan som text. Fältet ligger dolt tills man trycker — annars
   // hade varje rad varit både en "har hemma"-knapp och ett textfält, och de två krockar.
   bindEdit("data-ring", (id) => ((byId("recipes", id) || {}).ingredients || []).join("\n"),
