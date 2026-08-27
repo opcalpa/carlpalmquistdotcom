@@ -193,6 +193,51 @@ textarea.t-edit{min-height:140px;line-height:1.5;resize:vertical;white-space:pre
 .d-body{padding:0 16px 16px;font-size:13px;white-space:pre-wrap;color:var(--mid)}
 .d-sum-act{display:flex;align-items:center;gap:4px;flex:0 0 auto;color:var(--dim)}
 
+/* ── Hopfällbara sektioner. Rubriken ÄR knappen: en festsida på mobil blir annars en
+   ändlös rulle, och det man inte jobbar med just nu ska gå att lägga undan. ── */
+.sec-tog{cursor:pointer;user-select:none}
+.sec-head h2{display:flex;align-items:center;gap:8px}
+.chev{font-size:11px;color:var(--dim);transition:transform .15s ease;line-height:1}
+.chev.stangd{transform:rotate(-90deg)}
+/* Avbockat göms bakom "Klart · n". Det gjorda är inte det man ska mötas av. */
+details.klart{margin-top:8px}
+details.klart>summary{list-style:none;cursor:pointer;padding:8px 0;display:flex;align-items:center;gap:6px}
+details.klart>summary::-webkit-details-marker{display:none}
+details.klart>summary::after{content:"▾";font-size:11px;color:var(--faint)}
+details.klart[open]>summary::after{content:"▴"}
+
+/* ── Checklistan ⇄ Inköpslistan ── */
+.flip{display:flex;gap:4px;flex:1;min-width:0}
+.flip button{padding:0;border:0;background:none;font-size:18px;font-weight:650;color:var(--faint);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.flip button.on{color:var(--txt)}
+.flip button:not(.on):hover{color:var(--mid)}
+.flip .sep{color:var(--line-strong);font-weight:400;align-self:center}
+.chevbtn{border:0;background:none;color:var(--faint);font-size:12px;padding:4px 0 4px 8px;flex:0 0 auto}
+.s-row{display:grid;grid-template-columns:26px 1fr auto 30px;grid-template-areas:"box item qty del" ". tag tag .";
+  gap:2px 10px;align-items:center;padding:10px 0;border-bottom:1px solid var(--line-soft)}
+.s-row:last-child{border-bottom:0}
+.s-row .box{grid-area:box}
+.s-item{grid-area:item;font-size:15px;min-width:0}
+.s-qty{grid-area:qty;font-size:13px;color:var(--mid);font-weight:600;white-space:nowrap}
+.s-row .row-btn{grid-area:del}
+.s-tag{grid-area:tag;justify-self:start;margin-top:2px}
+.s-row.done .s-item{color:var(--dim);text-decoration:line-through;text-decoration-color:rgba(139,130,114,.45)}
+.s-row.done .s-qty{color:var(--faint)}
+.s-add{display:flex;gap:8px;margin-top:12px}
+.s-add input{height:44px;padding:0 12px;border:1px solid var(--line);border-radius:var(--r-field);
+  background:var(--panel);color:var(--txt);font-size:14px;min-width:0}
+.s-add input:focus{outline:none;border-color:var(--accent)}
+.s-add .s-in-item{flex:1 1 auto}
+.s-add .s-in-qty{flex:0 0 82px;text-align:center}
+
+/* ── Rätten öppnad: ingredienser och utförande ── */
+.r-row{cursor:pointer}
+.r-detalj{padding:4px 0 14px;border-bottom:1px solid var(--line-soft)}
+.r-detalj .lbl{display:block;margin:10px 0 4px}
+.r-txt{font-size:13px;color:var(--mid);white-space:pre-wrap;line-height:1.55}
+.r-txt.tom{color:var(--faint)}
+.r-detalj .btn{height:40px;font-size:13px;margin-top:12px}
+
 .sticky{position:sticky;top:0;z-index:10;background:rgba(250,247,242,.95);backdrop-filter:blur(8px);border-bottom:1px solid var(--line);display:none;align-items:center;justify-content:space-between;padding:10px 16px;margin:-16px -16px 0}
 @media(min-width:900px){
   .wrap{padding:22px;gap:16px}
@@ -229,7 +274,7 @@ textarea.t-edit{min-height:140px;line-height:1.5;resize:vertical;white-space:pre
 <script define:vars={{ slug }}>
 // S.open håller <details>-lägena. Varje skrivning ritar om HELA appen, så utan detta
 // slog Budget och underlagen igen mitt i att någon skrev i dem.
-const S = { pw: "", ev: null, log: [], cat: null, tag: null, me: "", undo: null, open: {}, sedd: 0 };
+const S = { pw: "", ev: null, log: [], cat: null, tag: null, me: "", undo: null, open: {}, sedd: 0, vy: "check" };
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s == null ? "" : s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 const api = async (path, opts) => { const r = await fetch(path, opts); const d = await r.json().catch(() => ({})); if (!r.ok) throw new Error(d.error || r.status); return d; };
@@ -243,6 +288,9 @@ const GST = {
   nej: { l: "Nej", c: "", next: "ej_bjuden" },
 };
 const plan = () => Array.isArray(S.ev.plan) ? S.ev.plan : [];
+const shop = () => Array.isArray(S.ev.shop) ? S.ev.shop : [];
+// Sektionerna är öppna som default; S.open minns bara avvikelserna.
+const oppen = (k) => S.open[k] !== false;
 
 // ---- datum ----
 const DAYS = ["sön","mån","tis","ons","tors","fre","lör"];
@@ -303,7 +351,9 @@ async function write(kind, payload, silent) {
     // verktyg är den då ett påstående om att alla ser samma sak — och det gör de inte.
     // Tysta skrivningar (avbockning, gäststatus) syntes förut aldrig när de misslyckades.
     if (!silent) alert("Kunde inte spara: " + e.message);
-    else showToast("Kunde inte spara — hämtar om sidan");
+    else showToast(e.message === "kv_full"
+      ? "Molnlagret är fullt för idag — ändringen sparades INTE"
+      : "Kunde inte spara — hämtar om sidan");
     await hamta().catch(() => draw());
   }
 }
@@ -406,6 +456,14 @@ function draw() {
   const shown = S.tag ? inCat.filter((x) => x.tag === S.tag) : inCat;
   const open = shown.filter((x) => !x.done), closed = shown.filter((x) => x.done);
 
+  // Hopfällbar sektion. Rubriken ÄR knappen — på en telefon blir festsidan annars en rulle
+  // man scrollar förbi, och det man inte jobbar med just nu ska gå att lägga undan.
+  const sekt = (nyckel, rubrik, meta, kropp) => `<section class="card sec">
+    <div class="sec-head sec-tog" data-sek="${esc(nyckel)}">
+      <h2>${rubrik}<span class="chev${oppen(nyckel) ? "" : " stangd"}">▾</span></h2>
+      <span style="font-size:12px;color:var(--dim)" class="num">${meta}</span></div>
+    ${oppen(nyckel) ? kropp : ""}</section>`;
+
   const rowHtml = (it) => { const d = dueLabel(it.due); return `<div class="row${it.done ? " done" : ""}" data-id="${esc(it.id)}">
       <div class="box">✓</div><div class="row-txt"><div class="t" data-t="${esc(it.id)}" title="Dubbelklicka för att ändra texten">${esc(it.text)}</div>${it.tag ? `<span class="tag">${esc(it.tag)}</span>` : ""}</div>
       ${d.t ? `<div class="due num ${d.c}">${esc(d.t)}</div>` : ""}
@@ -419,40 +477,73 @@ function draw() {
     return `${esc(e.by)} ${esc(e.text)} · ${daysTo(t) === 0 ? "idag" : t.toLocaleDateString("sv-SE")} ${hh}:${mm}`;
   });
 
-  const checklist = `<section class="card sec">
-    <div class="sec-head"><h2>Checklistan</h2><span style="font-size:12px;color:var(--dim)" class="num">${S.tag ? `visar ${shown.length} av ${inCat.length}` : `${done} av ${p.length} klara`}</span></div>
+  // Avbockat göms bakom "Klart · n" — det gjorda är inte det man ska mötas av när man
+  // öppnar sidan. Samma mönster i inköpslistan.
+  const klart = (rader, nyckel) => rader.length ? `<details class="klart" data-k="${nyckel}"${S.open[nyckel] ? " open" : ""}>
+    <summary class="lbl">Klart · ${rader.length}</summary>${rader.join("")}</details>` : "";
+
+  // 🛒 Inköpslistan. Artikel + antal + tagg som säger vilken rätt varan hör till. Raderna är
+  // MATERIALISERADE, alltså vanliga rader man kan ändra och stryka — familjen har salt och
+  // olja hemma och ska slippa handla dem bara för att ett recept nämner dem.
+  const sh = shop();
+  const shOpen = sh.filter((x) => !x.done), shDone = sh.filter((x) => x.done);
+  const shRow = (x) => `<div class="s-row${x.done ? " done" : ""}" data-sid="${esc(x.id)}">
+    <div class="box">✓</div>
+    <div class="s-item ed" data-sitem="${esc(x.id)}" title="Klicka för att ändra varan">${esc(x.item)}</div>
+    <div class="s-qty ed num" data-sqty="${esc(x.id)}" title="Klicka för att ändra antalet">${esc(x.qty || "–")}</div>
+    <button class="row-btn" data-sdel="${esc(x.id)}" title="Ta bort raden" aria-label="Ta bort">✕</button>
+    ${x.tag ? `<span class="tag s-tag">${esc(x.tag)}</span>` : ""}</div>`;
+
+  const utvalda = (ev.recipes || []).filter((r) => r.status !== "forslag").length;
+  const vy = S.vy === "shop" ? "shop" : "check";
+  const kropp = vy === "shop" ? `
+    ${shOpen.length ? shOpen.map(shRow).join("") : `<div class="callout">${sh.length ? "Allt är inhandlat ✓" : "Listan är tom — hämta in de utvalda rätterna eller skriv en vara."}</div>`}
+    ${klart(shDone.map(shRow), "shklart")}
+    <div class="s-add"><input class="s-in-item" id="sItem" placeholder="Vara, t.ex. Isbitar" />
+      <input class="s-in-qty num" id="sQty" placeholder="Antal" /><button class="btn primary" id="sAdd">+</button></div>
+    ${utvalda ? `<button class="btn wide" id="sFrom" style="margin-top:8px">🍳 Hämta in från ${utvalda} utvald${utvalda > 1 ? "a" : ""} rätt${utvalda > 1 ? "er" : ""}</button>` : ""}`
+  : `
     <div class="seg">${cats().map((c) => { const l = p.filter((x) => x.category === c && !x.done).length;
       return `<button data-cat="${esc(c)}" class="${c === S.cat ? "on" : ""}">${esc(c)} · ${l} kvar</button>`; }).join("")}</div>
     ${tags.length ? `<div class="chips"><button class="chip${S.tag ? "" : " on"}" data-tag="">Alla</button>${tags.map((t) => {
       const n = inCat.filter((x) => x.tag === t).length;
       return `<button class="chip${S.tag === t ? " on" : ""}" data-tag="${esc(t)}">${esc(t)} ${S.tag === t ? "✕" : n}</button>`; }).join("")}</div>` : ""}
     ${open.length ? open.map(rowHtml).join("") : `<div class="callout">${S.tag ? `Allt till ${esc(S.tag)} är hemma ✓` : "Allt på listan är klart ✓"}</div>`}
-    ${closed.length ? `<div class="lbl divider">Klart · ${closed.length}</div>${closed.map(rowHtml).join("")}` : ""}
+    ${klart(closed.map(rowHtml), "klart")}
     ${S.tag ? `<button class="btn wide" id="clearTag" style="margin-top:12px">Rensa filtret · visa alla ${inCat.length}</button>` : ""}
     <div class="add"><input id="addTxt" placeholder="Lägg till… (t.ex. Servetter)" /><button class="btn primary" id="addBtn">Lägg till</button></div>
-    ${last.length ? `<div class="act">${last.join("<br>")}</div>` : ""}
+    ${last.length ? `<div class="act">${last.join("<br>")}</div>` : ""}`;
+
+  const checklist = `<section class="card sec">
+    <div class="sec-head">
+      <div class="flip">
+        <button data-vy="check" class="${vy === "check" ? "on" : ""}">Checklistan</button>
+        <span class="sep">/</span>
+        <button data-vy="shop" class="${vy === "shop" ? "on" : ""}">Inköpslistan${shOpen.length ? ` · ${shOpen.length}` : ""}</button>
+      </div>
+      <span style="font-size:12px;color:var(--dim)" class="num">${vy === "shop" ? `${shOpen.length} kvar av ${sh.length}` : S.tag ? `visar ${shown.length} av ${inCat.length}` : `${done} av ${p.length} klara`}</span>
+      <button class="chevbtn" data-sek="lista" aria-label="Fäll ihop">${oppen("lista") ? "▾" : "▸"}</button>
+    </div>
+    ${oppen("lista") ? kropp : ""}
   </section>`;
 
   // Programmet sorteras på tid, precis som i pappen — annars hamnar en punkt någon lägger till
   // sist i listan även om den ska ske klockan tio.
   const prog = (ev.program || []).slice().sort((a, b) => String(a.time || "").localeCompare(String(b.time || "")));
-  const program = `<section class="card sec"><div class="sec-head"><h2>Programmet</h2>
-      <span style="font-size:12px;color:var(--dim)" class="num">${prog.length} punkter</span></div>
+  const program = sekt("program", "Programmet", `${prog.length} punkter`, `
     ${prog.length ? prog.map((x, i, a) => `<div class="tl"><div class="time num ed" data-pt="${esc(x.id)}" title="Klicka för att ändra tiden">${esc(x.time)}</div>
       <div class="dotcol"><div class="dot"></div>${i < a.length - 1 ? '<div class="line"></div>' : ""}</div>
       <div class="txt"><span class="ed" data-px="${esc(x.id)}" title="Klicka för att ändra">${esc(x.text)}</span>
         <button class="row-btn" data-pdel="${esc(x.id)}" title="Ta bort punkten" aria-label="Ta bort">✕</button></div></div>`).join("")
       : `<div style="font-size:13px;color:var(--dim)">Inget program än — lägg till första punkten.</div>`}
     <div class="add p-add"><input class="p-in-time" id="pTime" placeholder="18:00" inputmode="numeric" />
-      <input id="pText" placeholder="Vad händer?" /><button class="btn primary" id="pAdd">+</button></div>
-  </section>`;
+      <input id="pText" placeholder="Vad händer?" /><button class="btn primary" id="pAdd">+</button></div>`);
 
   // Fyra gästlägen, samma som pappen. Kedjan är en livscykel: inte bjuden → bjuden, inget svar
   // → svarat. Nej går tillbaka till "ej bjuden" så en felklickad rad kan backas hela vägen.
   const households = [...new Set((ev.guests || []).map((g) => g.household))];
   const ej = (ev.guests || []).filter((g) => !GST[g.status] || g.status === "ej_bjuden").length;
-  const guests = `<section class="card sec"><div class="sec-head"><h2>Gästerna</h2>
-      <span style="font-size:12px;color:var(--dim)" class="num">${(ev.guests || []).filter((g) => g.barn).length} barn</span></div>
+  const guests = sekt("gaster", "Gästerna", `${(ev.guests || []).filter((g) => g.barn).length} barn`, `
     <div class="stats">
       <div class="stat"><b class="num" style="color:var(--ok-ink)">${gj}</b><span class="lbl">Ja</span></div>
       <div class="stat"><b class="num" style="color:var(--warn-ink)">${gv}</b><span class="lbl">Väntar</span></div>
@@ -472,8 +563,7 @@ function draw() {
       <datalist id="gHouses">${households.map((h) => `<option value="${esc(h)}">`).join("")}</datalist>
       <label><input type="checkbox" id="gBarn" /> barn</label>
       <button class="btn primary" id="gAdd">+ Lägg till</button>
-    </div>
-  </section>`;
+    </div>`);
 
   const bsum = (ev.budget || []).reduce((a, b) => a + (Number(b.est) || 0), 0);
   const bkonf = (ev.budget || []).filter((b) => b.status === "bokad" || b.status === "betald")
@@ -514,14 +604,19 @@ function draw() {
   const recs = Array.isArray(ev.recipes) ? ev.recipes : [];
   const rUt = recs.filter((r) => r.status !== "forslag");
   const rFo = recs.filter((r) => r.status === "forslag");
-  const rRow = (r) => `<div class="r-row" data-rid="${esc(r.id)}">
-    <div class="r-thumb"${r.image ? ` style="background-image:url('${esc(r.image)}')"` : ""}>${r.image ? "" : "🍽"}</div>
-    <div class="r-main">
+  // Ett klick på rätten öppnar den: ingredienser att skriva i, och utförandet att läsa.
+  // Stjärnan/bilden/✕ ligger utanför klickytan så de inte krockar.
+  const rRow = (r) => {
+    const upp = !!S.open["r:" + r.id];
+    return `<div class="r-row" data-rid="${esc(r.id)}">
+    <div class="r-thumb" data-ropen="${esc(r.id)}"${r.image ? ` style="background-image:url('${esc(r.image)}')"` : ""}>${r.image ? "" : "🍽"}</div>
+    <div class="r-main" data-ropen="${esc(r.id)}" title="Klicka för ingredienser och utförande">
       <div class="r-title">${esc(r.title)}</div>
       <div class="r-sub">${[
-        r.ingredients && r.ingredients.length ? `${r.ingredients.length} ingredienser` : "",
-        r.by ? `föreslaget av ${esc(r.by)}` : "",
-        r.source ? `<a href="${esc(r.source)}" target="_blank" rel="noopener">recept ↗</a>` : "",
+        (r.ingredients && r.ingredients.length) ? `${r.ingredients.length} ingredienser` : "inga ingredienser än",
+        (r.steps && r.steps.length) ? `${r.steps.length} steg` : "",
+        r.by ? `av ${esc(r.by)}` : "",
+        r.source ? `<a href="${esc(r.source)}" target="_blank" rel="noopener">källa ↗</a>` : "",
       ].filter(Boolean).join(" · ")}</div>
     </div>
     <div class="r-act">
@@ -529,20 +624,24 @@ function draw() {
       <button class="r-btn" data-rimg="${esc(r.id)}" title="Sätt bild (bild-URL eller sidlänk)">🖼</button>
       <button class="r-btn" data-rdel="${esc(r.id)}" title="Ta bort rätten">✕</button>
     </div>
-  </div>`;
-  const meny = `<section class="card sec"><div class="sec-head"><h2>Menyn</h2>
-      <span style="font-size:12px;color:var(--dim)" class="num">${rUt.length} utvalda${rFo.length ? ` · ${rFo.length} förslag` : ""}</span></div>
-    ${recs.length ? `
+  </div>${upp ? `<div class="r-detalj">
+      <span class="lbl">Ingredienser <span style="text-transform:none;font-weight:400">— en per rad, klicka för att skriva</span></span>
+      <div class="r-txt ed${(r.ingredients || []).length ? "" : " tom"}" data-ring="${esc(r.id)}">${(r.ingredients || []).length ? esc((r.ingredients || []).join("\n")) : "Inga ingredienser än — klicka och skriv en per rad."}</div>
+      <span class="lbl">Utförande</span>
+      <div class="r-txt ed${(r.steps || []).length ? "" : " tom"}" data-rstep="${esc(r.id)}">${(r.steps || []).length ? esc((r.steps || []).map((t, i) => `${i + 1}. ${t}`).join("\n")) : "Inget utförande än — klicka och skriv, eller läs på källan."}</div>
+      <button class="btn wide" data-rshop="${esc(r.id)}">🛒 Lägg varorna i inköpslistan</button>
+    </div>` : ""}`;
+  };
+  const menyKropp = `${recs.length ? `
       ${rUt.length ? `<div class="r-grp">Blir mat</div>${rUt.map(rRow).join("")}` : ""}
       ${rFo.length ? `<div class="r-grp">Förslag</div>${rFo.map(rRow).join("")}` : ""}`
       : `<div style="font-size:13px;color:var(--dim)">Inga rätter än — föreslå den första.</div>`}
     <div class="r-form">
-      <input id="rTitle" placeholder="Rättens namn, t.ex. Kantarellpaj" />
-      <input id="rUrl" placeholder="Recept-länk (valfri) — ingredienser och bild hämtas" />
+      <input id="rNew" placeholder="Rättens namn — eller klistra in en recept-länk" />
       <button class="btn primary wide" id="rAdd">Föreslå rätt</button>
-      <div style="font-size:12px;color:var(--dim)" id="rMsg">Lägger du in en länk hämtas ingredienserna automatiskt. Utförandet läser du på originalsidan.</div>
-    </div>
-  </section>`;
+      <div style="font-size:12px;color:var(--dim)" id="rMsg">Klistrar du in en länk hämtas namn, bild, ingredienser och utförande automatiskt. Skriver du bara ett namn fyller du i resten själv genom att klicka på rätten.</div>
+    </div>`;
+  const meny = sekt("meny", "Menyn", `${rUt.length} utvalda${rFo.length ? ` · ${rFo.length} förslag` : ""}`, menyKropp);
 
   const upd = S.log.length ? new Date(S.log[S.log.length - 1].ts) : null;
   $("app").innerHTML = `
@@ -693,6 +792,58 @@ function wire() {
   const dA = $("dAdd"); if (dA) dA.onclick = addD;
   const dT = $("dTitle"); if (dT) dT.onkeydown = (e) => { if (e.key === "Enter") addD(); };
 
+  // ── Hopfällbara sektioner + "Klart · n" ──
+  document.querySelectorAll("[data-sek]").forEach((el) => el.onclick = (e) => {
+    if (e.target.closest("button[data-vy]")) return;         // flippen är inte en fäll-knapp
+    const k = el.dataset.sek; S.open[k] = !oppen(k); draw();
+  });
+  document.querySelectorAll("details.klart").forEach((d) => { d.ontoggle = () => { S.open[d.dataset.k] = d.open; }; });
+
+  // ── Checklistan ⇄ Inköpslistan ──
+  document.querySelectorAll("[data-vy]").forEach((b) => b.onclick = (e) => {
+    e.stopPropagation(); S.vy = b.dataset.vy; S.open.lista = true; draw();
+  });
+
+  // ── Inköpslistan ──
+  document.querySelectorAll(".s-row").forEach((r) => r.onclick = (e) => {
+    if (e.target.closest("button") || e.target.closest(".ed") || e.target.closest(".t-edit")) return;
+    const x = byId("shop", r.dataset.sid); if (!x) return;
+    x.done = !x.done; draw();                                 // optimistiskt, känns direkt i butiken
+    write("shoptoggle", { id: r.dataset.sid }, true);
+  });
+  bindEdit("data-sitem", (id) => (byId("shop", id) || {}).item, (id, v) => write("shopedit", { id, item: v }));
+  // Antalet får vara tomt — "ost" utan mängd är en fullt rimlig rad på en inköpslista.
+  bindEdit("data-sqty", (id) => { const x = byId("shop", id); return x ? (x.qty || "") : null; },
+    (id, v) => write("shopedit", { id, qty: v }), { allowEmpty: true });
+  document.querySelectorAll("[data-sdel]").forEach((b) => b.onclick = async (e) => {
+    e.stopPropagation();
+    const x = byId("shop", b.dataset.sdel); if (!x) return;
+    if (!confirm(`Ta bort ”${x.item}” från inköpslistan?\n\nRaden försvinner för alla.`)) return;
+    await write("shopdel", { id: b.dataset.sdel });
+  });
+  const addS = () => {
+    const item = ($("sItem").value || "").trim(); if (!item) return;
+    write("shopadd", { item, qty: ($("sQty").value || "").trim() });
+  };
+  const sA = $("sAdd"); if (sA) sA.onclick = addS;
+  ["sItem", "sQty"].forEach((id) => { const el = $(id); if (el) el.onkeydown = (e) => { if (e.key === "Enter") addS(); }; });
+  const sF = $("sFrom"); if (sF) sF.onclick = () => write("shopfrom", {});
+
+  // ── Rätten: öppna, skriv ingredienser, läs utförande ──
+  document.querySelectorAll("[data-ropen]").forEach((el) => el.onclick = (e) => {
+    if (e.target.closest("a")) return;                        // källänken ska öppna källan
+    const k = "r:" + el.dataset.ropen; S.open[k] = !S.open[k]; draw();
+  });
+  bindEdit("data-ring", (id) => ((byId("recipes", id) || {}).ingredients || []).join("\n"),
+    (id, v) => write("ringred", { id, text: v }), { multi: true, allowEmpty: true });
+  // Stegen visas numrerade men lagras utan nummer — annars hade en omskrivning gett "1. 1. …".
+  bindEdit("data-rstep", (id) => ((byId("recipes", id) || {}).steps || []).join("\n"),
+    (id, v) => write("rsteps", { id, text: v }), { multi: true, allowEmpty: true });
+  document.querySelectorAll("[data-rshop]").forEach((b) => b.onclick = async () => {
+    await write("shopfrom", { id: b.dataset.rshop });
+    S.vy = "shop"; S.open.lista = true; draw();
+  });
+
   const cl = $("clearTag"); if (cl) cl.onclick = () => { S.tag = null; draw(); };
   const ag = $("allG"); if (ag) ag.onclick = () => { S.allG = !S.allG; draw(); };
   const add = () => { const t = $("addTxt").value.trim(); if (!t) return; $("addTxt").value = ""; write("add", { text: t, category: S.cat, tag: S.tag || "" }); };
@@ -712,11 +863,18 @@ function wire() {
   });
   const R_FEL = {
     link_unreadable: "Kunde inte läsa receptet från länken. Kolla att den funkar — eller skriv bara rättens namn.",
-    empty: "Skriv rättens namn, eller klistra in en länk.",
+    kv_full: "Molnlagret har nått dagens gräns — inget kan sparas förrän det nollställs vid midnatt UTC.",
+    empty: "Skriv rättens namn, eller klistra in en recept-länk.",
+    inga_utvalda: "Stjärnmärk minst en rätt först — bara utvalda rätter hamnar i inköpslistan.",
+    full: "Inköpslistan är full. Ta bort några rader först.",
     rate_limited: "För många ändringar just nu. Vänta en stund.",
   };
   const rAdd = $("rAdd"); if (rAdd) rAdd.onclick = async () => {
-    const t = $("rTitle").value.trim(), u = $("rUrl").value.trim();
+    // EN ruta för både namn och länk. Ser texten ut som en länk behandlas den som en länk —
+    // ingen ska behöva välja rätt fält innan hen får skriva.
+    const v = ($("rNew").value || "").trim();
+    const arLank = /^https?:\/\/\S+$/i.test(v);
+    const t = arLank ? "" : v, u = arLank ? v : "";
     const msg = $("rMsg");
     if (!t && !u) { msg.textContent = R_FEL.empty; return; }
     rAdd.disabled = true; msg.textContent = u ? "Hämtar receptet…" : "Sparar…";

@@ -18,6 +18,9 @@
 //   POST .. kind=padd|pedit|pdel               program {time,text} / {id,..}  -> programpunkter
 //   POST .. kind=gadd|gedit|gdel               gäster  {guestName,household,barn} -> gästlistan
 //   POST .. kind=dadd|dedit|ddel               underlag{title,body}           -> fria underlag
+//   POST .. kind=ringred|rsteps                recept  {id,text}              -> ingredienser/utförande
+//   POST .. kind=shopadd|shopedit|shoptoggle|shopdel   inköpslistan (artikel+antal+tagg)
+//   POST .. kind=shopfrom                      {id?}                          -> hämta in utvalda rätter
 // FULL PARITET (2026-08-27): allt Calle kan redigera i pappen går att redigera här. Sidan är
 // ett delat planeringsverktyg som ersätter ett Google Sheet, inte en avbockningsvy.
 //
@@ -31,7 +34,11 @@
 
 const nsId = (env) => env.KV_NAMESPACE_ID || env.KV_NAMSPACE_ID;
 const kvOk = (env) => env.CF_ACCOUNT_ID && nsId(env) && env.CF_API_TOKEN;
-const kvBase = (env) => `https://api.cloudflare.com/client/v4/accounts/${env.CF_ACCOUNT_ID}/storage/kv/namespaces/${nsId(env)}`;
+// KV_API_BASE finns BARA för lokal testning: pekas den mot en stub körs hela testsviten utan
+// att röra kontots KV-kvot (1 000 skrivningar/dygn, och den tog slut 2026-08-27 mitt i ett bygge).
+// Osatt — som i drift — går allt till Cloudflare precis som förut.
+const kvApi = (env) => env.KV_API_BASE || "https://api.cloudflare.com/client/v4";
+const kvBase = (env) => `${kvApi(env)}/accounts/${env.CF_ACCOUNT_ID}/storage/kv/namespaces/${nsId(env)}`;
 const kvAuth = (env) => ({ Authorization: `Bearer ${env.CF_API_TOKEN}` });
 async function kvGet(env, key) {
   const r = await fetch(`${kvBase(env)}/values/${encodeURIComponent(key)}`, { headers: kvAuth(env) });
@@ -53,6 +60,26 @@ const TITLE_MAX = 90, URL_MAX = 400, ING_MAX = 60, ING_LINES = 40;
 // Budget/program/gäster/underlag. BODY_MAX är generös med flit — underlagen bär
 // menyresonemang och transport-research, alltså prosa, inte en etikett.
 const LABEL_MAX = 70, TIME_MAX = 8, HOUSE_MAX = 60, BODY_MAX = 4000, EST_MAX = 9999999;
+const ITEM_MAX = 70, QTY_MAX = 20, SHOP_CAP = 400, STEPS_MAX = 6000;
+// Enheter vi vågar plocka ut som "antal". Allt annat blir en del av varunamnet — hellre en
+// klumpig rad man kan redigera än en varusträng som tappat halva sitt namn.
+const ENHETER = ["g","kg","hg","dl","cl","ml","l","msk","tsk","krm","st","pkt","paket","burk","burkar","påse","påsar","klyfta","klyftor","knippe","näve","port","skiva","skivor"];
+// "400 g kantareller" → { qty: "400 g", item: "kantareller" }. Medvetet enkel: familjen kan
+// redigera båda fälten efteråt, så en missad delning kostar ett klick, inte en felaktig lista.
+function delaIngrediens(rad) {
+  const t = sanitize(rad, ITEM_MAX + QTY_MAX).replace(/^[-*•]\s*/, "");
+  const m = t.match(/^(\d+(?:[.,]\d+)?(?:\s*[-–]\s*\d+(?:[.,]\d+)?)?)\s*(.*)$/);
+  if (!m) return { qty: "", item: t.slice(0, ITEM_MAX) };
+  const rest = (m[2] || "").trim();
+  if (!rest) return { qty: "", item: t.slice(0, ITEM_MAX) };   // bara en siffra: låt den vara varan
+  // Enheten räknas bara som enhet om något följer efter den. "3 ägg" har ingen enhet — ägg ÄR
+  // varan — medan "2 dl grädde" har det. Utan det villkoret blev "3 ägg" en rad utan antal.
+  const um = rest.match(/^([A-Za-zÅÄÖåäö]{1,7})\.?\s+(.+)$/);
+  if (um && ENHETER.includes(um[1].toLowerCase())) {
+    return { qty: (m[1] + " " + um[1].toLowerCase()).slice(0, QTY_MAX), item: um[2].trim().slice(0, ITEM_MAX) };
+  }
+  return { qty: m[1].slice(0, QTY_MAX), item: rest.slice(0, ITEM_MAX) };
+}
 const BUDGET_STATUS = ["ej_bokad", "offert", "bokad", "betald"];   // samma kedja som pappen
 const GUEST_STATUS = ["ja", "nej", "väntar", "ej_bjuden"];
 const SLUG_RE = /^[a-z0-9][a-z0-9-]{1,40}$/;
@@ -109,6 +136,19 @@ function metaContent(html, prop) {
   const c = m[0].match(/content=["']([^"']*)["']/i);
   return c ? c[1].trim() : "";
 }
+// recipeInstructions kan vara en sträng, en lista strängar, HowToStep-objekt eller
+// HowToSection med nästlade steg. Platta ut allt till rena rader.
+function plattaSteg(x) {
+  if (!x) return [];
+  if (typeof x === "string") return x.split(/\n+/).map((t) => t.trim()).filter(Boolean);
+  if (Array.isArray(x)) return x.flatMap(plattaSteg);
+  if (typeof x === "object") {
+    if (Array.isArray(x.itemListElement)) return plattaSteg(x.itemListElement);
+    const t = x.text || x.name || "";
+    return t ? [String(t).replace(/\s+/g, " ").trim()] : [];
+  }
+  return [];
+}
 async function fetchRecipeFromUrl(url) {
   const r = await fetch(url, { headers: { "User-Agent": "Mozilla/5.0 (compatible; fest40)" }, redirect: "follow" });
   if (!r.ok) return null;
@@ -122,11 +162,12 @@ async function fetchRecipeFromUrl(url) {
     if (rec) break;
   }
   let image = metaContent(html, "og:image") || "";
-  let title = "", ingredients = [];
+  let title = "", ingredients = [], steps = [];
   if (rec) {
     title = typeof rec.name === "string" ? rec.name : "";
     const ing = rec.recipeIngredient || rec.ingredients || [];
     ingredients = (Array.isArray(ing) ? ing : [ing]).map((x) => String(x || "")).filter(Boolean);
+    steps = plattaSteg(rec.recipeInstructions);
     let im = rec.image;
     if (Array.isArray(im)) im = im[0];
     if (im && typeof im === "object") im = im.url || im.contentUrl || "";
@@ -134,7 +175,7 @@ async function fetchRecipeFromUrl(url) {
   }
   if (!title) title = (html.match(/<title[^>]*>([^<]*)<\/title>/i)?.[1] || "").trim();
   if (image && !/^https?:\/\//i.test(image)) { try { image = new URL(image, url).href; } catch { image = ""; } }
-  return { title, ingredients, image };
+  return { title, ingredients, image, steps };
 }
 // Bild: direkt bildlänk används rakt av, annars hämtas sidans og:image.
 async function resolveImage(candidate) {
@@ -209,6 +250,7 @@ export async function onRequestPost(context) {
   ev.budget = Array.isArray(ev.budget) ? ev.budget : [];
   ev.program = Array.isArray(ev.program) ? ev.program : [];
   ev.docs = Array.isArray(ev.docs) ? ev.docs : [];
+  ev.shop = Array.isArray(ev.shop) ? ev.shop : [];
   ev.deleted = Array.isArray(ev.deleted) ? ev.deleted : [];
   const tomb = (kind, id, title) => {
     if (!ev.deleted.some((d) => d.id === id)) ev.deleted.push({ id, kind, by, ts });
@@ -263,16 +305,20 @@ export async function onRequestPost(context) {
     // Gästförslag. ID SÄTTS HÄR, VID SKRIVNINGEN — pappen slår upp rader på id, och en post
     // utan id ger en knapp som ser rätt ut men är död, helt utan felmeddelande. Bet 2026-08-26.
     let title = sanitize(body.title, TITLE_MAX);
-    const url = sanitize(body.url, URL_MAX);
+    let url = sanitize(body.url, URL_MAX);
+    // Sidan har numera EN ruta för både namn och länk. Klistras en länk in i namnfältet ska
+    // den behandlas som en länk — inte sparas som en rätt vid namn "https://…".
+    if (!url && /^https?:\/\/\S+$/i.test(title)) { url = title.slice(0, URL_MAX); title = ""; }
     let ingredients = (Array.isArray(body.ingredients) ? body.ingredients : String(body.ingredients || "").split("\n"))
       .map((x) => sanitize(x, ING_MAX)).filter(Boolean).slice(0, ING_LINES);
-    let image = "", linkFailed = false;
+    let image = "", linkFailed = false, got_steps = [];
     if (url && /^https?:\/\//i.test(url)) {
       try {
         const got = await fetchRecipeFromUrl(url);
         if (got) {
           if (!title) title = sanitize(got.title, TITLE_MAX);
           if (!ingredients.length) ingredients = got.ingredients.map((x) => sanitize(x, ING_MAX)).filter(Boolean).slice(0, ING_LINES);
+          got_steps = (got.steps || []).map((x) => sanitize(x, 400)).filter(Boolean).slice(0, 40);
           image = got.image || "";
         } else linkFailed = true;
       } catch { linkFailed = true; }   // nätfel/död länk — skiljs från "gav ingenting alls"
@@ -281,7 +327,7 @@ export async function onRequestPost(context) {
     // en gäst som klistrat in en trasig länk felet "empty", vilket inte betyder något för hen.
     if (!title) return Response.json({ error: linkFailed ? "link_unreadable" : "empty" }, { status: 400 });
     ev.recipes.push({ id: mkId(), slug: "", title, image, servings: 0, status: "forslag",
-      source: url, ingredients, fromGuest: true, by });
+      source: url, ingredients, steps: (got_steps || []), fromGuest: true, by });
     note(`föreslog receptet ”${title}”`);
   } else if (kind === "rstar") {
     const r = ev.recipes.find((x) => x.id === body.id);
@@ -414,6 +460,75 @@ export async function onRequestPost(context) {
     const [gone] = ev.docs.splice(i, 1);
     tomb("doc", gone.id);
     note(`tog bort underlaget ”${gone.title}”`);
+  // ───────── Recepten: ingredienser och utförande ─────────
+  } else if (kind === "ringred" || kind === "rsteps") {
+    const r = ev.recipes.find((x) => x.id === body.id);
+    if (!r) return Response.json({ error: "not_found_recipe" }, { status: 404 });
+    const rader = sanitizeMulti(body.text, kind === "rsteps" ? STEPS_MAX : BODY_MAX)
+      .split("\n").map((x) => x.replace(/^\s*(?:[-*•]|\d+[.)])\s*/, "").trim())
+      .filter(Boolean).slice(0, kind === "rsteps" ? 40 : ING_LINES);
+    if (kind === "ringred") { r.ingredients = rader.map((x) => x.slice(0, ING_MAX)); note(`skrev ingredienser till ”${r.title}”`); }
+    else { r.steps = rader.map((x) => x.slice(0, 400)); note(`skrev utförande till ”${r.title}”`); }
+    // En rätt vars innehåll någon skrivit för hand får inte skrivas över av registret vid
+    // nästa Publicera. Märket säger åt pappen att raden ÄR redigerad här.
+    r.edited = true;
+
+  // ───────── Inköpslistan ─────────
+  // Raderna MATERIALISERAS (till skillnad från pappens härledda lista): det är hela poängen
+  // med "överför utvalda rätter". En härledd rad går inte att redigera, och familjen har salt
+  // och olja hemma — de ska kunna ändra eller stryka en rad utan att röra receptet.
+  } else if (kind === "shopadd") {
+    const item = sanitize(body.item, ITEM_MAX);
+    if (!item) return Response.json({ error: "empty" }, { status: 400 });
+    if (ev.shop.length >= SHOP_CAP) return Response.json({ error: "full" }, { status: 400 });
+    ev.shop.push({ id: mkId(), item, qty: sanitize(body.qty, QTY_MAX), tag: sanitize(body.tag, TAG_MAX),
+      done: false, fromGuest: true, by });
+    note(`la till ”${item}” på inköpslistan`);
+  } else if (kind === "shopedit") {
+    const r = ev.shop.find((x) => x.id === body.id);
+    if (!r) return Response.json({ error: "not_found_shop" }, { status: 404 });
+    if (body.item != null) {
+      const item = sanitize(body.item, ITEM_MAX);
+      if (!item) return Response.json({ error: "empty" }, { status: 400 });
+      if (item !== r.item) note(`ändrade ”${r.item}” till ”${item}”`);
+      r.item = item;
+    }
+    if (body.qty != null) r.qty = sanitize(body.qty, QTY_MAX);
+    if (body.tag != null) r.tag = sanitize(body.tag, TAG_MAX);
+  } else if (kind === "shoptoggle") {
+    const r = ev.shop.find((x) => x.id === body.id);
+    if (!r) return Response.json({ error: "not_found_shop" }, { status: 404 });
+    r.done = !r.done;
+    note(`${r.done ? "bockade av" : "ångrade"} ”${r.item}”`);
+  } else if (kind === "shopdel") {
+    const i = ev.shop.findIndex((x) => x.id === body.id);
+    if (i === -1) return Response.json({ error: "not_found_shop" }, { status: 404 });
+    const [gone] = ev.shop.splice(i, 1);
+    tomb("shop", gone.id);
+    note(`tog bort ”${gone.item}” från inköpslistan`);
+  } else if (kind === "shopfrom") {
+    // Hämta in ingredienserna från de UTVALDA rätterna (eller en enskild, om id skickas med).
+    // Varje rad taggas med rättens namn, så man ser i butiken vad den hör till.
+    // Idempotent: en vara som redan finns med samma tagg läggs inte till igen, annars hade
+    // varje tryck dubblerat listan. Raderar man en rad medvetet kommer den däremot tillbaka
+    // vid nästa hämtning — det är en hämtning, inte en synk.
+    const valda = ev.recipes.filter((r) => body.id ? r.id === body.id : r.status !== "forslag");
+    if (!valda.length) return Response.json({ error: "inga_utvalda" }, { status: 400 });
+    let nya = 0;
+    for (const r of valda) {
+      const tag = sanitize(r.title, TAG_MAX);
+      for (const rad of (r.ingredients || [])) {
+        const { qty, item } = delaIngrediens(rad);
+        if (!item) continue;
+        const finns = ev.shop.some((x) => x.tag === tag && x.item.toLowerCase() === item.toLowerCase());
+        if (finns) continue;
+        if (ev.shop.length >= SHOP_CAP) break;
+        ev.shop.push({ id: mkId(), item, qty, tag, done: false, fromRecipe: r.id, fromGuest: true, by });
+        nya++;
+      }
+    }
+    note(nya ? `hämtade in ${nya} varor från ${valda.length} rätt${valda.length > 1 ? "er" : ""}`
+             : `hämtade in inköpslistan (inget nytt)`);
   } else {
     return Response.json({ error: "bad_kind" }, { status: 400 });
   }
@@ -424,7 +539,14 @@ export async function onRequestPost(context) {
   ev.rl[rlk] = { n: rl + 1, t: ts };
   // Städa hinkar som gjort sitt, annars växer objektet för varje besökare som någonsin varit här.
   for (const k of Object.keys(ev.rl)) if (!(ev.rl[k].t > ts - RL_WINDOW * 1000)) delete ev.rl[k];
-  await kvPut(env, K_EVENT(slug), JSON.stringify(ev));   // ← EN skrivning, inte tre
+  // ← EN skrivning, inte tre. Går den ändå fel (kontots dygnskvot tog slut 2026-08-27) ska
+  // svaret säga det rakt ut, inte lämna en 500 som sidan tolkar som "något gick fel".
+  try {
+    await kvPut(env, K_EVENT(slug), JSON.stringify(ev));
+  } catch (e) {
+    const full = /\b429\b/.test(String(e && e.message));
+    return Response.json({ error: full ? "kv_full" : "kv_error" }, { status: full ? 503 : 500 });
+  }
   const { pw, log: _l, rl: _r, ...safe } = ev;
   return Response.json({ event: safe, changelog: log });
 }
@@ -452,7 +574,7 @@ export async function onRequestPut(context) {
   // Gäller alla listor sedan sidan fick full paritet (2026-08-27), inte bara recepten:
   // en budgetpost mamma la in är precis lika lätt att tappa som ett receptförslag.
   // fromGuest-märket lever bara tills pappen skickat tillbaka raden — då vinner den inkommande.
-  const LISTOR = ["plan", "guests", "budget", "program", "docs", "recipes"];
+  const LISTOR = ["plan", "guests", "budget", "program", "docs", "recipes", "shop"];
   for (const k of LISTOR) {
     if (!prev || !Array.isArray(prev[k])) continue;
     const kommer = new Set((ev[k] || []).map((x) => x && x.id));
