@@ -222,14 +222,16 @@ details.klart[open]>summary::after{content:"▴"}
 .flip button:not(.on):hover{color:var(--mid)}
 .flip .sep{color:var(--line-strong);font-weight:400;align-self:center}
 .chevbtn{border:0;background:none;color:var(--faint);font-size:12px;padding:4px 0 4px 8px;flex:0 0 auto}
-.s-row{display:grid;grid-template-columns:26px 1fr auto 30px;grid-template-areas:"box item qty del" ". tag tag .";
-  gap:2px 10px;align-items:center;padding:10px 0;border-bottom:1px solid var(--line-soft)}
+.s-row{display:grid;grid-template-columns:26px minmax(0,1fr) minmax(58px,auto) auto 30px;
+  grid-template-areas:"box item chips qty del";
+  gap:2px 8px;align-items:center;padding:10px 0;border-bottom:1px solid var(--line-soft)}
+.s-row .chips-col{grid-area:chips}
 .s-row:last-child{border-bottom:0}
 .s-row .box{grid-area:box}
 .s-item{grid-area:item;font-size:15px;min-width:0}
 .s-qty{grid-area:qty;font-size:13px;color:var(--mid);font-weight:600;white-space:nowrap}
 .s-row .row-btn{grid-area:del}
-.s-tag{grid-area:tag;justify-self:start;margin-top:2px}
+
 .s-row.done .s-item{color:var(--dim);text-decoration:line-through;text-decoration-color:rgba(139,130,114,.45)}
 .s-row.done .s-qty{color:var(--faint)}
 .s-add{display:flex;gap:8px;margin-top:12px}
@@ -238,6 +240,39 @@ details.klart[open]>summary::after{content:"▴"}
 .s-add input:focus{outline:none;border-color:var(--accent)}
 .s-add .s-in-item{flex:1 1 auto}
 .s-add .s-in-qty{flex:0 0 82px;text-align:center}
+
+/* ── Rubriker och taggar ──────────────────────────────────────────────────────
+   Två axlar som löser olika saker: RUBRIKEN samlar rader ("Lunch", "Middag") och syns som en
+   liten överskrift, TAGGEN säger vad raden hör till ("Kantarellpaj") och syns som en färgad
+   ruta i kolumnen till höger om titeln. Färgen härleds ur ordet, så ingen färgväljare behövs. */
+.grp-h{display:flex;align-items:center;gap:8px;padding:14px 0 4px;border-top:1px solid var(--line-soft)}
+.grp-h:first-child{border-top:0;padding-top:4px}
+.grp-h .lbl{cursor:text}
+.grp-h .n{font-size:11px;color:var(--faint)}
+/* Fast bredd i px, inte i procent: i delad vy blev 34 % av en smal kolumn så lite att
+   taggarna kapades till "L…" och "D…", vilket är sämre än ingen tagg alls. */
+.chips-col{flex:0 0 auto;display:flex;flex-direction:column;align-items:flex-end;gap:3px;
+  max-width:128px;min-width:58px}
+.mini{max-width:100%;padding:2px 7px;border-radius:6px;font-size:10.5px;line-height:1.5;font-weight:600;
+  border:1px solid var(--line);background:var(--panel2);color:var(--mid);
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mini.tom{border-style:dashed;border-color:var(--line-strong);color:var(--faint);background:transparent;font-weight:400;padding:2px 6px}
+.mini.grp{text-transform:uppercase;letter-spacing:.4px;font-size:9.5px}
+.row.done .mini,.s-row.done .mini{opacity:.5}
+
+/* ── Delad vy: checklista och inköpslista bredvid varandra i samma kort ── */
+.split{display:grid;grid-template-columns:1fr 1fr;gap:18px;align-items:start}
+.split-h{font-size:12px;font-weight:700;letter-spacing:.4px;text-transform:uppercase;color:var(--dim);
+  padding-bottom:8px;margin-bottom:4px;border-bottom:1px solid var(--line)}
+.split .row,.split .s-row{padding:8px 0}
+/* I delad vy står rubriken redan som överskrift ovanför raden. Att upprepa den i varje rad
+   åt bara upp bredden. Rader UTAN rubrik behåller sin "+" så de går att sortera in. */
+.split .mini.grp:not(.tom){display:none}
+.split .row-txt .t,.split .s-item{font-size:13.5px}
+.splitbtn{border:1px solid var(--line);background:var(--panel);color:var(--dim);border-radius:var(--r-field);
+  width:30px;height:26px;font-size:12px;padding:0;flex:0 0 auto;margin-left:6px}
+.splitbtn.on{background:rgba(108,140,255,.12);border-color:rgba(108,140,255,.45);color:var(--accent-ink)}
+@media(max-width:899px){ .splitbtn{display:none} }
 
 /* ── Portioner och "har hemma" ── */
 .cook-row{display:flex;align-items:center;gap:6px;flex-wrap:wrap;font-size:13px;color:var(--mid);
@@ -362,6 +397,37 @@ const skalfaktor = (r) => {
   return (lagar > 0 && bas > 0) ? lagar / bas : 1;
 };
 const haveKey = (rad) => String(rad || "").toLowerCase().replace(/\s+/g, " ").trim();
+// Taggfärgen härleds ur ordet. Ingen färgväljare att fylla UI:t med, och samma tagg får samma
+// färg i båda listorna — det är hela poängen med att kunna skumma dem i en butik.
+const TAGGFARGER = [
+  ["rgba(108,140,255,.14)", "rgba(108,140,255,.45)", "#4d68d8"],
+  ["rgba(55,193,132,.15)", "rgba(55,193,132,.4)", "#2f9e6e"],
+  ["rgba(230,180,80,.2)", "rgba(230,180,80,.45)", "#a1782a"],
+  ["rgba(207,85,112,.13)", "rgba(207,85,112,.38)", "#c04a66"],
+  ["rgba(150,110,215,.14)", "rgba(150,110,215,.4)", "#7a56bd"],
+  ["rgba(80,175,195,.16)", "rgba(80,175,195,.42)", "#2c7f92"],
+];
+function taggStil(t) {
+  let h = 0; for (const c of String(t)) h = (h * 31 + c.charCodeAt(0)) >>> 0;
+  const [bg, br, ink] = TAGGFARGER[h % TAGGFARGER.length];
+  return `background:${bg};border-color:${br};color:${ink}`;
+}
+// Rubrik + tagg som två små rutor till höger om titeln. Tomma rutor är streckade "+" så det
+// syns att de går att fylla — dolda affordances hittar ingen på en telefon.
+const chipsKol = (lista, rad) => `<div class="chips-col">
+  <button class="mini grp${rad.group ? "" : " tom"}" data-grp="${lista}:${esc(rad.id)}" title="Rubrik raden hamnar under">${rad.group ? esc(rad.group) : "+"}</button>
+  <button class="mini${rad.tag ? "" : " tom"}"${rad.tag ? ` style="${taggStil(rad.tag)}"` : ""} data-ptag="${lista}:${esc(rad.id)}" title="Tagg, t.ex. vilken rätt raden hör till">${rad.tag ? esc(rad.tag) : "+"}</button>
+</div>`;
+// Gruppera på rubrik. Rader utan rubrik ligger först och utan överskrift — de flesta listor
+// har ingen indelning alls, och då ska den inte synas.
+function grupperaRader(rader) {
+  const utan = rader.filter((x) => !x.group);
+  const namn = [...new Set(rader.map((x) => x.group).filter(Boolean))].sort((a, b) => a.localeCompare(b, "sv"));
+  return [["", utan], ...namn.map((g) => [g, rader.filter((x) => x.group === g)])].filter(([, r]) => r.length);
+}
+const grpRubrik = (lista, namn, n) => namn
+  ? `<div class="grp-h"><span class="lbl" data-grpname="${lista}:${esc(namn)}" title="Dubbelklicka för att döpa om rubriken">${esc(namn)}</span><span class="n num">${n}</span></div>`
+  : "";
 
 // ---- datum ----
 const DAYS = ["sön","mån","tis","ons","tors","fre","lör"];
@@ -560,9 +626,11 @@ function draw() {
     ${oppen(nyckel) ? kropp : ""}</section>`;
 
   const rowHtml = (it) => { const d = dueLabel(it.due); return `<div class="row${it.done ? " done" : ""}" data-id="${esc(it.id)}">
-      <div class="box">✓</div><div class="row-txt"><div class="t" data-t="${esc(it.id)}" title="Dubbelklicka för att ändra texten">${esc(it.text)}</div>${it.tag ? `<span class="tag">${esc(it.tag)}</span>` : ""}</div>
+      <div class="box">✓</div><div class="row-txt"><div class="t" data-t="${esc(it.id)}" title="Dubbelklicka för att ändra texten">${esc(it.text)}</div></div>
+      ${chipsKol("plan", it)}
       ${d.t ? `<div class="due num ${d.c}">${esc(d.t)}</div>` : ""}
       <button class="row-btn touch-only" data-edit="${esc(it.id)}" title="Ändra texten" aria-label="Ändra">✎</button>
+      <button class="row-btn" data-toshop="${esc(it.id)}" title="Lägg också på inköpslistan" aria-label="Till inköpslistan">🛒</button>
       <button class="row-btn" data-del="${esc(it.id)}" title="Ta bort raden" aria-label="Ta bort">✕</button></div>`; };
 
   // OBS: raderna escapas HÄR och får inte escapas igen där de sätts in — en andra esc()
@@ -585,38 +653,58 @@ function draw() {
   const shRow = (x) => `<div class="s-row${x.done ? " done" : ""}" data-sid="${esc(x.id)}">
     <div class="box">✓</div>
     <div class="s-item ed" data-sitem="${esc(x.id)}" title="Klicka för att ändra varan">${esc(x.item)}</div>
+    ${chipsKol("shop", x)}
     <div class="s-qty ed num" data-sqty="${esc(x.id)}" title="Klicka för att ändra antalet">${esc(x.qty || "–")}</div>
-    <button class="row-btn" data-sdel="${esc(x.id)}" title="Ta bort raden" aria-label="Ta bort">✕</button>
-    ${x.tag ? `<span class="tag s-tag">${esc(x.tag)}</span>` : ""}</div>`;
+    <button class="row-btn" data-sdel="${esc(x.id)}" title="Ta bort raden" aria-label="Ta bort">✕</button></div>`;
 
   const utvalda = (ev.recipes || []).filter((r) => r.status !== "forslag").length;
   const vy = S.vy === "shop" ? "shop" : "check";
-  const kropp = vy === "shop" ? `
-    ${shOpen.length ? shOpen.map(shRow).join("") : `<div class="callout">${sh.length ? "Allt är inhandlat ✓" : "Listan är tom — hämta in de utvalda rätterna eller skriv en vara."}</div>`}
+  // De två listorna byggs var för sig, så de kan visas antingen en i taget (flip) eller
+  // sida vid sida i samma kort. Båda grupperas på rubrik; rader utan rubrik ligger först.
+  const shopKropp = `
+    ${shOpen.length ? grupperaRader(shOpen).map(([g, rader]) =>
+        grpRubrik("shop", g, rader.length) + rader.map(shRow).join("")).join("")
+      : `<div class="callout">${sh.length ? "Allt är inhandlat ✓" : "Listan är tom — hämta in de utvalda rätterna eller skriv en vara."}</div>`}
     ${klart(shDone.map(shRow), "shklart")}
     <div class="s-add"><input class="s-in-item" id="sItem" placeholder="Vara, t.ex. Isbitar" />
       <input class="s-in-qty num" id="sQty" placeholder="Antal" /><button class="btn primary" id="sAdd">+</button></div>
-    ${utvalda ? `<button class="btn wide" id="sFrom" style="margin-top:8px">🍳 Hämta in från ${utvalda} utvald${utvalda > 1 ? "a" : ""} rätt${utvalda > 1 ? "er" : ""}</button>` : ""}`
-  : `
+    ${utvalda ? `<button class="btn wide" id="sFrom" style="margin-top:8px">🍳 Hämta in från ${utvalda} utvald${utvalda > 1 ? "a" : ""} rätt${utvalda > 1 ? "er" : ""}</button>` : ""}`;
+
+  const checkKropp = `
     <div class="seg">${cats().map((c) => { const l = p.filter((x) => x.category === c && !x.done).length;
       return `<button data-cat="${esc(c)}" class="${c === S.cat ? "on" : ""}">${esc(c)} · ${l} kvar</button>`; }).join("")}</div>
     ${tags.length ? `<div class="chips"><button class="chip${S.tag ? "" : " on"}" data-tag="">Alla</button>${tags.map((t) => {
       const n = inCat.filter((x) => x.tag === t).length;
-      return `<button class="chip${S.tag === t ? " on" : ""}" data-tag="${esc(t)}">${esc(t)} ${S.tag === t ? "✕" : n}</button>`; }).join("")}</div>` : ""}
-    ${open.length ? open.map(rowHtml).join("") : `<div class="callout">${S.tag ? `Allt till ${esc(S.tag)} är hemma ✓` : "Allt på listan är klart ✓"}</div>`}
+      return `<button class="chip${S.tag === t ? " on" : ""}" data-tag="${esc(t)}" style="${S.tag === t ? "" : taggStil(t)}">${esc(t)} ${S.tag === t ? "✕" : n}</button>`; }).join("")}</div>` : ""}
+    ${open.length ? grupperaRader(open).map(([g, rader]) =>
+        grpRubrik("plan", g, rader.length) + rader.map(rowHtml).join("")).join("")
+      : `<div class="callout">${S.tag ? `Allt till ${esc(S.tag)} är hemma ✓` : "Allt på listan är klart ✓"}</div>`}
     ${klart(closed.map(rowHtml), "klart")}
     ${S.tag ? `<button class="btn wide" id="clearTag" style="margin-top:12px">Rensa filtret · visa alla ${inCat.length}</button>` : ""}
     <div class="add"><input id="addTxt" placeholder="Lägg till… (t.ex. Servetter)" /><button class="btn primary" id="addBtn">Lägg till</button></div>
     ${last.length ? `<div class="act">${last.join("<br>")}</div>` : ""}`;
 
+  // Delad vy: bara meningsfull när det finns bredd. På en telefon blir två kolumner oläsliga,
+  // så knappen göms under 900 px och flippen är vägen mellan listorna där.
+  const bred = window.matchMedia("(min-width:900px)").matches;
+  const delad = bred && !!S.split;
+  const kropp = delad
+    ? `<div class="split">
+         <div><div class="split-h">Checklistan</div>${checkKropp}</div>
+         <div><div class="split-h">Inköpslistan</div>${shopKropp}</div>
+       </div>`
+    : (vy === "shop" ? shopKropp : checkKropp);
+
   const checklist = `<section class="card sec">
     <div class="sec-head">
       <div class="flip">
-        <button data-vy="check" class="${vy === "check" ? "on" : ""}">Checklistan</button>
+        <button data-vy="check" class="${delad || vy === "check" ? "on" : ""}">Checklistan</button>
         <span class="sep">/</span>
-        <button data-vy="shop" class="${vy === "shop" ? "on" : ""}">Inköpslistan${shOpen.length ? ` · ${shOpen.length}` : ""}</button>
+        <button data-vy="shop" class="${delad || vy === "shop" ? "on" : ""}">Inköpslistan${shOpen.length ? ` · ${shOpen.length}` : ""}</button>
       </div>
-      <span style="font-size:12px;color:var(--dim)" class="num">${vy === "shop" ? `${shOpen.length} kvar av ${sh.length}` : S.tag ? `visar ${shown.length} av ${inCat.length}` : `${done} av ${p.length} klara`}</span>
+      <span style="font-size:12px;color:var(--dim)" class="num">${delad ? `${done} av ${p.length} · ${shOpen.length} att handla`
+        : vy === "shop" ? `${shOpen.length} kvar av ${sh.length}` : S.tag ? `visar ${shown.length} av ${inCat.length}` : `${done} av ${p.length} klara`}</span>
+      <button class="splitbtn${delad ? " on" : ""}" id="splitBtn" title="${delad ? "Visa en lista i taget" : "Visa båda listorna bredvid varandra"}" aria-label="Delad vy">${delad ? "▥" : "▤"}</button>
       <button class="chevbtn" data-sek="lista" aria-label="Fäll ihop">${oppen("lista") ? "▾" : "▸"}</button>
     </div>
     ${oppen("lista") ? kropp : ""}
@@ -910,7 +998,7 @@ function wire() {
 
   // ── Checklistan ⇄ Inköpslistan ──
   document.querySelectorAll("[data-vy]").forEach((b) => b.onclick = (e) => {
-    e.stopPropagation(); S.vy = b.dataset.vy; S.open.lista = true; draw();
+    e.stopPropagation(); S.vy = b.dataset.vy; S.split = false; S.open.lista = true; draw();
   });
 
   // ── Inköpslistan ──
@@ -991,6 +1079,42 @@ function wire() {
     await write("shopfrom", { id: b.dataset.rshop });
     S.vy = "shop"; S.open.lista = true; draw();
   });
+
+  // ── Rubriker och taggar ──
+  // Nyckeln är "lista:id". Delas på FÖRSTA kolonet — ett rubriknamn får gärna innehålla ett.
+  const delaNyckel = (v) => { const i = String(v).indexOf(":"); return [v.slice(0, i), v.slice(i + 1)]; };
+  const radI = (v) => { const [lista, id] = delaNyckel(v); return byId(lista === "shop" ? "shop" : "plan", id); };
+  bindEdit("data-grp", (k) => { const r = radI(k); return r ? (r.group || "") : null; },
+    (k, v) => { const [lista, id] = delaNyckel(k); return write("grp", { lista, id, group: v }); }, { allowEmpty: true });
+  bindEdit("data-ptag", (k) => { const r = radI(k); return r ? (r.tag || "") : null; },
+    (k, v) => { const [lista, id] = delaNyckel(k); return write("ptag", { lista, id, tag: v }); }, { allowEmpty: true });
+  // Rubriken är inget eget objekt — den ÄR fältet på raderna. Att döpa om den skriver därför
+  // om alla rader som bär den, och ett tomt namn löser upp gruppen.
+  document.querySelectorAll("[data-grpname]").forEach((el) => {
+    el.ondblclick = (e) => {
+      e.stopPropagation();
+      const [lista, namn] = delaNyckel(el.dataset.grpname);
+      editable(el, namn, (t) => write("grpname", { lista, from: namn, to: t }), { allowEmpty: true });
+    };
+  });
+  // 🛒 på en checklistrad: DUPLICERAR den till inköpslistan. "Köp is" kan behöva stå kvar som
+  // en punkt att bocka av även när varan ligger på listan.
+  document.querySelectorAll("[data-toshop]").forEach((b) => b.onclick = async (e) => {
+    e.stopPropagation();
+    const it = plan().find((x) => x.id === b.dataset.toshop); if (!it) return;
+    try {
+      const d = await api(`/api/fest40?slug=${encodeURIComponent(slug)}&kind=toshop`, {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ pw: S.pw, name: S.me, id: b.dataset.toshop }),
+      });
+      S.ev = d.event; S.log = d.changelog || []; S.sedd = d.event.updatedAt || 0;
+      draw(); showToast(`”${it.text}” ligger nu också på inköpslistan`);
+    } catch (err) {
+      showToast(err.message === "finns_redan" ? "Den varan finns redan på inköpslistan" : "Kunde inte lägga till: " + err.message);
+    }
+  });
+  // Delad vy. Klickar man på en av rubrikerna i delat läge menar man "visa bara den".
+  const sb = $("splitBtn"); if (sb) sb.onclick = (e) => { e.stopPropagation(); S.split = !S.split; S.open.lista = true; draw(); };
 
   const cl = $("clearTag"); if (cl) cl.onclick = () => { S.tag = null; draw(); };
   const ag = $("allG"); if (ag) ag.onclick = () => { S.allG = !S.allG; draw(); };

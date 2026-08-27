@@ -25,6 +25,10 @@
 //   POST .. kind=rserv                         {id,n}                         -> receptets egna portioner
 //   POST .. kind=rport                         {id,n}                         -> hur många VI lagar av rätten
 //   POST .. kind=rtitle                        {id,title}                     -> döp om rätten
+//   POST .. kind=grp                           {lista,id,group}               -> sätt rubrik på en rad
+//   POST .. kind=grpname                       {lista,from,to}                -> döp om en rubrik
+//   POST .. kind=ptag                          {lista,id,tag}                 -> sätt tagg på en rad
+//   POST .. kind=toshop                        {id}                           -> checklistrad -> inköpslistan
 //   POST .. kind=rhave                         {id,line}                      -> "har hemma" på/av
 // FULL PARITET (2026-08-27): allt Calle kan redigera i pappen går att redigera här. Sidan är
 // ett delat planeringsverktyg som ersätter ett Google Sheet, inte en avbockningsvy.
@@ -65,7 +69,14 @@ const TITLE_MAX = 90, URL_MAX = 400, ING_MAX = 60, ING_LINES = 40;
 // Budget/program/gäster/underlag. BODY_MAX är generös med flit — underlagen bär
 // menyresonemang och transport-research, alltså prosa, inte en etikett.
 const LABEL_MAX = 70, TIME_MAX = 8, HOUSE_MAX = 60, BODY_MAX = 4000, EST_MAX = 9999999;
-const ITEM_MAX = 70, QTY_MAX = 20, SHOP_CAP = 400, STEPS_MAX = 6000;
+const ITEM_MAX = 70, QTY_MAX = 20, SHOP_CAP = 400, STEPS_MAX = 6000, GRP_MAX = 30;
+// Två oberoende axlar på en rad, båda frivilliga:
+//   group = rubriken raden hamnar under ("Lunch", "Middag") — struktur man plockar efter
+//   tag   = etiketten till höger ("Kantarellpaj") — vad raden hör TILL
+// De löser olika saker: en rubrik samlar, en tagg härleder. Att slå ihop dem hade tvingat en
+// vara att antingen tillhöra sin måltid eller sitt recept, aldrig båda.
+// Okänt listnamn ger null, inte plan. Ett stavfel ska avvisas, inte tyst skriva i fel lista.
+const listaAv = (ev, namn) => (namn === "shop" ? ev.shop : namn === "plan" ? ev.plan : null);
 // Enheter vi vågar plocka ut som "antal". Allt annat blir en del av varunamnet — hellre en
 // klumpig rad man kan redigera än en varusträng som tappat halva sitt namn.
 const ENHETER = ["g","kg","hg","dl","cl","ml","l","msk","tsk","krm","st","pkt","paket","burk","burkar","påse","påsar","klyfta","klyftor","knippe","näve","port","skiva","skivor"];
@@ -334,7 +345,8 @@ export async function onRequestPost(context) {
     if (!text) return Response.json({ error: "empty" }, { status: 400 });
     const cats = (ev.categories && ev.categories.length) ? ev.categories : ["Inhandling", "Fixa"];
     const category = cats.includes(body.category) ? body.category : cats[0];
-    const item = { id: mkId(), text, done: false, due: sanitize(body.due, 12) || "", category, tag: sanitize(body.tag, TAG_MAX), fromGuest: true, by };
+    const item = { id: mkId(), text, done: false, due: sanitize(body.due, 12) || "", category,
+      tag: sanitize(body.tag, TAG_MAX), group: sanitize(body.group, GRP_MAX), fromGuest: true, by };
     ev.plan.push(item);
     note(`la till ”${text}”`);
   } else if (kind === "tag") {
@@ -549,7 +561,7 @@ export async function onRequestPost(context) {
     if (!item) return Response.json({ error: "empty" }, { status: 400 });
     if (ev.shop.length >= SHOP_CAP) return Response.json({ error: "full" }, { status: 400 });
     ev.shop.push({ id: mkId(), item, qty: sanitize(body.qty, QTY_MAX), tag: sanitize(body.tag, TAG_MAX),
-      done: false, fromGuest: true, by });
+      group: sanitize(body.group, GRP_MAX), done: false, fromGuest: true, by });
     note(`la till ”${item}” på inköpslistan`);
   } else if (kind === "shopedit") {
     const r = ev.shop.find((x) => x.id === body.id);
@@ -623,6 +635,42 @@ export async function onRequestPost(context) {
       r.have.splice(i, 1);
       note(`avmarkerade ”${rad}” (${r.title})`);
     }
+  } else if (kind === "grp" || kind === "ptag") {
+    const arr = listaAv(ev, body.lista);
+    if (!arr) return Response.json({ error: "bad_list" }, { status: 400 });
+    const rad = arr.find((x) => x.id === body.id);
+    if (!rad) return Response.json({ error: "not_found_item" }, { status: 404 });
+    const namn = rad.text || rad.item || "raden";
+    if (kind === "grp") {
+      rad.group = sanitize(body.group, GRP_MAX);
+      note(rad.group ? `la ”${namn}” under ${rad.group}` : `tog bort rubriken från ”${namn}”`);
+    } else {
+      rad.tag = sanitize(body.tag, TAG_MAX);
+      note(rad.tag ? `taggade ”${namn}” som ${rad.tag}` : `tog bort taggen från ”${namn}”`);
+    }
+  } else if (kind === "grpname") {
+    // Rubriken finns inte som eget objekt — den ÄR fältet på raderna. Att döpa om den är
+    // därför att skriva om alla rader som bär den. Ett tomt nytt namn löser upp gruppen.
+    const arr = listaAv(ev, body.lista);
+    if (!arr) return Response.json({ error: "bad_list" }, { status: 400 });
+    const fran = sanitize(body.from, GRP_MAX), till = sanitize(body.to, GRP_MAX);
+    let n = 0;
+    for (const x of arr) if ((x.group || "") === fran) { x.group = till; n++; }
+    if (!n) return Response.json({ error: "not_found_group" }, { status: 404 });
+    note(till ? `döpte om rubriken ”${fran}” till ”${till}”` : `löste upp rubriken ”${fran}”`);
+  } else if (kind === "toshop") {
+    // Checklistrad → inköpslistan. Raden DUPLICERAS, den flyttas inte: "Köp is" kan mycket väl
+    // behöva stå kvar som en punkt att bocka av även när varan ligger på inköpslistan.
+    const it = ev.plan.find((p) => p.id === body.id);
+    if (!it) return Response.json({ error: "not_found_item" }, { status: 404 });
+    if (ev.shop.length >= SHOP_CAP) return Response.json({ error: "full" }, { status: 400 });
+    const { qty, item } = delaIngrediens(it.text);
+    if (!item) return Response.json({ error: "empty" }, { status: 400 });
+    if (ev.shop.some((x) => x.item.toLowerCase() === item.toLowerCase() && (x.tag || "") === (it.tag || "")))
+      return Response.json({ error: "finns_redan" }, { status: 409 });
+    ev.shop.push({ id: mkId(), item, qty, tag: sanitize(it.tag, TAG_MAX), group: sanitize(it.group, GRP_MAX),
+      done: false, fromGuest: true, by });
+    note(`la ”${item}” på inköpslistan från checklistan`);
   } else if (kind === "shopfrom") {
     // Hämta in ingredienserna från de UTVALDA rätterna (eller en enskild, om id skickas med).
     // Varje rad taggas med rättens namn, så man ser i butiken vad den hör till.
