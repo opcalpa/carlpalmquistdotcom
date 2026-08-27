@@ -74,7 +74,7 @@ button{font:inherit;cursor:pointer}
 .due.today{color:var(--warn-ink)}.due.late{color:var(--late-ink)}
 .divider{margin:12px 0 4px}
 .add{display:flex;gap:8px;margin-top:12px}
-.add input{flex:1;height:44px;padding:0 12px;border:1px solid var(--line);border-radius:var(--r-field);background:var(--panel);color:var(--txt);font-size:14px}
+.add input{flex:1;min-width:0;height:44px;padding:0 12px;border:1px solid var(--line);border-radius:var(--r-field);background:var(--panel);color:var(--txt);font-size:14px}
 .add input:focus{outline:none;border-color:var(--accent)}
 .act{margin-top:12px;font-size:12px;color:var(--dim)}
 .callout{padding:12px;border-radius:var(--r-field);background:rgba(55,193,132,.1);border:1px solid rgba(55,193,132,.3);color:var(--ok-ink);font-size:13px;font-weight:600}
@@ -141,6 +141,55 @@ details.foldable summary::-webkit-details-marker{display:none}
 .foot{text-align:center;font-size:11px;color:var(--faint);padding:8px 0 0}
 #toast{position:fixed;left:16px;right:16px;bottom:16px;max-width:520px;margin:0 auto;background:#2b2723;color:#faf7f2;border-radius:999px;padding:12px 18px;display:none;align-items:center;justify-content:space-between;gap:12px;font-size:13px;box-shadow:0 10px 30px rgba(0,0,0,.25);z-index:20}
 #toast button{background:none;border:0;color:#aabdff;font-weight:650;font-size:13px}
+/* ── FULL PARITET (2026-08-27): allt Calle kan ändra i pappen går att ändra här.
+   ETT klick öppnar redigering på fälten nedan — de har ingen konkurrerande klick-åtgärd.
+   (Checklistans rader HAR en: där bockar ett klick av, därför gäller dubbelklick just där.)
+   Dubbeltryck är opålitligt på mobil, och en penn-ikon per fält hade dränkt sidan i ikoner. */
+.ed{cursor:text;border-bottom:1px dashed transparent;transition:border-color .12s ease}
+.ed:hover{border-bottom-color:var(--line-strong)}
+textarea.t-edit{min-height:140px;line-height:1.5;resize:vertical;white-space:pre-wrap;font-family:inherit}
+
+/* budget */
+.b-row{display:grid;grid-template-columns:1fr auto 30px;grid-template-areas:"lbl est del" "stat stat stat";
+  gap:2px 10px;align-items:center}
+.b-lbl{grid-area:lbl;min-width:0}
+.b-est{grid-area:est;font-weight:600}
+.b-row .row-btn{grid-area:del}
+.b-stat{grid-area:stat;justify-self:start;padding:4px 10px;border-radius:999px;font-size:11px;font-weight:600;
+  border:1px solid var(--line);background:var(--panel2);color:var(--mid);white-space:nowrap}
+.b-stat.b-off{background:rgba(230,180,80,.16);border-color:rgba(230,180,80,.4);color:var(--warn-ink)}
+.b-stat.b-ok{background:rgba(55,193,132,.15);border-color:rgba(55,193,132,.35);color:var(--ok-ink)}
+.b-stat.b-paid{background:rgba(108,140,255,.12);border-color:rgba(108,140,255,.45);color:var(--accent-ink)}
+.b-add{display:flex;gap:8px;padding:12px 16px;border-top:1px solid var(--line-soft)}
+.b-add input{height:44px;padding:0 12px;border:1px solid var(--line);border-radius:var(--r-field);
+  background:var(--panel);color:var(--txt);font-size:14px;min-width:0}
+.b-add input:focus{outline:none;border-color:var(--accent)}
+.b-add .b-in-lbl{flex:1 1 auto}
+.b-add .b-in-est{flex:0 0 88px;text-align:right}
+.b-foot{padding:2px 16px 14px;font-size:12px;color:var(--dim)}
+.b-empty{padding:12px 16px;font-size:13px;color:var(--dim)}
+
+/* program */
+.tl .txt{display:flex;align-items:flex-start;justify-content:space-between;gap:8px}
+.tl .txt .ed{flex:1;min-width:0}
+.p-add .p-in-time{flex:0 0 82px;text-align:center}
+
+/* gäster */
+.g-name{display:flex;align-items:center;gap:6px;min-width:0}
+.g-act{display:flex;align-items:center;gap:2px;flex:0 0 auto}
+.g-barn{border:0;background:none;padding:0 2px;font-size:15px;line-height:1;opacity:.15;filter:grayscale(1)}
+.g-barn:hover{opacity:.6}
+.g-barn.on{opacity:1;filter:none}
+.g-add{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px;padding-top:12px;border-top:1px solid var(--line-soft)}
+.g-add input[type=text]{height:44px;padding:0 12px;border:1px solid var(--line);border-radius:var(--r-field);
+  background:var(--panel);color:var(--txt);font-size:14px;flex:1 1 130px;min-width:0}
+.g-add input:focus{outline:none;border-color:var(--accent)}
+.g-add label{display:flex;align-items:center;gap:6px;font-size:13px;color:var(--mid)}
+
+/* underlag */
+.d-body{padding:0 16px 16px;font-size:13px;white-space:pre-wrap;color:var(--mid)}
+.d-sum-act{display:flex;align-items:center;gap:4px;flex:0 0 auto;color:var(--dim)}
+
 .sticky{position:sticky;top:0;z-index:10;background:rgba(250,247,242,.95);backdrop-filter:blur(8px);border-bottom:1px solid var(--line);display:none;align-items:center;justify-content:space-between;padding:10px 16px;margin:-16px -16px 0}
 @media(min-width:900px){
   .wrap{padding:22px;gap:16px}
@@ -148,6 +197,7 @@ details.foldable summary::-webkit-details-marker{display:none}
   .gcol{display:flex;flex-direction:column;gap:16px}
   .seg{display:none}
   .row{padding:9px 0}.box{width:22px;height:22px}.row-txt .t{font-size:14px}
+  .b-row{grid-template-columns:1fr auto auto 30px;grid-template-areas:"lbl stat est del";gap:10px}
 }
 @media(max-width:899px){ .desk-cats{display:none} }
 </style>
@@ -174,7 +224,9 @@ details.foldable summary::-webkit-details-marker{display:none}
 <div id="toast"><span id="toast-txt"></span><button id="toast-undo">Ångra</button></div>
 
 <script define:vars={{ slug }}>
-const S = { pw: "", ev: null, log: [], cat: null, tag: null, me: "", undo: null };
+// S.open håller <details>-lägena. Varje skrivning ritar om HELA appen, så utan detta
+// slog Budget och underlagen igen mitt i att någon skrev i dem.
+const S = { pw: "", ev: null, log: [], cat: null, tag: null, me: "", undo: null, open: {} };
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s == null ? "" : s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 const api = async (path, opts) => { const r = await fetch(path, opts); const d = await r.json().catch(() => ({})); if (!r.ok) throw new Error(d.error || r.status); return d; };
@@ -238,6 +290,49 @@ function toggle(id) {
   write("toggle", { id }, true);
   if (!wasDone) showToast(`”${it.text}” avbockad`, () => write("toggle", { id }, true));
 }
+// Redigering på plats, delad av alla fält på sidan. Enter sparar, Esc ångrar, klick utanför
+// sparar. I flerradigt läge (underlagens textkropp) gör Enter radbrytning och ⌘/Ctrl+Enter sparar.
+// allowEmpty: en tom TITEL är alltid ett misstag, men ett tömt underlag är ett giltigt val.
+function editable(el, value, onSave, opts) {
+  opts = opts || {};
+  if (el.querySelector("input,textarea")) return;
+  const before = String(value == null ? "" : value);
+  const prevHtml = el.innerHTML;
+  const inp = document.createElement(opts.multi ? "textarea" : "input");
+  inp.className = "t-edit"; inp.value = before;
+  if (opts.multi) inp.rows = Math.min(20, Math.max(6, before.split("\n").length + 2));
+  el.textContent = ""; el.appendChild(inp);
+  inp.focus(); if (!opts.multi) inp.select();
+  let closed = false;
+  const finish = async (save) => {
+    if (closed) return; closed = true;
+    const v = inp.value.trim();
+    if (save && v !== before.trim() && (v || opts.allowEmpty)) await onSave(v);
+    else el.innerHTML = prevHtml;
+  };
+  inp.onclick = (e) => e.stopPropagation();
+  inp.ondblclick = (e) => e.stopPropagation();
+  inp.onkeydown = (e) => {
+    if (e.key === "Escape") { e.stopPropagation(); return finish(false); }
+    if (e.key !== "Enter") return;
+    if (opts.multi && !e.metaKey && !e.ctrlKey) return;   // radbrytning i prosa
+    e.preventDefault(); finish(true);
+  };
+  inp.onblur = () => finish(true);
+}
+// Fält som saknar konkurrerande klick-åtgärd öppnar redigering på ETT klick (se CSS-noten).
+function bindEdit(attr, get, save, opts) {
+  document.querySelectorAll("[" + attr + "]").forEach((el) => {
+    el.onclick = (e) => {
+      e.preventDefault(); e.stopPropagation();
+      const id = el.getAttribute(attr), v = get(id);
+      if (v === undefined || v === null) return;
+      editable(el, v, (t) => save(id, t), opts);
+    };
+  });
+}
+const byId = (arr, id) => (S.ev[arr] || []).find((x) => x.id === id);
+
 let toastT = null;
 function showToast(txt, undo) {
   $("toast-txt").textContent = txt; S.undo = undo;
@@ -287,13 +382,23 @@ function draw() {
     ${last.length ? `<div class="act">${last.map(esc).join("<br>")}</div>` : ""}
   </section>`;
 
-  const program = `<section class="card sec"><div class="sec-head"><h2>Programmet</h2></div>
-    ${(ev.program || []).map((x, i, a) => `<div class="tl"><div class="time num">${esc(x.time)}</div>
+  // Programmet sorteras på tid, precis som i pappen — annars hamnar en punkt någon lägger till
+  // sist i listan även om den ska ske klockan tio.
+  const prog = (ev.program || []).slice().sort((a, b) => String(a.time || "").localeCompare(String(b.time || "")));
+  const program = `<section class="card sec"><div class="sec-head"><h2>Programmet</h2>
+      <span style="font-size:12px;color:var(--dim)" class="num">${prog.length} punkter</span></div>
+    ${prog.length ? prog.map((x, i, a) => `<div class="tl"><div class="time num ed" data-pt="${esc(x.id)}" title="Klicka för att ändra tiden">${esc(x.time)}</div>
       <div class="dotcol"><div class="dot"></div>${i < a.length - 1 ? '<div class="line"></div>' : ""}</div>
-      <div class="txt">${esc(x.text)}</div></div>`).join("")}</section>`;
+      <div class="txt"><span class="ed" data-px="${esc(x.id)}" title="Klicka för att ändra">${esc(x.text)}</span>
+        <button class="row-btn" data-pdel="${esc(x.id)}" title="Ta bort punkten" aria-label="Ta bort">✕</button></div></div>`).join("")
+      : `<div style="font-size:13px;color:var(--dim)">Inget program än — lägg till första punkten.</div>`}
+    <div class="add p-add"><input class="p-in-time" id="pTime" placeholder="18:00" inputmode="numeric" />
+      <input id="pText" placeholder="Vad händer?" /><button class="btn primary" id="pAdd">+</button></div>
+  </section>`;
 
   const households = [...new Set((ev.guests || []).map((g) => g.household))];
-  const guests = `<section class="card sec"><div class="sec-head"><h2>Gästerna</h2></div>
+  const guests = `<section class="card sec"><div class="sec-head"><h2>Gästerna</h2>
+      <span style="font-size:12px;color:var(--dim)" class="num">${(ev.guests || []).filter((g) => g.barn).length} barn</span></div>
     <div class="stats">
       <div class="stat"><b class="num" style="color:var(--ok-ink)">${gj}</b><span class="lbl">Ja</span></div>
       <div class="stat"><b class="num" style="color:var(--warn-ink)">${gv}</b><span class="lbl">Väntar</span></div>
@@ -301,23 +406,54 @@ function draw() {
     </div>
     <div style="font-size:12px;color:var(--dim);padding:12px 0 4px" class="num">${(ev.guests || []).length} på listan${ev.info && ev.info.target ? ` · mål ~${ev.info.target}` : ""}</div>
     <div id="guestList">${households.slice(0, S.allG ? 999 : 2).map((h) => `<div class="lbl" style="padding-top:12px">${esc(h)}</div>${
-      (ev.guests || []).filter((g) => g.household === h).map((g) => `<div class="g-row"><div>${esc(g.name)}${g.barn ? ' <span class="tag">barn</span>' : ""}</div>
-        <button class="spill ${g.status === "ja" ? "ja" : g.status === "väntar" ? "vantar" : ""}" data-guest="${esc(g.id)}">${esc(g.status === "ja" ? "Ja" : g.status === "väntar" ? "Väntar" : "Nej")}</button></div>`).join("")}`).join("")}</div>
+      (ev.guests || []).filter((g) => g.household === h).map((g) => `<div class="g-row">
+        <div class="g-name"><span class="ed" data-gn="${esc(g.id)}" title="Klicka för att ändra namnet">${esc(g.name)}</span>
+          <button class="g-barn${g.barn ? " on" : ""}" data-gb="${esc(g.id)}" title="${g.barn ? "Räknas som barn — klicka för vuxen" : "Räknas som vuxen — klicka för barn"}" aria-label="Barn eller vuxen">👶</button></div>
+        <div class="g-act"><button class="spill ${g.status === "ja" ? "ja" : g.status === "väntar" ? "vantar" : ""}" data-guest="${esc(g.id)}">${esc(g.status === "ja" ? "Ja" : g.status === "väntar" ? "Väntar" : "Nej")}</button>
+          <button class="row-btn" data-gdel="${esc(g.id)}" title="Ta bort gästen" aria-label="Ta bort">✕</button></div></div>`).join("")}`).join("")}</div>
     ${households.length > 2 ? `<button class="btn wide" id="allG" style="margin-top:12px">${S.allG ? "Visa färre" : `Visa alla ${households.length} hushåll`}</button>` : ""}
+    <div class="g-add">
+      <input type="text" id="gName" placeholder="Namn" />
+      <input type="text" id="gHouse" placeholder="Sällskap" list="gHouses" />
+      <datalist id="gHouses">${households.map((h) => `<option value="${esc(h)}">`).join("")}</datalist>
+      <label><input type="checkbox" id="gBarn" /> barn</label>
+      <button class="btn primary" id="gAdd">+ Lägg till</button>
+    </div>
   </section>`;
 
   const bsum = (ev.budget || []).reduce((a, b) => a + (Number(b.est) || 0), 0);
+  const bkonf = (ev.budget || []).filter((b) => b.status === "bokad" || b.status === "betald")
+    .reduce((a, b) => a + (Number(b.est) || 0), 0);
   // Budget är hopfälld på mobil men ÖPPEN på desktop (facit 1d vs 5). Skälet står i briefen:
   // Maria möter sidan i mobilen och ska inte mötas av siffror först; på desktop är det
   // planerarnas vy och tabellen är själva poängen. 900px = samma brytpunkt som CSS-griden.
   const wide = window.matchMedia("(min-width:900px)").matches;
-  const budget = `<details class="card foldable"${wide ? " open" : ""}><summary><span style="font-weight:600">Budget</span>
+  if (S.open.budget === undefined) S.open.budget = wide;
+  // Statuskedjan är pappens: att boka → offert väntas → bokad → betald. Ett klick tar nästa steg.
+  const BSTAT = { ej_bokad: { l: "Att boka", c: "" }, offert: { l: "⏳ Offert", c: "b-off" },
+    bokad: { l: "✅ Bokad", c: "b-ok" }, betald: { l: "💸 Betald", c: "b-paid" } };
+  const bmeta = (k) => BSTAT[k] || BSTAT.ej_bokad;
+  const budget = `<details class="card foldable" data-k="budget"${S.open.budget ? " open" : ""}><summary><span style="font-weight:600">Budget</span>
       <span style="font-size:12px;color:var(--dim)" class="num">≈ ${bsum.toLocaleString("sv-SE")} kr · ${(ev.budget || []).length} poster ▾</span></summary>
-      ${(ev.budget || []).map((b) => `<div class="b-row"><span>${esc(b.label)}</span><span class="num">${(Number(b.est) || 0).toLocaleString("sv-SE")} kr</span></div>`).join("")}
+      ${(ev.budget || []).map((b) => `<div class="b-row">
+        <span class="b-lbl ed" data-bl="${esc(b.id)}" title="Klicka för att ändra posten">${esc(b.label)}</span>
+        <button class="b-stat ${bmeta(b.status).c}" data-bstat="${esc(b.id)}" title="Klicka för nästa steg">${bmeta(b.status).l}</button>
+        <span class="b-est ed num" data-be="${esc(b.id)}" title="Klicka för att ändra beloppet">${(Number(b.est) || 0).toLocaleString("sv-SE")} kr</span>
+        <button class="row-btn" data-bdel="${esc(b.id)}" title="Ta bort posten" aria-label="Ta bort">✕</button></div>`).join("")
+        || `<div class="b-empty">Inga poster än.</div>`}
+      <div class="b-add"><input class="b-in-lbl" id="bLabel" placeholder="Ny post, t.ex. Tårta" />
+        <input class="b-in-est num" id="bEst" inputmode="numeric" placeholder="kr" />
+        <button class="btn primary" id="bAdd">+</button></div>
+      <div class="b-foot num">Bokat eller betalt ≈ ${bkonf.toLocaleString("sv-SE")} kr · kvar att spika ≈ ${(bsum - bkonf).toLocaleString("sv-SE")} kr</div>
     </details>`;
 
-  const docs = (ev.docs || []).map((d) => `<details class="card foldable"><summary><span style="font-weight:600">${esc(d.title)}</span><span style="color:var(--dim)">›</span></summary>
-      <div style="padding:0 16px 16px;font-size:13px;white-space:pre-wrap;color:var(--mid)">${esc(d.body)}</div></details>`).join("");
+  const docs = (ev.docs || []).map((d) => `<details class="card foldable" data-k="${esc(d.id)}"${S.open[d.id] ? " open" : ""}><summary>
+      <span style="font-weight:600" class="ed" data-dt="${esc(d.id)}" title="Klicka för att ändra rubriken">${esc(d.title)}</span>
+      <span class="d-sum-act"><button class="row-btn" data-ddel="${esc(d.id)}" title="Ta bort underlaget" aria-label="Ta bort">✕</button>›</span></summary>
+      <div class="d-body ed" data-db="${esc(d.id)}" title="Klicka för att skriva">${d.body ? esc(d.body) : `<span style="color:var(--faint)">Tomt — klicka för att skriva.</span>`}</div>
+    </details>`).join("")
+    + `<section class="card sec"><div class="add" style="margin-top:0">
+        <input id="dTitle" placeholder="Nytt underlag… (t.ex. Transport)" /><button class="btn primary" id="dAdd">Lägg till</button></div></section>`;
 
   // 🍳 Menyn: utvalda först (det som faktiskt lagas), förslagen under. Alla får föreslå och
   // stjärnmärka — sidan är planeringsgängets, precis som checklistan.
@@ -395,25 +531,10 @@ function wire() {
   document.querySelectorAll(".t[data-t]").forEach((el) => {
     el.ondblclick = (e) => { e.stopPropagation(); clearTimeout(clickT); startEdit(el, el.dataset.t); };
   });
-  // Inline-redigering på plats: Enter/klick utanför sparar, Esc ångrar.
+  // Inline-redigering på plats — samma hjälpare som resten av sidan använder.
   function startEdit(el, id) {
-    if (el.querySelector("input")) return;
     const it = plan().find((p) => p.id === id); if (!it) return;
-    const inp = document.createElement("input");
-    inp.type = "text"; inp.value = it.text; inp.className = "t-edit";
-    el.textContent = ""; el.appendChild(inp);
-    inp.focus(); inp.select();
-    let closed = false;
-    const finish = async (save) => {
-      if (closed) return; closed = true;
-      const t = inp.value.trim();
-      if (save && t && t !== it.text) await write("edit", { id, text: t });
-      else draw();
-    };
-    inp.onclick = (e) => e.stopPropagation();
-    inp.ondblclick = (e) => e.stopPropagation();
-    inp.onkeydown = (e) => { if (e.key === "Enter") finish(true); if (e.key === "Escape") finish(false); };
-    inp.onblur = () => finish(true);
+    editable(el, it.text, (t) => write("edit", { id, text: t }));
   }
   document.querySelectorAll("[data-edit]").forEach((b) => b.onclick = async () => {
     const it = plan().find((p) => p.id === b.dataset.edit); if (!it) return;
@@ -437,6 +558,87 @@ function wire() {
     const next = { "ja": "väntar", "väntar": "nej", "nej": "ja" }[g.status] || "ja";
     g.status = next; draw(); write("guest", { id: b.dataset.guest, status: next }, true);
   });
+  // ───────── Full paritet (2026-08-27): budget, program, gäster, underlag ─────────
+  // Varje skrivning ritar om hela appen. Utan detta slog varje öppen <details> igen mitt i
+  // arbetet — värst i underlagen, där man just höll på att skriva.
+  document.querySelectorAll("details.foldable[data-k]").forEach((d) => {
+    d.ontoggle = () => { S.open[d.dataset.k] = d.open; };
+  });
+
+  // Budget
+  bindEdit("data-bl", (id) => (byId("budget", id) || {}).label, (id, v) => write("bedit", { id, label: v }));
+  bindEdit("data-be", (id) => { const b = byId("budget", id); return b ? String(b.est == null ? 0 : b.est) : null; },
+    // "12 000 kr" ska funka lika bra som "12000" — folk skriver som de läser.
+    (id, v) => write("bedit", { id, est: v.replace(/[^0-9]/g, "") || 0 }));
+  document.querySelectorAll("[data-bstat]").forEach((btn) => btn.onclick = () => {
+    const b = byId("budget", btn.dataset.bstat); if (!b) return;
+    const kedja = ["ej_bokad", "offert", "bokad", "betald"];
+    b.status = kedja[(kedja.indexOf(b.status) + 1) % kedja.length]; draw();   // optimistiskt
+    write("bstat", { id: btn.dataset.bstat }, true);
+  });
+  document.querySelectorAll("[data-bdel]").forEach((btn) => btn.onclick = async () => {
+    const b = byId("budget", btn.dataset.bdel); if (!b) return;
+    if (!confirm(`Ta bort budgetposten ”${b.label}”?\n\nPosten försvinner för alla.`)) return;
+    await write("bdel", { id: btn.dataset.bdel });
+  });
+  const addB = () => {
+    const label = ($("bLabel").value || "").trim(); if (!label) return;
+    const est = ($("bEst").value || "").replace(/[^0-9]/g, "");
+    write("badd", { label, est: est || 0 });
+  };
+  const bA = $("bAdd"); if (bA) bA.onclick = addB;
+  ["bLabel", "bEst"].forEach((id) => { const el = $(id); if (el) el.onkeydown = (e) => { if (e.key === "Enter") addB(); }; });
+
+  // Program
+  bindEdit("data-px", (id) => (byId("program", id) || {}).text, (id, v) => write("pedit", { id, text: v }));
+  bindEdit("data-pt", (id) => (byId("program", id) || {}).time, (id, v) => write("pedit", { id, time: v }));
+  document.querySelectorAll("[data-pdel]").forEach((btn) => btn.onclick = async () => {
+    const x = byId("program", btn.dataset.pdel); if (!x) return;
+    if (!confirm(`Ta bort ”${x.text}” ur programmet?\n\nPunkten försvinner för alla.`)) return;
+    await write("pdel", { id: btn.dataset.pdel });
+  });
+  const addP = () => {
+    const text = ($("pText").value || "").trim(); if (!text) return;
+    write("padd", { text, time: ($("pTime").value || "").trim() });
+  };
+  const pA = $("pAdd"); if (pA) pA.onclick = addP;
+  ["pTime", "pText"].forEach((id) => { const el = $(id); if (el) el.onkeydown = (e) => { if (e.key === "Enter") addP(); }; });
+
+  // Gäster
+  // guestName, inte name — write() fyller name med VEM som ändrar (se Workern).
+  bindEdit("data-gn", (id) => (byId("guests", id) || {}).name, (id, v) => write("gedit", { id, guestName: v }));
+  document.querySelectorAll("[data-gb]").forEach((btn) => btn.onclick = () => {
+    const g = byId("guests", btn.dataset.gb); if (!g) return;
+    g.barn = !g.barn; draw();                                                  // optimistiskt
+    write("gedit", { id: btn.dataset.gb, barn: g.barn }, true);
+  });
+  document.querySelectorAll("[data-gdel]").forEach((btn) => btn.onclick = async () => {
+    const g = byId("guests", btn.dataset.gdel); if (!g) return;
+    if (!confirm(`Ta bort ${g.name} ur gästlistan?\n\nGästen försvinner för alla.`)) return;
+    await write("gdel", { id: btn.dataset.gdel });
+  });
+  const addG = () => {
+    const name = ($("gName").value || "").trim(); if (!name) return;
+    write("gadd", { guestName: name, household: ($("gHouse").value || "").trim(), barn: $("gBarn").checked });
+  };
+  const gA = $("gAdd"); if (gA) gA.onclick = addG;
+  ["gName", "gHouse"].forEach((id) => { const el = $(id); if (el) el.onkeydown = (e) => { if (e.key === "Enter") addG(); }; });
+
+  // Underlag. Textkroppen är prosa: flerradigt fält, Enter ger radbrytning, ⌘/Ctrl+Enter sparar.
+  // Tom kropp är ett giltigt värde — man ska kunna tömma ett underlag utan att radera det.
+  bindEdit("data-dt", (id) => (byId("docs", id) || {}).title, (id, v) => write("dedit", { id, title: v }));
+  bindEdit("data-db", (id) => { const d = byId("docs", id); return d ? (d.body || "") : null; },
+    (id, v) => write("dedit", { id, body: v }), { multi: true, allowEmpty: true });
+  document.querySelectorAll("[data-ddel]").forEach((btn) => btn.onclick = async (e) => {
+    e.preventDefault(); e.stopPropagation();                 // ligger i <summary> — får inte fälla ut kortet
+    const d = byId("docs", btn.dataset.ddel); if (!d) return;
+    if (!confirm(`Ta bort underlaget ”${d.title}”?\n\nAll text i det försvinner för alla.`)) return;
+    await write("ddel", { id: btn.dataset.ddel });
+  });
+  const addD = () => { const t = ($("dTitle").value || "").trim(); if (!t) return; write("dadd", { title: t }); };
+  const dA = $("dAdd"); if (dA) dA.onclick = addD;
+  const dT = $("dTitle"); if (dT) dT.onkeydown = (e) => { if (e.key === "Enter") addD(); };
+
   const cl = $("clearTag"); if (cl) cl.onclick = () => { S.tag = null; draw(); };
   const ag = $("allG"); if (ag) ag.onclick = () => { S.allG = !S.allG; draw(); };
   const add = () => { const t = $("addTxt").value.trim(); if (!t) return; $("addTxt").value = ""; write("add", { text: t, category: S.cat, tag: S.tag || "" }); };

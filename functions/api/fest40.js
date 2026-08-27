@@ -14,6 +14,12 @@
 //   POST /api/fest40?slug=calle40&kind=edit    {pw,name,id,text}              -> ändra radens text
 //   POST /api/fest40?slug=calle40&kind=del     {pw,name,id}                   -> ta bort rad
 //   POST /api/fest40?slug=calle40&kind=rdel    {pw,name,id}                   -> ta bort recept
+//   POST .. kind=badd|bedit|bstat|bdel         budget  {label,est} / {id,..}  -> budgetposter
+//   POST .. kind=padd|pedit|pdel               program {time,text} / {id,..}  -> programpunkter
+//   POST .. kind=gadd|gedit|gdel               gäster  {guestName,household,barn} -> gästlistan
+//   POST .. kind=dadd|dedit|ddel               underlag{title,body}           -> fria underlag
+// FULL PARITET (2026-08-27): allt Calle kan redigera i pappen går att redigera här. Sidan är
+// ett delat planeringsverktyg som ersätter ett Google Sheet, inte en avbockningsvy.
 //
 // GRAVSTENAR (ev.deleted): en radering kan inte uttryckas som "raden saknas", för det betyder
 // också "raden är ny i pappen och inte publicerad än". Utan gravsten kommer varje rad familjen
@@ -44,6 +50,11 @@ const readJson = async (env, k, def) => { try { const v = await kvGet(env, k); r
 const ADMIN = "fest-admin-9c4m2v";        // hindrar oavsiktlig överskrivning från pappen; ej en hemlighet
 const LOG_CAP = 300, NAME_MAX = 40, TEXT_MAX = 120, TAG_MAX = 40;
 const TITLE_MAX = 90, URL_MAX = 400, ING_MAX = 60, ING_LINES = 40;
+// Budget/program/gäster/underlag. BODY_MAX är generös med flit — underlagen bär
+// menyresonemang och transport-research, alltså prosa, inte en etikett.
+const LABEL_MAX = 70, TIME_MAX = 8, HOUSE_MAX = 60, BODY_MAX = 4000, EST_MAX = 9999999;
+const BUDGET_STATUS = ["ej_bokad", "offert", "bokad", "betald"];   // samma kedja som pappen
+const GUEST_STATUS = ["ja", "nej", "väntar", "ej_bjuden"];
 const SLUG_RE = /^[a-z0-9][a-z0-9-]{1,40}$/;
 const K_EVENT = (s) => `event:${s}`, K_LOG = (s) => `event:${s}:log`;
 const rlKey = (s, i) => `event:${s}:rl:${i}`, failKey = (s, i) => `event:${s}:fail:${i}`;
@@ -51,8 +62,15 @@ const RL_MAX = 200, RL_WINDOW = 600;      // max 200 skrivningar per IP / 10 min
 const FAIL_MAX = 20, FAIL_WINDOW = 600;
 
 const sanitize = (s, max) => (s || "").toString().replace(/[\x00-\x1F\x7F]/g, " ").replace(/\s+/g, " ").trim().slice(0, max);
+// Underlagen är prosa — radbrytningarna ÄR innehållet (menyresonemang, transportlistor).
+// sanitize() plattar allt whitespace till mellanslag och hade tvättat bort styckena.
+const sanitizeMulti = (s, max) => (s || "").toString().replace(/\r\n?/g, "\n")
+  .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, " ").replace(/[ \t]+/g, " ")
+  .replace(/\n{3,}/g, "\n\n").trim().slice(0, max);
 const slugOf = (u) => { const s = (u.searchParams.get("slug") || "").toLowerCase(); return SLUG_RE.test(s) ? s : null; };
 const mkId = () => "x" + Date.now().toString(36) + Math.random().toString(36).slice(2, 5);
+// "2 400 kr" är hur folk skriver belopp. Number() ger NaN på det, alltså tyst 0 kr i budgeten.
+const kronor = (v) => Math.max(0, Math.min(EST_MAX, Math.round(Number(String(v == null ? "" : v).replace(/[^0-9.]/g, "")) || 0)));
 const isPublicHost = (u) => /(^|\.)carlpalmquist\.com$/i.test(u.hostname);
 // Kodgrind per event: gate:false => öppen. Annars eventets egen kod, annars env-default.
 const gateOk = (ev, env, pw) => (ev && ev.gate === false) ? true : (String(pw || "") === String((ev && ev.pw) || env.FEST40_PW || "4029"));
@@ -168,6 +186,9 @@ export async function onRequestPost(context) {
   ev.plan = Array.isArray(ev.plan) ? ev.plan : [];
   ev.guests = Array.isArray(ev.guests) ? ev.guests : [];
   ev.recipes = Array.isArray(ev.recipes) ? ev.recipes : [];
+  ev.budget = Array.isArray(ev.budget) ? ev.budget : [];
+  ev.program = Array.isArray(ev.program) ? ev.program : [];
+  ev.docs = Array.isArray(ev.docs) ? ev.docs : [];
   ev.deleted = Array.isArray(ev.deleted) ? ev.deleted : [];
   const tomb = (kind, id, title) => {
     if (!ev.deleted.some((d) => d.id === id)) ev.deleted.push({ id, kind, by, ts });
@@ -184,7 +205,7 @@ export async function onRequestPost(context) {
     if (!text) return Response.json({ error: "empty" }, { status: 400 });
     const cats = (ev.categories && ev.categories.length) ? ev.categories : ["Inhandling", "Fixa"];
     const category = cats.includes(body.category) ? body.category : cats[0];
-    const item = { id: mkId(), text, done: false, due: sanitize(body.due, 12) || "", category, tag: sanitize(body.tag, TAG_MAX) };
+    const item = { id: mkId(), text, done: false, due: sanitize(body.due, 12) || "", category, tag: sanitize(body.tag, TAG_MAX), fromGuest: true, by };
     ev.plan.push(item);
     note(`la till ”${text}”`);
   } else if (kind === "tag") {
@@ -258,6 +279,121 @@ export async function onRequestPost(context) {
       r.image = im;
       note(`satte bild på ”${r.title}”`);
     }
+  // ───────── Full paritet med pappen (2026-08-27) ─────────
+  // Budget, program, gästlista och underlag. Alla nya rader får sitt id HÄR, vid skrivningen
+  // (CLAUDE.md §5): en post utan id ger i pappen en knapp som ser rätt ut men är död, tyst.
+  // Alla nya rader märks fromGuest:true så nästa PUT från pappen inte hinner radera dem
+  // innan de hämtats hem — samma skydd som receptförslagen har.
+  } else if (kind === "badd") {
+    const label = sanitize(body.label, LABEL_MAX);
+    if (!label) return Response.json({ error: "empty" }, { status: 400 });
+    ev.budget.push({ id: mkId(), label, est: kronor(body.est), status: "ej_bokad", fromGuest: true, by });
+    note(`la till budgetposten ”${label}”`);
+  } else if (kind === "bedit") {
+    const b = ev.budget.find((x) => x.id === body.id);
+    if (!b) return Response.json({ error: "not_found_budget" }, { status: 404 });
+    if (body.label != null) {
+      const label = sanitize(body.label, LABEL_MAX);
+      if (!label) return Response.json({ error: "empty" }, { status: 400 });
+      if (label !== b.label) note(`döpte om ”${b.label}” till ”${label}”`);
+      b.label = label;
+    }
+    if (body.est != null && body.est !== "") {
+      const est = kronor(body.est);
+      if (est !== b.est) note(`satte ”${b.label}” till ${est} kr`);
+      b.est = est;
+    }
+  } else if (kind === "bstat") {
+    const b = ev.budget.find((x) => x.id === body.id);
+    if (!b) return Response.json({ error: "not_found_budget" }, { status: 404 });
+    const i = BUDGET_STATUS.indexOf(b.status);
+    b.status = BUDGET_STATUS[(i + 1) % BUDGET_STATUS.length];   // okänd status (i = -1) landar på "ej_bokad"
+    note(`satte ”${b.label}” till ${b.status.replace("_", " ")}`);
+  } else if (kind === "bdel") {
+    const i = ev.budget.findIndex((x) => x.id === body.id);
+    if (i === -1) return Response.json({ error: "not_found_budget" }, { status: 404 });
+    const [gone] = ev.budget.splice(i, 1);
+    tomb("budget", gone.id);
+    note(`tog bort budgetposten ”${gone.label}”`);
+  } else if (kind === "padd") {
+    const text = sanitize(body.text, TEXT_MAX);
+    if (!text) return Response.json({ error: "empty" }, { status: 400 });
+    ev.program.push({ id: mkId(), time: sanitize(body.time, TIME_MAX) || "—", text, fromGuest: true, by });
+    note(`la till ”${text}” i programmet`);
+  } else if (kind === "pedit") {
+    const it = ev.program.find((x) => x.id === body.id);
+    if (!it) return Response.json({ error: "not_found_program" }, { status: 404 });
+    if (body.text != null) {
+      const text = sanitize(body.text, TEXT_MAX);
+      if (!text) return Response.json({ error: "empty" }, { status: 400 });
+      if (text !== it.text) note(`ändrade programpunkten ”${it.text}” till ”${text}”`);
+      it.text = text;
+    }
+    if (body.time != null) {
+      const time = sanitize(body.time, TIME_MAX) || "—";
+      if (time !== it.time) note(`flyttade ”${it.text}” till ${time}`);
+      it.time = time;
+    }
+  } else if (kind === "pdel") {
+    const i = ev.program.findIndex((x) => x.id === body.id);
+    if (i === -1) return Response.json({ error: "not_found_program" }, { status: 404 });
+    const [gone] = ev.program.splice(i, 1);
+    tomb("program", gone.id);
+    note(`tog bort ”${gone.text}” ur programmet`);
+  } else if (kind === "gadd") {
+    // guestName, INTE name: body.name är avsändaren (loggas som `by`). Delade de fält fick
+    // varje ny gäst namnet på den som la in hen. Bet under testet 2026-08-27.
+    const name = sanitize(body.guestName, NAME_MAX);
+    if (!name) return Response.json({ error: "empty" }, { status: 400 });
+    // "väntar", inte pappens "ej_bjuden": lägger familjen till någon HÄR är hen bjuden,
+    // det som saknas är svaret.
+    ev.guests.push({ id: mkId(), name, household: sanitize(body.household, HOUSE_MAX) || "Övriga",
+      barn: !!body.barn, status: "väntar", note: "", fromGuest: true, by });
+    note(`la till gästen ${name}`);
+  } else if (kind === "gedit") {
+    const g = ev.guests.find((x) => x.id === body.id);
+    if (!g) return Response.json({ error: "not_found_guest" }, { status: 404 });
+    if (body.guestName != null) {
+      const name = sanitize(body.guestName, NAME_MAX);   // se noten vid gadd
+      if (!name) return Response.json({ error: "empty" }, { status: 400 });
+      if (name !== g.name) note(`ändrade ${g.name} till ${name}`);
+      g.name = name;
+    }
+    if (body.household != null) {
+      const h = sanitize(body.household, HOUSE_MAX) || "Övriga";
+      if (h !== g.household) note(`flyttade ${g.name} till ${h}`);
+      g.household = h;
+    }
+    if (body.barn != null) { g.barn = !!body.barn; note(`markerade ${g.name} som ${g.barn ? "barn" : "vuxen"}`); }
+  } else if (kind === "gdel") {
+    const i = ev.guests.findIndex((x) => x.id === body.id);
+    if (i === -1) return Response.json({ error: "not_found_guest" }, { status: 404 });
+    const [gone] = ev.guests.splice(i, 1);
+    tomb("guest", gone.id);
+    note(`tog bort gästen ${gone.name}`);
+  } else if (kind === "dadd") {
+    const title = sanitize(body.title, TITLE_MAX);
+    if (!title) return Response.json({ error: "empty" }, { status: 400 });
+    ev.docs.push({ id: mkId(), title, body: sanitizeMulti(body.body, BODY_MAX), fromGuest: true, by });
+    note(`la till underlaget ”${title}”`);
+  } else if (kind === "dedit") {
+    const d = ev.docs.find((x) => x.id === body.id);
+    if (!d) return Response.json({ error: "not_found_doc" }, { status: 404 });
+    if (body.title != null) {
+      const title = sanitize(body.title, TITLE_MAX);
+      if (!title) return Response.json({ error: "empty" }, { status: 400 });
+      if (title !== d.title) note(`döpte om underlaget ”${d.title}” till ”${title}”`);
+      d.title = title;
+    }
+    // Tom textkropp är ett giltigt värde här (till skillnad från en titel) — man ska kunna
+    // tömma ett underlag utan att behöva radera det.
+    if (body.body != null) { d.body = sanitizeMulti(body.body, BODY_MAX); note(`skrev i ”${d.title}”`); }
+  } else if (kind === "ddel") {
+    const i = ev.docs.findIndex((x) => x.id === body.id);
+    if (i === -1) return Response.json({ error: "not_found_doc" }, { status: 404 });
+    const [gone] = ev.docs.splice(i, 1);
+    tomb("doc", gone.id);
+    note(`tog bort underlaget ”${gone.title}”`);
   } else {
     return Response.json({ error: "bad_kind" }, { status: 400 });
   }
@@ -285,25 +421,29 @@ export async function onRequestPut(context) {
   // Bevara koden om pappen inte skickar med den (den bor bara i KV).
   const ev = Object.assign({}, body.event, { updatedAt: Date.now() });
   if (!ev.pw && prev && prev.pw) ev.pw = prev.pw;
-  // PUT ERSÄTTER HELA EVENTET. Gästernas receptförslag som pappen ännu inte hämtat hem skulle
-  // därför raderas tyst av nästa push. Behåll dem tills pappen skickar tillbaka dem uppslagna.
-  if (prev && Array.isArray(prev.recipes)) {
-    const kommer = new Set((ev.recipes || []).map((r) => r.id));
-    const kvar = prev.recipes.filter((r) => r && r.fromGuest && !kommer.has(r.id));
-    if (kvar.length) ev.recipes = (ev.recipes || []).concat(kvar);
+  // PUT ERSÄTTER HELA EVENTET. Rader som familjen skapat HÄR och pappen ännu inte hämtat hem
+  // skulle därför raderas tyst av nästa push. Behåll dem tills pappen skickar tillbaka dem.
+  // Gäller alla listor sedan sidan fick full paritet (2026-08-27), inte bara recepten:
+  // en budgetpost mamma la in är precis lika lätt att tappa som ett receptförslag.
+  // fromGuest-märket lever bara tills pappen skickat tillbaka raden — då vinner den inkommande.
+  const LISTOR = ["plan", "guests", "budget", "program", "docs", "recipes"];
+  for (const k of LISTOR) {
+    if (!prev || !Array.isArray(prev[k])) continue;
+    const kommer = new Set((ev[k] || []).map((x) => x && x.id));
+    const kvar = prev[k].filter((x) => x && x.fromGuest && !kommer.has(x.id));
+    if (kvar.length) ev[k] = (ev[k] || []).concat(kvar);
   }
   // Gravstenar: behåll bara dem pappen ÄNNU INTE hunnit ta emot. Kommer id:t tillbaka i
   // pushen lever raden kvar hos pappen → raderingen är inte behandlad → gravstenen står kvar.
   // Saknas id:t har pappen tagit bort raden också → gravstenen har gjort sitt och städas bort.
   if (prev && Array.isArray(prev.deleted) && prev.deleted.length) {
-    const finnsKvar = new Set([...(ev.plan || []), ...(ev.recipes || [])].map((x) => x.id));
+    const finnsKvar = new Set(LISTOR.flatMap((k) => (ev[k] || []).map((x) => x && x.id)));
     const kvar = prev.deleted.filter((d) => finnsKvar.has(d.id));
     ev.deleted = (Array.isArray(ev.deleted) ? ev.deleted : []).concat(
       kvar.filter((d) => !(ev.deleted || []).some((x) => x.id === d.id)));
     // Raden som gravstenen gäller får inte smygas tillbaka in av pushen.
     const dead = new Set(ev.deleted.map((d) => d.id));
-    ev.plan = (ev.plan || []).filter((p) => !dead.has(p.id));
-    ev.recipes = (ev.recipes || []).filter((r) => !dead.has(r.id));
+    for (const k of LISTOR) if (Array.isArray(ev[k])) ev[k] = ev[k].filter((x) => !dead.has(x && x.id));
   }
   await kvPut(env, K_EVENT(slug), JSON.stringify(ev));
   return Response.json({ ok: true, slug, items: (ev.plan || []).length, guests: (ev.guests || []).length });
