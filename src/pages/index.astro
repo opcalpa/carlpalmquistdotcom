@@ -80,6 +80,8 @@ const projects = [
     imagePosition: 'left',
     // Live mirror of the landing-page demo (scripted, zero backend). Improves with the product.
     embed: 'https://renofine.com/embed/renaida?lng=en',
+    embedPoster: '/images/Screenshots/renofine-embed.webp',
+    embedCta: 'Try Renaida live',
     embedTitle: 'Renaida — Renofine\'s AI colleague, live scripted demo',
     embedNote: 'Live from renofine.com — tap a prompt and watch Renaida build a project.',
     href: 'https://renofine.com',
@@ -102,6 +104,8 @@ const projects = [
     image: '/images/Screenshots/produlog-hero.png',
     imageAlt: 'Produlog landing page',
     embed: 'https://getprodulog.com/embed/kaisa?lang=en',
+    embedPoster: '/images/Screenshots/produlog-embed.webp',
+    embedCta: 'Try Kaisa live',
     embedTitle: 'Kaisa — Produlog\'s catalog assistant, live scripted demo',
     embedNote: 'Live from getprodulog.com — pick a prompt and watch Kaisa build a catalog page.',
     href: 'https://getprodulog.com',
@@ -277,18 +281,29 @@ const links = [
               <article>
                 {project.embed ? (
                   <div class="mb-10">
-                    {/* Live embed of the product's own demo component. Tall enough on phones for
-                        the chat + chips; 16/10 like the screenshots on desktop. sandbox keeps the
-                        frame contained but lets its CTAs open the product site in a new tab. */}
-                    <div class="relative h-[640px] w-full overflow-hidden rounded-2xl bg-stone-100 ring-1 ring-stone-200 md:aspect-[16/10] md:h-auto">
-                      <iframe
-                        src={project.embed}
-                        title={project.embedTitle}
+                    {/* Facade: a poster of the product's own embed page, swapped for the live
+                        <iframe> on click. Looks interactive from the first paint, but the
+                        portfolio never downloads two React apps for visitors who only scroll by.
+                        Same composition in poster and frame, so the swap is seamless. */}
+                    <div
+                      class="embed-facade group relative h-[640px] w-full cursor-pointer overflow-hidden rounded-2xl bg-stone-100 ring-1 ring-stone-200 md:aspect-[16/10] md:h-auto"
+                      data-embed={project.embed}
+                      data-title={project.embedTitle}
+                      data-name={project.name}
+                      role="button"
+                      tabindex="0"
+                      aria-label={project.embedCta}
+                    >
+                      <img
+                        src={project.embedPoster}
+                        alt={project.embedTitle}
                         loading="lazy"
-                        referrerpolicy="strict-origin-when-cross-origin"
-                        sandbox="allow-scripts allow-same-origin allow-popups allow-popups-to-escape-sandbox allow-forms"
-                        class="absolute inset-0 h-full w-full border-0"
+                        class="absolute inset-0 h-full w-full object-cover object-left md:object-center"
                       />
+                      <span class="embed-cta pointer-events-none absolute bottom-5 right-5 inline-flex items-center gap-2 rounded-full bg-stone-900/90 px-4 py-2.5 text-sm font-medium text-white shadow-lg ring-1 ring-white/10 backdrop-blur transition group-hover:bg-stone-900">
+                        <span class="inline-block h-2 w-2 rounded-full bg-emerald-400" aria-hidden="true" />
+                        {project.embedCta}
+                      </span>
                     </div>
                     <p class="mt-3 text-xs text-stone-500">
                       <span class="mr-2 inline-block h-1.5 w-1.5 rounded-full bg-emerald-500 align-middle" aria-hidden="true" />
@@ -538,3 +553,33 @@ const links = [
     </footer>
   </main>
 </Layout>
+
+<script is:inline>
+  // Facade → live iframe. One click loads the product's own demo page; the poster stays
+  // underneath until the frame has painted, so nothing flashes white in between.
+  (function () {
+    function activateEmbed(el) {
+      if (el.dataset.live === "1") return;
+      el.dataset.live = "1";
+      var cta = el.querySelector(".embed-cta");
+      if (cta) cta.textContent = "Loading…";
+      var f = document.createElement("iframe");
+      f.src = el.dataset.embed;
+      f.title = el.dataset.title || "";
+      f.setAttribute("referrerpolicy", "strict-origin-when-cross-origin");
+      f.setAttribute("sandbox", "allow-scripts allow-same-origin allow-popups allow-popups-to-escape-sandbox allow-forms");
+      f.className = "absolute inset-0 h-full w-full border-0 opacity-0 transition-opacity duration-300";
+      f.addEventListener("load", function () {
+        f.classList.remove("opacity-0");
+        setTimeout(function () { el.querySelectorAll("img, .embed-cta").forEach(function (n) { n.remove(); }); }, 350);
+      });
+      el.appendChild(f);
+      el.classList.remove("cursor-pointer");
+      try { if (window.posthog) window.posthog.capture("embed_activate", { project: el.dataset.name }); } catch (e) {}
+    }
+    document.querySelectorAll(".embed-facade").forEach(function (el) {
+      el.addEventListener("click", function () { activateEmbed(el); });
+      el.addEventListener("keydown", function (e) { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); activateEmbed(el); } });
+    });
+  })();
+</script>

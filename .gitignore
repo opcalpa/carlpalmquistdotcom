@@ -31,3 +31,9 @@ pnpm-debug.log*
 # infra-identifierare på ett ställe. Repot är publikt; den filen är det inte.
 CLAUDE.md
 SESSION-HANDOFF.md
+
+# Referensmaterial och mellansteg — hör inte i historiken (2026-08-27)
+# 40 MB inspirationsskärmdumpar + film; underlag, inte källkod.
+HackSaw Inspo/
+# Original-PNG:er som bildpipelinen (rembg/chromakey) sparar innan bearbetning.
+*.orig.png
