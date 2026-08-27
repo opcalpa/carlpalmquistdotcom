@@ -11,6 +11,14 @@
 //   POST /api/fest40?slug=calle40&kind=recipe  {pw,name,title,url,ingredients}-> föreslå recept
 //   POST /api/fest40?slug=calle40&kind=rstar   {pw,name,id}                   -> förslag <-> utvald
 //   POST /api/fest40?slug=calle40&kind=rimage  {pw,name,id,image}             -> sätt/byt bild
+//   POST /api/fest40?slug=calle40&kind=edit    {pw,name,id,text}              -> ändra radens text
+//   POST /api/fest40?slug=calle40&kind=del     {pw,name,id}                   -> ta bort rad
+//   POST /api/fest40?slug=calle40&kind=rdel    {pw,name,id}                   -> ta bort recept
+//
+// GRAVSTENAR (ev.deleted): en radering kan inte uttryckas som "raden saknas", för det betyder
+// också "raden är ny i pappen och inte publicerad än". Utan gravsten kommer varje rad familjen
+// tar bort tillbaka som ett spöke vid nästa synk. Gravstenen bevaras tills pappen bevisat att
+// den tagit emot raderingen (raden saknas i inkommande PUT), sedan städas den bort av sig själv.
 //   PUT  /api/fest40?slug=calle40              {admin,event}                  -> seeda/spegla från pappen
 //
 // Lösenord: event.gate === false => öppen sida (obfuskerad slug är skyddet). Annars event.pw || FEST40_PW.
@@ -160,6 +168,11 @@ export async function onRequestPost(context) {
   ev.plan = Array.isArray(ev.plan) ? ev.plan : [];
   ev.guests = Array.isArray(ev.guests) ? ev.guests : [];
   ev.recipes = Array.isArray(ev.recipes) ? ev.recipes : [];
+  ev.deleted = Array.isArray(ev.deleted) ? ev.deleted : [];
+  const tomb = (kind, id, title) => {
+    if (!ev.deleted.some((d) => d.id === id)) ev.deleted.push({ id, kind, by, ts });
+    if (ev.deleted.length > 200) ev.deleted.splice(0, ev.deleted.length - 200);
+  };
 
   if (kind === "toggle") {
     const it = ev.plan.find((p) => p.id === body.id);
@@ -185,6 +198,26 @@ export async function onRequestPost(context) {
     const st = ["ja", "nej", "väntar"].includes(body.status) ? body.status : "väntar";
     g.status = st;
     note(`satte ${g.name} till ${st}`);
+  } else if (kind === "edit") {
+    const it = ev.plan.find((p) => p.id === body.id);
+    if (!it) return Response.json({ error: "not_found_item" }, { status: 404 });
+    const text = sanitize(body.text, TEXT_MAX);
+    if (!text) return Response.json({ error: "empty" }, { status: 400 });
+    const before = it.text;
+    it.text = text;
+    note(`ändrade ”${before}” till ”${text}”`);
+  } else if (kind === "del") {
+    const i = ev.plan.findIndex((p) => p.id === body.id);
+    if (i === -1) return Response.json({ error: "not_found_item" }, { status: 404 });
+    const [gone] = ev.plan.splice(i, 1);
+    tomb("plan", gone.id);
+    note(`tog bort ”${gone.text}”`);
+  } else if (kind === "rdel") {
+    const i = ev.recipes.findIndex((r) => r.id === body.id);
+    if (i === -1) return Response.json({ error: "not_found_recipe" }, { status: 404 });
+    const [gone] = ev.recipes.splice(i, 1);
+    tomb("recipe", gone.id);
+    note(`tog bort receptet ”${gone.title}”`);
   } else if (kind === "recipe") {
     // Gästförslag. ID SÄTTS HÄR, VID SKRIVNINGEN — pappen slår upp rader på id, och en post
     // utan id ger en knapp som ser rätt ut men är död, helt utan felmeddelande. Bet 2026-08-26.
@@ -258,6 +291,19 @@ export async function onRequestPut(context) {
     const kommer = new Set((ev.recipes || []).map((r) => r.id));
     const kvar = prev.recipes.filter((r) => r && r.fromGuest && !kommer.has(r.id));
     if (kvar.length) ev.recipes = (ev.recipes || []).concat(kvar);
+  }
+  // Gravstenar: behåll bara dem pappen ÄNNU INTE hunnit ta emot. Kommer id:t tillbaka i
+  // pushen lever raden kvar hos pappen → raderingen är inte behandlad → gravstenen står kvar.
+  // Saknas id:t har pappen tagit bort raden också → gravstenen har gjort sitt och städas bort.
+  if (prev && Array.isArray(prev.deleted) && prev.deleted.length) {
+    const finnsKvar = new Set([...(ev.plan || []), ...(ev.recipes || [])].map((x) => x.id));
+    const kvar = prev.deleted.filter((d) => finnsKvar.has(d.id));
+    ev.deleted = (Array.isArray(ev.deleted) ? ev.deleted : []).concat(
+      kvar.filter((d) => !(ev.deleted || []).some((x) => x.id === d.id)));
+    // Raden som gravstenen gäller får inte smygas tillbaka in av pushen.
+    const dead = new Set(ev.deleted.map((d) => d.id));
+    ev.plan = (ev.plan || []).filter((p) => !dead.has(p.id));
+    ev.recipes = (ev.recipes || []).filter((r) => !dead.has(r.id));
   }
   await kvPut(env, K_EVENT(slug), JSON.stringify(ev));
   return Response.json({ ok: true, slug, items: (ev.plan || []).length, guests: (ev.guests || []).length });

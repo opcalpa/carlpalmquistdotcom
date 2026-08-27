@@ -100,6 +100,13 @@ button{font:inherit;cursor:pointer}
 details.foldable{padding:0}
 details.foldable summary{list-style:none;display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:52px;padding:0 16px;cursor:pointer}
 details.foldable summary::-webkit-details-marker{display:none}
+/* Ändra/ta bort direkt på raden. Syns alltid — mobilen har ingen hover, och det här ska
+   fungera som ett delat kalkylark där alla vågar redigera. */
+.row-btn{width:30px;height:30px;flex:0 0 auto;border:1px solid transparent;border-radius:var(--r-field);
+  background:transparent;color:var(--faint);font-size:13px;padding:0;display:flex;align-items:center;justify-content:center}
+.row-btn:hover{border-color:var(--line);color:var(--txt)}
+.row.done .row-btn{opacity:.5}
+
 /* 🍳 Menyn. Gästerna kan föreslå rätter och välja ut dem; utvalda är det som lagas.
    Förslagen tonas ned men göms aldrig — brainstormen ska synas. */
 .r-row{display:flex;gap:12px;align-items:center;padding:10px 0;border-bottom:1px solid var(--line-soft)}
@@ -247,7 +254,9 @@ function draw() {
 
   const rowHtml = (it) => { const d = dueLabel(it.due); return `<div class="row${it.done ? " done" : ""}" data-id="${esc(it.id)}">
       <div class="box">✓</div><div class="row-txt"><div class="t">${esc(it.text)}</div>${it.tag ? `<span class="tag">${esc(it.tag)}</span>` : ""}</div>
-      ${d.t ? `<div class="due num ${d.c}">${esc(d.t)}</div>` : ""}</div>`; };
+      ${d.t ? `<div class="due num ${d.c}">${esc(d.t)}</div>` : ""}
+      <button class="row-btn" data-edit="${esc(it.id)}" title="Ändra texten" aria-label="Ändra">✎</button>
+      <button class="row-btn" data-del="${esc(it.id)}" title="Ta bort raden" aria-label="Ta bort">✕</button></div>`; };
 
   const last = S.log.slice(-2).reverse().map((e) => {
     const t = new Date(e.ts), hh = String(t.getHours()).padStart(2, "0"), mm = String(t.getMinutes()).padStart(2, "0");
@@ -318,6 +327,7 @@ function draw() {
     <div class="r-act">
       <button class="r-btn${r.status !== "forslag" ? " on" : ""}" data-rstar="${esc(r.id)}" title="${r.status !== "forslag" ? "Utvald — klicka för att flytta till förslag" : "Förslag — klicka för att välja ut"}">${r.status !== "forslag" ? "★" : "☆"}</button>
       <button class="r-btn" data-rimg="${esc(r.id)}" title="Sätt bild (bild-URL eller sidlänk)">🖼</button>
+      <button class="r-btn" data-rdel="${esc(r.id)}" title="Ta bort rätten">✕</button>
     </div>
   </div>`;
   const meny = `<section class="card sec"><div class="sec-head"><h2>Menyn</h2>
@@ -356,7 +366,27 @@ function draw() {
 function wire() {
   document.querySelectorAll("[data-cat]").forEach((b) => b.onclick = () => { S.cat = b.dataset.cat; S.tag = null; draw(); });
   document.querySelectorAll("[data-tag]").forEach((b) => b.onclick = () => { S.tag = b.dataset.tag || null; draw(); });
-  document.querySelectorAll(".row").forEach((r) => r.onclick = () => toggle(r.dataset.id));
+  document.querySelectorAll(".row").forEach((r) => r.onclick = (e) => {
+    if (e.target.closest("button")) return;      // ✎/✕ ska inte bocka av raden
+    toggle(r.dataset.id);
+  });
+  document.querySelectorAll("[data-edit]").forEach((b) => b.onclick = async () => {
+    const it = plan().find((p) => p.id === b.dataset.edit); if (!it) return;
+    const v = prompt("Ändra texten:", it.text);
+    if (v === null) return;
+    const t = v.trim(); if (!t || t === it.text) return;
+    await write("edit", { id: b.dataset.edit, text: t });
+  });
+  document.querySelectorAll("[data-del]").forEach((b) => b.onclick = async () => {
+    const it = plan().find((p) => p.id === b.dataset.del); if (!it) return;
+    if (!confirm(`Ta bort ”${it.text}”?\n\nRaden försvinner för alla.`)) return;
+    await write("del", { id: b.dataset.del });
+  });
+  document.querySelectorAll("[data-rdel]").forEach((b) => b.onclick = async () => {
+    const r = (S.ev.recipes || []).find((x) => x.id === b.dataset.rdel); if (!r) return;
+    if (!confirm(`Ta bort ”${r.title}” ur menyn?\n\nRätten försvinner för alla.`)) return;
+    await write("rdel", { id: b.dataset.rdel });
+  });
   document.querySelectorAll("[data-guest]").forEach((b) => b.onclick = () => {
     const g = (S.ev.guests || []).find((x) => x.id === b.dataset.guest); if (!g) return;
     const next = { "ja": "väntar", "väntar": "nej", "nej": "ja" }[g.status] || "ja";
