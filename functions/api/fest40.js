@@ -33,6 +33,8 @@
 //   POST .. kind=ringadd                       {id,qty,item}                  -> lägg till EN ingrediens
 //   POST .. kind=ringedit                      {id,from,qty,item}             -> ändra EN ingrediens
 //   POST .. kind=ringdel                       {id,line}                      -> ta bort EN ingrediens
+//   POST .. kind=move                          {lista,id,group,after}         -> flytta rad (drag and drop)
+//   POST .. kind=bulk                          {lista,text,category,tag,group}-> klistra in flera rader
 // FULL PARITET (2026-08-27): allt Calle kan redigera i pappen går att redigera här. Sidan är
 // ett delat planeringsverktyg som ersätter ett Google Sheet, inte en avbockningsvy.
 //
@@ -73,6 +75,9 @@ const TITLE_MAX = 90, URL_MAX = 400, ING_MAX = 60, ING_LINES = 40;
 // menyresonemang och transport-research, alltså prosa, inte en etikett.
 const LABEL_MAX = 70, TIME_MAX = 8, HOUSE_MAX = 60, BODY_MAX = 4000, EST_MAX = 9999999;
 const ITEM_MAX = 70, QTY_MAX = 20, SHOP_CAP = 400, STEPS_MAX = 6000, GRP_MAX = 30;
+// Massinmatning: en klistrad lista i taget. Taket är per KLISTRING, inte per lista — SHOP_CAP
+// och PLAN_CAP är de riktiga gränserna och kollas rad för rad nedan.
+const BULK_LINES = 120, BULK_MAX = 8000, PLAN_CAP = 400;
 // Två oberoende axlar på en rad, båda frivilliga:
 //   group = rubriken raden hamnar under ("Lunch", "Middag") — struktur man plockar efter
 //   tag   = etiketten till höger ("Kantarellpaj") — vad raden hör TILL
@@ -80,9 +85,50 @@ const ITEM_MAX = 70, QTY_MAX = 20, SHOP_CAP = 400, STEPS_MAX = 6000, GRP_MAX = 3
 // vara att antingen tillhöra sin måltid eller sitt recept, aldrig båda.
 // Okänt listnamn ger null, inte plan. Ett stavfel ska avvisas, inte tyst skriva i fel lista.
 const listaAv = (ev, namn) => (namn === "shop" ? ev.shop : namn === "plan" ? ev.plan : null);
+// ── Radordning (drag and drop) ────────────────────────────────────────────────
+// `ord` är delningssidans EGNA ordning. Pappen sorterar plan-raderna efter sina egna regler,
+// så fältet betyder ingenting där — men utan det tappar familjens sortering vid nästa
+// Publicera, eftersom PUT ersätter hela eventet med pappens arrayordning.
+// Varje flytt numrerar om HELA listan 1..n. Alternativet (bara ge den flyttade raden ett nytt
+// tal) kräver att alla andra redan har unika tal, och rader som kommer från pappen har 0.
+const numreraOm = (arr) => { arr.forEach((x, i) => { if (x) x.ord = i + 1; }); return arr; };
+// Nya rader läggs SIST. Utan ett eget tal hade de fått 0, och 0 sorteras före allt annat —
+// en ny rad hade hoppat överst i en lista familjen just sorterat om.
+const nastaOrd = (arr) => arr.reduce((m, x) => Math.max(m, Number(x && x.ord) || 0), 0) + 1;
+// Arrayens ordning och `ord` kan gå isär: pappen skickar tillbaka listan i SIN sortering med
+// radernas ord intakta. Sidan visar ord-ordningen, så en flytt måste räknas i den ordningen —
+// annars flyttas raden rätt på skärmen men fel i arrayen, och nästa omnumrering kastar om
+// hela listan. Sorteras därför på plats innan varje flytt och varje inklistring.
+const ordAv = (x) => { const n = Number(x && x.ord) || 0; return n > 0 ? n : Number.MAX_SAFE_INTEGER; };
+const sorteraPaOrd = (arr) => { arr.sort((a, b) => ordAv(a) - ordAv(b)); return arr; };
+// ── Programmets dag ───────────────────────────────────────────────────────────
+// Programmet grupperas på DATUM, inte på en fritextrubrik: dagen är ett faktum som går att
+// sortera, och ett fritt namn ("Fredag") hade sorterats i bokstavsordning bland de andra.
+// Tomt datum = punkten hör till festdagen; den gruppen ritas först utan att behöva fyllas i.
+// Accepterar "2026-08-29", "29/8" och "29/8-26". Referensåret är eventets eget.
+function normDatum(s, refIso) {
+  const t = String(s == null ? "" : s).trim();
+  if (!t) return "";
+  const iso = t.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (iso) { const d = new Date(t + "T12:00:00Z"); return isNaN(d) ? null : t; }
+  const dm = t.match(/^(\d{1,2})\s*[\/.-]\s*(\d{1,2})(?:\s*[\/.-]\s*(\d{2,4}))?$/);
+  if (!dm) return null;
+  const dag = Number(dm[1]), man = Number(dm[2]);
+  if (dag < 1 || dag > 31 || man < 1 || man > 12) return null;
+  let ar = dm[3] ? Number(dm[3]) : Number(String(refIso || "").slice(0, 4)) || new Date().getUTCFullYear();
+  if (ar < 100) ar += 2000;
+  const p = (n) => String(n).padStart(2, "0");
+  const kandidat = `${ar}-${p(man)}-${p(dag)}`;
+  const d = new Date(kandidat + "T12:00:00Z");
+  // Ett orimligt datum (31/2) rullar vidare till nästa månad i Date. Fånga det i stället för
+  // att tyst spara fel dag.
+  return (isNaN(d) || d.getUTCDate() !== dag) ? null : kandidat;
+}
 // Enheter vi vågar plocka ut som "antal". Allt annat blir en del av varunamnet — hellre en
 // klumpig rad man kan redigera än en varusträng som tappat halva sitt namn.
-const ENHETER = ["g","kg","hg","dl","cl","ml","l","msk","tsk","krm","st","pkt","paket","burk","burkar","påse","påsar","klyfta","klyftor","knippe","näve","port","skiva","skivor"];
+// "fl" (flaska) och "kruka" står i den här festens egna rader ("8 fl mousserande") och måste
+// därför räknas som enheter — annars blev antalet "8" och varan "fl mousserande".
+const ENHETER = ["g","kg","hg","dl","cl","ml","l","msk","tsk","krm","st","pkt","paket","burk","burkar","påse","påsar","klyfta","klyftor","knippe","näve","port","skiva","skivor","fl","flaska","flaskor","kruka","krukor"];
 // ── Portionsskalning ──────────────────────────────────────────────────────────
 // Receptet är skrivet för N personer, festen lagar för M. Mängderna räknas om med M/N, och
 // det är de OMRÄKNADE mängderna som hamnar på inköpslistan — annars handlar man för fyra
@@ -349,9 +395,22 @@ export async function onRequestPost(context) {
     const cats = (ev.categories && ev.categories.length) ? ev.categories : ["Inhandling", "Fixa"];
     const category = cats.includes(body.category) ? body.category : cats[0];
     const item = { id: mkId(), text, done: false, due: sanitize(body.due, 12) || "", category,
-      tag: sanitize(body.tag, TAG_MAX), group: sanitize(body.group, GRP_MAX), fromGuest: true, by };
+      tag: sanitize(body.tag, TAG_MAX), group: sanitize(body.group, GRP_MAX),
+      ord: nastaOrd(ev.plan), fromGuest: true, by };
     ev.plan.push(item);
     note(`la till ”${text}”`);
+    // toshop: raden ska ligga i BÅDA listorna. Gjort här, i samma skrivning, i stället för som
+    // ett andra anrop — KV-skrivningar är den trånga resursen, och två anrop hade dessutom
+    // kunnat lyckas till hälften och lämnat en rad utan sin vara.
+    if (body.toshop) {
+      const { qty, item: vara } = delaIngrediens(text);
+      const finns = vara && ev.shop.some((x) => x.item.toLowerCase() === vara.toLowerCase() && (x.tag || "") === (item.tag || ""));
+      if (vara && !finns && ev.shop.length < SHOP_CAP) {
+        ev.shop.push({ id: mkId(), item: vara, qty, tag: item.tag, group: item.group,
+          done: false, ord: nastaOrd(ev.shop), fromGuest: true, by });
+        note(`la ”${vara}” på inköpslistan`);
+      }
+    }
   } else if (kind === "tag") {
     const it = ev.plan.find((p) => p.id === body.id);
     if (!it) return Response.json({ error: "not_found_item" }, { status: 404 });
@@ -466,7 +525,9 @@ export async function onRequestPost(context) {
   } else if (kind === "padd") {
     const text = sanitize(body.text, TEXT_MAX);
     if (!text) return Response.json({ error: "empty" }, { status: 400 });
-    ev.program.push({ id: mkId(), time: sanitize(body.time, TIME_MAX) || "—", text, fromGuest: true, by });
+    const date = normDatum(body.date, ev.info && ev.info.date);
+    if (date === null) return Response.json({ error: "bad_date" }, { status: 400 });
+    ev.program.push({ id: mkId(), time: sanitize(body.time, TIME_MAX) || "—", text, date, fromGuest: true, by });
     note(`la till ”${text}” i programmet`);
   } else if (kind === "pedit") {
     const it = ev.program.find((x) => x.id === body.id);
@@ -481,6 +542,12 @@ export async function onRequestPost(context) {
       const time = sanitize(body.time, TIME_MAX) || "—";
       if (time !== it.time) note(`flyttade ”${it.text}” till ${time}`);
       it.time = time;
+    }
+    if (body.date != null) {
+      const date = normDatum(body.date, ev.info && ev.info.date);
+      if (date === null) return Response.json({ error: "bad_date" }, { status: 400 });
+      if (date !== (it.date || "")) note(date ? `flyttade ”${it.text}” till ${date}` : `tog bort dagen från ”${it.text}”`);
+      it.date = date;
     }
   } else if (kind === "pdel") {
     const i = ev.program.findIndex((x) => x.id === body.id);
@@ -564,7 +631,7 @@ export async function onRequestPost(context) {
     if (!item) return Response.json({ error: "empty" }, { status: 400 });
     if (ev.shop.length >= SHOP_CAP) return Response.json({ error: "full" }, { status: 400 });
     ev.shop.push({ id: mkId(), item, qty: sanitize(body.qty, QTY_MAX), tag: sanitize(body.tag, TAG_MAX),
-      group: sanitize(body.group, GRP_MAX), done: false, fromGuest: true, by });
+      group: sanitize(body.group, GRP_MAX), done: false, ord: nastaOrd(ev.shop), fromGuest: true, by });
     note(`la till ”${item}” på inköpslistan`);
   } else if (kind === "shopedit") {
     const r = ev.shop.find((x) => x.id === body.id);
@@ -687,6 +754,63 @@ export async function onRequestPost(context) {
       rad.tag = sanitize(body.tag, TAG_MAX);
       note(rad.tag ? `taggade ”${namn}” som ${rad.tag}` : `tog bort taggen från ”${namn}”`);
     }
+  } else if (kind === "move") {
+    // Drag and drop. Raden får rubriken den släpptes i och läggs EFTER `after` (tom sträng =
+    // först i listan). Rubriken följer med släppet med flit: släpper man en rad under en annan
+    // rubrik menar man att den ska höra dit — allt annat hade krävt två handgrepp för det som
+    // ser ut som ett.
+    if (!listaAv(ev, body.lista)) return Response.json({ error: "bad_list" }, { status: 400 });
+    const arr = sorteraPaOrd(listaAv(ev, body.lista));
+    const i = arr.findIndex((x) => x.id === body.id);
+    if (i === -1) return Response.json({ error: "not_found_item" }, { status: 404 });
+    const [rad] = arr.splice(i, 1);
+    const namn = rad.text || rad.item || "raden";
+    const forut = rad.group || "";
+    if (body.group != null) rad.group = sanitize(body.group, GRP_MAX);
+    // after söks EFTER att raden lyfts ur, annars pekar indexet fel när man flyttar nedåt.
+    const efter = body.after ? arr.findIndex((x) => x.id === body.after) : -1;
+    if (body.after && efter === -1) arr.push(rad);        // målraden hann försvinna: lägg sist
+    else arr.splice(efter + 1, 0, rad);
+    numreraOm(arr);
+    note((rad.group || "") !== forut
+      ? `flyttade ”${namn}” till ${rad.group || "utan rubrik"}`
+      : `flyttade om ”${namn}”`);
+  } else if (kind === "bulk") {
+    // Massinmatning. Verktyget underhåller en plan bra men är trögt att mata EN rad i taget —
+    // de 91 raderna i den här festen lades in via API:t, inte för hand.
+    // EN skrivning för hela klistringen: KV-skrivningarna är den trånga resursen, och 60 rader
+    // som 60 anrop hade ätit en påtaglig del av dygnskvoten på ett enda tryck.
+    if (!listaAv(ev, body.lista)) return Response.json({ error: "bad_list" }, { status: 400 });
+    const arr = sorteraPaOrd(listaAv(ev, body.lista));
+    const cats = (ev.categories && ev.categories.length) ? ev.categories : ["Inhandling", "Fixa"];
+    const category = cats.includes(body.category) ? body.category : cats[0];
+    const tagg = sanitize(body.tag, TAG_MAX);
+    const cap = body.lista === "shop" ? SHOP_CAP : PLAN_CAP;
+    let grupp = sanitize(body.group, GRP_MAX);
+    let n = 0, rubriker = 0, fullt = false;
+    const rader = sanitizeMulti(body.text, BULK_MAX).split("\n").slice(0, BULK_LINES);
+    for (const rå of rader) {
+      const t = rå.replace(/^\s*(?:[-*•]|\d+[.)])\s*/, "").trim();
+      if (!t) continue;
+      // En rad som slutar på kolon är en RUBRIK för det som följer. Det är så folk redan
+      // skriver listor i en anteckning, så inklistringen behåller strukturen i stället för
+      // att platta 60 rader till en enda hög.
+      if (/:$/.test(t)) { grupp = sanitize(t.slice(0, -1), GRP_MAX); rubriker++; continue; }
+      if (arr.length >= cap) { fullt = true; break; }
+      if (body.lista === "shop") {
+        const { qty, item } = delaIngrediens(t);
+        if (!item) continue;
+        arr.push({ id: mkId(), item, qty, tag: tagg, group: grupp, done: false, fromGuest: true, by });
+      } else {
+        const text = sanitize(t, TEXT_MAX);
+        if (!text) continue;
+        arr.push({ id: mkId(), text, done: false, due: "", category, tag: tagg, group: grupp, fromGuest: true, by });
+      }
+      n++;
+    }
+    if (!n) return Response.json({ error: "empty" }, { status: 400 });
+    numreraOm(arr);
+    note(`klistrade in ${n} rader${rubriker ? ` under ${rubriker} rubrik${rubriker > 1 ? "er" : ""}` : ""}${fullt ? " (listan blev full)" : ""}`);
   } else if (kind === "grpname") {
     // Rubriken finns inte som eget objekt — den ÄR fältet på raderna. Att döpa om den är
     // därför att skriva om alla rader som bär den. Ett tomt nytt namn löser upp gruppen.
@@ -708,7 +832,7 @@ export async function onRequestPost(context) {
     if (ev.shop.some((x) => x.item.toLowerCase() === item.toLowerCase() && (x.tag || "") === (it.tag || "")))
       return Response.json({ error: "finns_redan" }, { status: 409 });
     ev.shop.push({ id: mkId(), item, qty, tag: sanitize(it.tag, TAG_MAX), group: sanitize(it.group, GRP_MAX),
-      done: false, fromGuest: true, by });
+      done: false, ord: nastaOrd(ev.shop), fromGuest: true, by });
     note(`la ”${item}” på inköpslistan från checklistan`);
   } else if (kind === "shopfrom") {
     // Hämta in ingredienserna från de UTVALDA rätterna (eller en enskild, om id skickas med).
@@ -731,7 +855,7 @@ export async function onRequestPost(context) {
         const finns = ev.shop.some((x) => x.tag === tag && x.item.toLowerCase() === item.toLowerCase());
         if (finns) continue;
         if (ev.shop.length >= SHOP_CAP) break;
-        ev.shop.push({ id: mkId(), item, qty, tag, done: false, fromRecipe: r.id, fromGuest: true, by });
+        ev.shop.push({ id: mkId(), item, qty, tag, done: false, ord: nastaOrd(ev.shop), fromRecipe: r.id, fromGuest: true, by });
         nya++;
       }
     }

@@ -316,6 +316,99 @@ details.klart[open]>summary::after{content:"▴"}
 .r-txt.tom{color:var(--faint)}
 .r-detalj .btn{height:40px;font-size:13px;margin-top:12px}
 
+/* ── Drag and drop ────────────────────────────────────────────────────────────
+   Handtaget ÄR ⇅/+-rutan som redan flyttar raden mellan rubriker — ett klick öppnar
+   rubriknamnet, ett drag flyttar raden. Att lägga till ett andra handtag hade gett två
+   ikoner för samma sak på varje rad.
+   touch-action:none behövs för att ett drag på telefonen inte ska bli en sidscroll; ytan är
+   liten med flit, så resten av raden fortfarande scrollar. */
+.mini.grp{touch-action:none;cursor:grab}
+body.drar{cursor:grabbing;user-select:none;-webkit-user-select:none}
+body.drar .mini.grp{cursor:grabbing}
+.drar-rad{opacity:.35}
+/* Spöket följer fingret. position:fixed, så det inte påverkar layouten under. */
+#spoke{position:fixed;z-index:60;pointer-events:none;background:var(--panel);border:1px solid var(--accent);
+  border-radius:var(--r-field);box-shadow:0 8px 24px rgba(0,0,0,.18);padding:6px 10px;font-size:13px;
+  max-width:60vw;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;opacity:.95}
+/* Släpplinjen visar exakt var raden hamnar. Utan den är ett drag en gissning. */
+.slapp{height:0;border-top:2px solid var(--accent);margin:-1px 0}
+.grp-h.slapp-i{background:rgba(108,140,255,.1);border-radius:6px}
+
+/* ── "+"-menyn per lista ──────────────────────────────────────────────────────
+   Samlar det som förut var utspritt: ny rad, ny rubrik, ny tagg, klistra in flera. */
+.plusbtn{border:1px solid var(--line);background:var(--panel);color:var(--dim);border-radius:var(--r-field);
+  width:30px;height:26px;font-size:15px;line-height:1;padding:0;flex:0 0 auto;margin-left:6px}
+.plusbtn:hover{border-color:var(--accent);color:var(--accent-ink)}
+.split-h{display:flex;align-items:center;justify-content:space-between;gap:8px}
+#plusmeny{position:fixed;z-index:70;background:var(--panel);border:1px solid var(--line);
+  border-radius:var(--r-field);box-shadow:0 12px 30px rgba(0,0,0,.16);padding:4px;min-width:232px}
+#plusmeny button{display:flex;width:100%;align-items:center;gap:10px;background:none;border:0;
+  padding:10px 12px;border-radius:6px;font-size:14px;color:var(--txt);text-align:left}
+#plusmeny button:hover{background:var(--panel2)}
+#plusmeny .mi{flex:0 0 18px;text-align:center}
+#plusmeny hr{border:0;border-top:1px solid var(--line-soft);margin:4px 6px}
+
+/* ── Massinmatning ────────────────────────────────────────────────────────────
+   91 rader lades in via API:t, inte för hand. Rutan gör det familjen redan gör i en
+   anteckning — en rad per sak — till en lista. */
+#massa{position:fixed;inset:0;z-index:80;background:rgba(43,39,35,.34);display:flex;
+  align-items:flex-end;justify-content:center;padding:0}
+#massa .ark{background:var(--panel);border:1px solid var(--line);border-radius:14px 14px 0 0;
+  width:100%;max-width:560px;padding:16px;display:flex;flex-direction:column;gap:10px;max-height:88dvh}
+#massa h3{margin:0;font-size:16px;font-weight:650}
+#massa textarea{flex:1;min-height:180px;resize:vertical;font:inherit;font-size:14px;line-height:1.5;
+  padding:10px;border:1px solid var(--line);border-radius:var(--r-field);background:var(--panel);color:var(--txt)}
+#massa textarea:focus{outline:none;border-color:var(--accent)}
+#massa .rad{display:flex;gap:8px}
+#massa .rad .btn{flex:1}
+@media(min-width:900px){ #massa{align-items:center} #massa .ark{border-radius:14px} }
+
+/* ── Aktivitetsfeeden i hjärtat ───────────────────────────────────────────────
+   Feeden låg i checklistan och gällde bara den. Nu är den sidans gemensamma puls, och
+   hjärtat får två kolumner på bredden — på telefonen ligger den under, hopfälld. */
+.heart-in{text-align:center}
+@media(min-width:900px){
+  .heart-in{display:grid;grid-template-columns:1fr 260px;gap:24px;align-items:center;text-align:center}
+  .heart-mitt{min-width:0}
+  .feed{border-left:1px solid var(--champ-line);padding-left:20px}
+}
+.feed{text-align:left}
+.feed .lbl{display:block;margin-bottom:8px}
+.feed-lista{max-height:168px;overflow-y:auto;display:flex;flex-direction:column;gap:8px}
+.feed-rad{font-size:12px;line-height:1.4;color:var(--mid)}
+.feed-rad b{font-weight:650;color:var(--txt)}
+.feed-rad span{color:var(--faint)}
+.feed-tom{font-size:12px;color:var(--faint)}
+@media(max-width:899px){
+  .feed{margin-top:16px;padding-top:14px;border-top:1px solid var(--champ-line)}
+  .feed-lista{max-height:132px}
+}
+
+/* ── Budget: den automatiska inköpsraden ──────────────────────────────────────
+   En post som räknas fram, inte skrivs in. Den är expanderbar för att en summa utan
+   uppdelning är omöjlig att lita på — man vill se VAD som kostar. */
+.b-auto{border-top:1px solid var(--line-soft)}
+.b-auto>summary{list-style:none;display:grid;grid-template-columns:1fr auto 30px;
+  grid-template-areas:"lbl est del" "stat stat stat";gap:2px 10px;align-items:center;
+  padding:10px 16px;cursor:pointer}
+.b-auto>summary::-webkit-details-marker{display:none}
+.b-auto .b-est{grid-area:est}
+.b-auto .b-lbl{grid-area:lbl}
+.b-auto .b-stat{grid-area:stat}
+.b-detalj{padding:0 16px 12px}
+.b-drad{display:flex;justify-content:space-between;gap:10px;font-size:12.5px;padding:4px 0;
+  border-bottom:1px solid var(--line-soft);color:var(--mid)}
+.b-drad:last-child{border-bottom:0}
+.b-drad.klar{color:var(--faint);text-decoration:line-through;text-decoration-color:rgba(139,130,114,.4)}
+.b-drad .kr{flex:0 0 auto;font-weight:600}
+.b-drad .kr.ingen{color:var(--faint);font-weight:400}
+.b-dgrp{font-size:10.5px;text-transform:uppercase;letter-spacing:.4px;color:var(--dim);
+  font-weight:700;padding:10px 0 2px}
+.b-dfot{font-size:11px;color:var(--faint);padding-top:8px;line-height:1.5}
+@media(min-width:900px){
+  .b-auto>summary{grid-template-columns:1fr auto auto 30px;grid-template-areas:"lbl stat est del";gap:10px}
+}
+
 .sticky{position:sticky;top:0;z-index:10;background:rgba(250,247,242,.95);backdrop-filter:blur(8px);border-bottom:1px solid var(--line);display:none;align-items:center;justify-content:space-between;padding:10px 16px;margin:-16px -16px 0}
 @media(min-width:900px){
   .wrap{padding:22px;gap:16px}
@@ -356,6 +449,17 @@ const S = { pw: "", ev: null, log: [], cat: null, tag: null, stag: null, me: "",
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s == null ? "" : s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 const api = async (path, opts) => { const r = await fetch(path, opts); const d = await r.json().catch(() => ({})); if (!r.ok) throw new Error(d.error || r.status); return d; };
+// Felkoder från Workern på svenska. En gäst ska få veta VAD som gick fel, inte se "bad_date".
+const FEL = {
+  bad_date: "Skriv dagen som 29/8 eller 2026-08-29.",
+  bad_list: "Okänd lista — ladda om sidan.",
+  empty: "Skriv något först.",
+  full: "Listan är full. Ta bort några rader först.",
+  finns_redan: "Den varan finns redan på inköpslistan.",
+  rate_limited: "För många ändringar just nu. Vänta en stund.",
+  kv_full: "Molnlagret har nått dagens gräns — ändringen sparades INTE.",
+  unauthorized: "Koden gäller inte längre — ladda om sidan.",
+};
 const cats = () => (S.ev.categories && S.ev.categories.length) ? S.ev.categories : ["Inhandling", "Fixa"];
 // Gästlägen. ej_bjuden är default för allt okänt: en gäst utan svar ska aldrig kunna se ut
 // som ett nej. NÄSTA-kedjan är livscykeln, och nej vänder tillbaka till början.
@@ -365,8 +469,16 @@ const GST = {
   ja: { l: "Ja", c: "ja", next: "nej" },
   nej: { l: "Nej", c: "", next: "ej_bjuden" },
 };
-const plan = () => Array.isArray(S.ev.plan) ? S.ev.plan : [];
-const shop = () => Array.isArray(S.ev.shop) ? S.ev.shop : [];
+// ── Radordning ────────────────────────────────────────────────────────────────
+// `ord` sätts av drag and drop (Workerns kind=move numrerar om hela listan). En rad UTAN ord
+// är oplacerad och sorteras SIST — nypublicerade rader från pappen ska hamna i slutet, inte
+// hoppa överst i en lista familjen just sorterat om. MAX_SAFE_INTEGER i stället för Infinity:
+// Infinity - Infinity är NaN, och en jämförare som ger NaN sorterar godtyckligt.
+const ordAv = (x) => { const n = Number(x && x.ord) || 0; return n > 0 ? n : Number.MAX_SAFE_INTEGER; };
+const iOrd = (a) => a.slice().sort((x, y) => ordAv(x) - ordAv(y));
+const plan = () => iOrd(Array.isArray(S.ev.plan) ? S.ev.plan : []);
+const shop = () => iOrd(Array.isArray(S.ev.shop) ? S.ev.shop : []);
+const listAv = (lista) => (lista === "shop" ? shop() : plan());
 // Sektionerna är öppna som default; S.open minns bara avvikelserna.
 const oppen = (k) => S.open[k] !== false;
 // Portionsskalning. SPEGEL av samma funktioner i functions/api/fest40.js — ändras den ena
@@ -467,6 +579,89 @@ const grpRubrik = (lista, namn, n) => namn
       <button class="grp-add" data-grpadd="${lista}:${esc(namn)}" title="Lägg till en rad under ${esc(namn)}" aria-label="Lägg till här">+</button></div>`
   : "";
 
+// ── Prisestimat för inköpslistan ──────────────────────────────────────────────
+// Prislistan KOMMER FRÅN PAPPEN i eventet (ev.prices), tillsammans med plural-tabellen.
+// Sidan har alltså ingen egen kopia — den bor i pappens public/js/inkops-data.js. Skälet att
+// sidan ändå RÄKNAR själv: familjen lägger till och stryker varor här hela tiden, så en färdig
+// summa från pappen hade varit inaktuell i samma sekund den skickades.
+// Har eventet ännu inte publicerats om efter den här ändringen saknas ev.prices, och då visas
+// ingen estimatrad alls — hellre ingen siffra än en påhittad.
+const priser = () => (Array.isArray(S.ev.prices) ? S.ev.prices : []);
+function varuNyckel(n) {
+  const t = String(n == null ? "" : n).toLowerCase().replace(/[.,;:!?]/g, "").replace(/\s+/g, " ").trim();
+  const pl = (S.ev.plural && typeof S.ev.plural === "object") ? S.ev.plural : {};
+  return pl[t] || t;
+}
+// Första träff vinner — listan är ordnad specifik → generisk ("paprikapulver" före "paprika").
+// Både råtexten och den plural-fällda nyckeln prövas: "paprikor".includes("paprika") är falskt.
+function prisPost(namn) {
+  const hay = String(namn == null ? "" : namn).toLowerCase(), fold = varuNyckel(namn);
+  for (const p of priser()) if ((p.k || []).some((k) => hay.includes(k) || fold.includes(k))) return p;
+  return null;
+}
+// Enheterna, per FAMILJ. Familjerna får aldrig korsas: en viktmängd får bara prissättas med
+// kg/l-pris och en styckmängd bara med st-pris. Bet i pappen 2026-08-27 — "40 g färsk persilja"
+// föll igenom till örtkrukans styckpris och blev 40 krukor = 1000 kr.
+const ENH_VIKT = { g: 1, gram: 1, hg: 100, kg: 1000 };
+const ENH_VOL = { ml: 1, cl: 10, dl: 100, l: 1000, liter: 1000, msk: 15, tsk: 5, krm: 1 };
+const ENH_ST = ["st", "styck", "stycken", "fl", "flaska", "flaskor", "pkt", "paket", "burk", "burkar",
+  "påse", "påsar", "knippe", "klyfta", "klyftor", "skiva", "skivor", "port", "näve", "kruka", "krukor"];
+// "400 g" / "8 fl" / "2 dl" / "3" → { fam, base, raw }. base är gram resp. ml; raw är antalet.
+function mangdAv(qty) {
+  const t = String(qty == null ? "" : qty).trim().toLowerCase();
+  if (!t) return null;
+  const n = talAv(t);
+  if (!n) return null;
+  const enhet = t.slice(n.len).trim().replace(/\.$/, "").split(/\s+/)[0] || "";
+  if (ENH_VIKT[enhet] != null) return { fam: "vikt", base: n.v * ENH_VIKT[enhet], raw: n.v };
+  if (ENH_VOL[enhet] != null) return { fam: "vol", base: n.v * ENH_VOL[enhet], raw: n.v };
+  if (!enhet || ENH_ST.includes(enhet)) return { fam: "st", base: 0, raw: n.v };
+  return { fam: "st", base: 0, raw: n.v };     // okänd enhet: räkna som antal, aldrig som vikt
+}
+// Pris för EN inköpsrad. `seenBas` gör att en schablonvara (salt, peppar, kryddor) debiteras
+// EN gång i hela listan — man köper en burk peppar, inte en per rad som råkar nämna peppar.
+// Returnerar { kr } eller null när varan inte kan prissättas (den räknas då synligt bort).
+function radPris(rad, seenBas) {
+  const post = prisPost(rad.item);
+  if (!post) return null;
+  const basEnGang = () => {
+    if (post.bas == null) return null;
+    if (seenBas) { if (seenBas.has(post)) return 0; seenBas.add(post); }
+    return post.bas;
+  };
+  const m = mangdAv(rad.qty);
+  if (!m) {
+    const b = basEnGang();
+    const kr = b != null ? b : (post.st != null ? post.st : null);
+    return kr == null ? null : { kr };
+  }
+  if (m.fam === "vikt" || m.fam === "vol") {
+    // Matvarors densitet ligger nära 1 kg/l, så kg-pris duger för volym och tvärtom — men ETT
+    // styckpris får aldrig användas här.
+    const per = m.fam === "vikt" ? (post.kg != null ? post.kg : post.l) : (post.l != null ? post.l : post.kg);
+    if (per != null) return { kr: (m.base / 1000) * per };
+    const b = basEnGang();
+    return b == null ? null : { kr: b };
+  }
+  if (post.st != null) return { kr: Math.ceil(m.raw - 1e-9) * post.st };
+  const b = basEnGang();
+  return b == null ? null : { kr: b };
+}
+// Hela listan i ETT svep, med färsk seenBas. En enstaka rad går inte att räkna om för sig:
+// kryddschablonen debiteras en gång, så delresultatet beror på ordningen.
+function shopEstimat(rader) {
+  const seen = new Set();
+  const per = rader.map((r) => ({ rad: r, pr: radPris(r, seen) }));
+  const rnd = (n) => Math.round(n / 10) * 10;
+  let tot = 0, kvar = 0, utan = 0;
+  for (const x of per) {
+    if (!x.pr) { utan++; continue; }
+    tot += x.pr.kr;
+    if (!x.rad.done) kvar += x.pr.kr;
+  }
+  return { per, tot: rnd(tot), kvar: rnd(kvar), utan };
+}
+
 // ---- datum ----
 const DAYS = ["sön","mån","tis","ons","tors","fre","lör"];
 const midnight = (d) => { const x = new Date(d); x.setHours(0,0,0,0); return x; };
@@ -479,6 +674,20 @@ function dueLabel(iso) {
   const d = new Date(iso);
   return { t: `${DAYS[d.getDay()]} ${d.getDate()}/${d.getMonth() + 1}`, c: "" };
 }
+// Programmets dagrubriker. Dagen skrivs ut i klartext ("lördag 29 augusti") eftersom rubriken
+// ska gå att läsa i förbifarten — "2026-08-29" säger inget om vilken dag i helgen det är.
+const DAGAR = ["söndag", "måndag", "tisdag", "onsdag", "torsdag", "fredag", "lördag"];
+const MANADER = ["januari", "februari", "mars", "april", "maj", "juni", "juli", "augusti",
+  "september", "oktober", "november", "december"];
+function dagRubrik(iso) {
+  const d = new Date(String(iso) + "T12:00:00");
+  if (isNaN(d)) return String(iso || "");
+  const n = daysTo(iso);
+  const bas = `${DAGAR[d.getDay()]} ${d.getDate()} ${MANADER[d.getMonth()]}`;
+  return n === 0 ? `${bas} — idag` : n === 1 ? `${bas} — i morgon` : bas;
+}
+// Kort form till chipet på raden: "29/8".
+const dagKort = (iso) => { const d = new Date(String(iso) + "T12:00:00"); return isNaN(d) ? "" : `${d.getDate()}/${d.getMonth() + 1}`; };
 
 // ---- grind ----
 async function load(pw) {
@@ -529,7 +738,7 @@ async function write(kind, payload, silent) {
     // En optimistisk ändring som INTE gick igenom får aldrig bli kvar på skärmen. På ett delat
     // verktyg är den då ett påstående om att alla ser samma sak — och det gör de inte.
     // Tysta skrivningar (avbockning, gäststatus) syntes förut aldrig när de misslyckades.
-    if (!silent) alert("Kunde inte spara: " + e.message);
+    if (!silent) alert(FEL[e.message] || ("Kunde inte spara: " + e.message));
     else showToast(e.message === "kv_full"
       ? "Molnlagret är fullt för idag — ändringen sparades INTE"
       : "Kunde inte spara — hämtar om sidan");
@@ -639,6 +848,215 @@ function showToast(txt, undo) {
 }
 $("toast-undo").onclick = () => { $("toast").style.display = "none"; if (S.undo) S.undo(); S.undo = null; };
 
+// ── "+"-menyn per lista ───────────────────────────────────────────────────────
+// Samlar det som förut var utspritt: en ny rad, en ny rubrik, en ny tagg, och massinmatningen.
+// Prompt i stället för egna formulär — ett fält per val hade fyllt listan med tomma rutor man
+// nästan aldrig använder, och prompten är samma mönster som "+" i en rubrik redan använder.
+const listaNamn = (l) => (l === "shop" ? "inköpslistan" : "checklistan");
+function stangPlus() { const m = $("plusmeny"); if (m) m.remove(); }
+function oppnaPlus(btn, lista) {
+  const redanOppen = $("plusmeny") && $("plusmeny").dataset.for === lista;
+  stangPlus();
+  if (redanOppen) return;                       // andra trycket på samma knapp stänger
+  const val = [
+    ["rad", "➕", "Ny rad"],
+    ["rubrik", "🗂", "Ny rad under en ny rubrik"],
+    ["tagg", "🏷", "Ny rad med en ny tagg"],
+    lista === "plan" ? ["bada", "🛒", "Ny rad — även på inköpslistan"] : null,
+    null,
+    ["massa", "📋", "Klistra in flera rader…"],
+  ];
+  const m = document.createElement("div");
+  m.id = "plusmeny"; m.dataset.for = lista;
+  m.innerHTML = val.map((x) => x ? `<button data-mi="${x[0]}"><span class="mi">${x[1]}</span>${x[2]}</button>` : "<hr>").join("");
+  document.body.appendChild(m);
+  // Placeras under knappen, men hålls innanför fönstret — på en telefon ligger knappen ofta
+  // så nära högerkanten att en meny med fast vänsterkant hade hamnat utanför.
+  const r = btn.getBoundingClientRect(), b = m.getBoundingClientRect();
+  m.style.top = Math.max(8, Math.min(window.innerHeight - b.height - 8, r.bottom + 6)) + "px";
+  m.style.left = Math.max(8, Math.min(window.innerWidth - b.width - 8, r.right - b.width)) + "px";
+  m.querySelectorAll("[data-mi]").forEach((b2) => b2.onclick = async (e) => {
+    e.stopPropagation(); stangPlus();
+    await plusVal(b2.dataset.mi, lista);
+  });
+}
+async function plusVal(vad, lista) {
+  const skriv = (extra) => lista === "shop"
+    ? write("shopadd", Object.assign({ item: extra.text }, extra.mer))
+    : write("add", Object.assign({ text: extra.text, category: S.cat }, extra.mer));
+  if (vad === "massa") return oppnaMassa(lista);
+  if (vad === "rad") {
+    const el = $(lista === "shop" ? "sItem" : "addTxt");
+    if (el) { el.focus(); el.scrollIntoView({ block: "center", behavior: "smooth" }); }
+    return;
+  }
+  if (vad === "bada") {
+    const t = (prompt("Ny rad — läggs både i checklistan och på inköpslistan:", "") || "").trim();
+    if (!t) return;
+    // EN skrivning för båda listorna: KV-skrivningar är den trånga resursen, och två anrop
+    // hade dessutom kunnat lyckas till hälften.
+    return write("add", { text: t, category: S.cat, tag: S.tag || "", toshop: true });
+  }
+  if (vad === "rubrik") {
+    const namn = (prompt(`Rubrikens namn (samlar rader i ${listaNamn(lista)}):`, "") || "").trim();
+    if (!namn) return;
+    const t = (prompt(`Första raden under ”${namn}”:`, "") || "").trim();
+    if (!t) return;
+    return skriv({ text: t, mer: { group: namn, tag: S.tag || "" } });
+  }
+  if (vad === "tagg") {
+    const tagg = (prompt("Taggens namn (t.ex. en rätt eller ”Dryck”):", "") || "").trim();
+    if (!tagg) return;
+    const t = (prompt(`Första raden med taggen ”${tagg}”:`, "") || "").trim();
+    if (!t) return;
+    return skriv({ text: t, mer: { tag: tagg } });
+  }
+}
+// Stäng menyn på klick utanför, Esc och scroll — den är fast positionerad och hade annars
+// blivit hängande fritt när sidan rullar.
+document.addEventListener("click", (e) => { if (!e.target.closest("#plusmeny,[data-plus]")) stangPlus(); });
+document.addEventListener("keydown", (e) => { if (e.key === "Escape") { stangPlus(); stangMassa(); } });
+window.addEventListener("scroll", stangPlus, { passive: true });
+
+// ── Massinmatning ─────────────────────────────────────────────────────────────
+// Verktyget underhåller en plan bra men var trögt att mata EN rad i taget — den här festens
+// 91 rader lades in via API:t, inte för hand. En rad som slutar med kolon blir en rubrik för
+// raderna under, alltså precis så man redan skriver en lista i en anteckning.
+function stangMassa() { const m = $("massa"); if (m) m.remove(); }
+function oppnaMassa(lista) {
+  stangMassa();
+  const el = document.createElement("div");
+  el.id = "massa";
+  el.innerHTML = `<div class="ark">
+    <h3>Klistra in flera rader</h3>
+    <div style="font-size:12.5px;color:var(--dim);line-height:1.5">En rad per sak, rakt in i ${esc(listaNamn(lista))}.
+      En rad som slutar med kolon blir en <b>rubrik</b> för raderna under.${lista === "shop"
+      ? " Skriv gärna mängden först — ”3 dl grädde” delas upp i antal och vara av sig själv." : ""}</div>
+    <textarea id="massaTxt" placeholder="${lista === "shop"
+      ? "Systembolaget:&#10;8 fl mousserande&#10;5 fl rött vin&#10;&#10;Kyl:&#10;2 l grädde"
+      : "Fredag:&#10;Hämta bord&#10;Duka&#10;&#10;Lördag:&#10;Hämta tårtan"}"></textarea>
+    <div class="rad"><button class="btn" id="massaAvbryt">Avbryt</button>
+      <button class="btn primary" id="massaGo">Lägg till</button></div>
+    <div id="massaFel" style="font-size:12px;color:var(--late-ink)"></div>
+  </div>`;
+  document.body.appendChild(el);
+  el.onclick = (e) => { if (e.target === el) stangMassa(); };   // klick utanför arket stänger
+  $("massaTxt").focus();
+  $("massaAvbryt").onclick = stangMassa;
+  $("massaGo").onclick = async () => {
+    const text = $("massaTxt").value || "";
+    if (!text.trim()) return stangMassa();
+    $("massaGo").disabled = true; $("massaGo").textContent = "Lägger till…";
+    try {
+      const d = await api(`/api/fest40?slug=${encodeURIComponent(slug)}&kind=bulk`, {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ pw: S.pw, name: S.me, lista, text, category: S.cat, tag: S.tag || "" }),
+      });
+      S.ev = d.event; S.log = d.changelog || []; S.sedd = d.event.updatedAt || 0;
+      stangMassa();
+      S.vy = lista === "shop" ? "shop" : "check"; S.open.lista = true;
+      draw();
+      showToast(S.log.length ? S.log[S.log.length - 1].text : "Raderna är tillagda");
+    } catch (e2) {
+      $("massaGo").disabled = false; $("massaGo").textContent = "Lägg till";
+      $("massaFel").textContent = FEL[e2.message] || ("Kunde inte spara: " + e2.message);
+    }
+  };
+}
+
+// ── Drag and drop ─────────────────────────────────────────────────────────────
+// Handtaget ÄR ⇅/+-rutan som redan flyttar raden mellan rubriker: ett klick öppnar rubriken,
+// ett drag flyttar raden. Ett andra handtag hade gett två ikoner för samma sak på varje rad.
+// Egen pekar-implementation, inte HTML5-draggable: HTML5 drag existerar inte på touch, och
+// halva poängen är att kunna sortera listan med tummen i soffan.
+let drag = null, nyssDrog = false;
+const radAv = (lista, id) => byId(lista === "shop" ? "shop" : "plan", id);
+const radNamn = (r) => (r && (r.text || r.item)) || "raden";
+function rensaSlapp() {
+  document.querySelectorAll(".slapp").forEach((x) => x.remove());
+  document.querySelectorAll(".slapp-i").forEach((x) => x.classList.remove("slapp-i"));
+}
+function malUnder(x, y) {
+  const under = document.elementFromPoint(x, y);
+  if (!under) return null;
+  const rad = under.closest(drag.lista === "shop" ? ".s-row[data-sid]" : ".row[data-id]");
+  if (rad) {
+    const id = rad.dataset.sid || rad.dataset.id;
+    if (id === drag.id) return null;
+    const r = rad.getBoundingClientRect();
+    return { typ: "rad", el: rad, id, efter: y > r.top + r.height / 2 };
+  }
+  const rubrik = under.closest(".grp-h");
+  // Programmets dagrubriker är också .grp-h men saknar data-grpname — de är inga släppmål.
+  const namnEl = rubrik && rubrik.querySelector("[data-grpname]");
+  if (!namnEl) return null;
+  const i = String(namnEl.dataset.grpname).indexOf(":");
+  if (String(namnEl.dataset.grpname).slice(0, i) !== drag.lista) return null;
+  return { typ: "rubrik", el: rubrik, grupp: String(namnEl.dataset.grpname).slice(i + 1) };
+}
+function visaSlapp(x, y) {
+  rensaSlapp();
+  const mal = malUnder(x, y);
+  drag.mal = mal;
+  if (!mal) return;
+  if (mal.typ === "rubrik") return mal.el.classList.add("slapp-i");
+  const linje = document.createElement("div");
+  linje.className = "slapp";
+  mal.el.parentNode.insertBefore(linje, mal.efter ? mal.el.nextSibling : mal.el);
+}
+document.addEventListener("pointermove", (e) => {
+  if (!drag) return;
+  if (!drag.aktiv) {
+    if (Math.abs(e.clientX - drag.x0) + Math.abs(e.clientY - drag.y0) < 8) return;
+    drag.aktiv = true;
+    try { drag.h.setPointerCapture(drag.pid); } catch (err) {}
+    document.body.classList.add("drar");
+    if (drag.rad) drag.rad.classList.add("drar-rad");
+    const g = document.createElement("div");
+    g.id = "spoke"; g.textContent = radNamn(radAv(drag.lista, drag.id));
+    document.body.appendChild(g); drag.spoke = g;
+  }
+  e.preventDefault();
+  drag.spoke.style.left = (e.clientX + 14) + "px";
+  drag.spoke.style.top = (e.clientY - 16) + "px";
+  visaSlapp(e.clientX, e.clientY);
+}, { passive: false });
+async function slappDrag() {
+  const d = drag; drag = null;
+  if (!d) return;
+  if (d.spoke) d.spoke.remove();
+  if (d.rad) d.rad.classList.remove("drar-rad");
+  document.body.classList.remove("drar");
+  rensaSlapp();
+  if (!d.aktiv) return;                       // rörde sig aldrig: det var ett klick
+  // Klicket som följer på ett pointerup skulle annars öppna rubrik-redigeringen.
+  nyssDrog = true; setTimeout(() => { nyssDrog = false; }, 400);
+  if (!d.mal) return;
+  // Ordningen räknas UTAN den dragna raden — annars pekar "raden före målet" på en själv.
+  // Gruppen följer med släppet: släpper man en rad under en annan rubrik menar man att den
+  // ska höra dit, och allt annat hade krävt två handgrepp för det som ser ut som ett.
+  const arr = listAv(d.lista).filter((x) => x.id !== d.id);
+  let grupp = "", after = "";
+  if (d.mal.typ === "rubrik") {
+    grupp = d.mal.grupp;
+    const i = arr.filter((x) => (x.group || "") === grupp);
+    after = i.length ? i[i.length - 1].id : "";
+  } else {
+    const malRad = radAv(d.lista, d.mal.id);
+    grupp = (malRad && malRad.group) || "";
+    const i = arr.findIndex((x) => x.id === d.mal.id);
+    after = d.mal.efter ? d.mal.id : (i > 0 ? arr[i - 1].id : "");
+  }
+  await write("move", { lista: d.lista, id: d.id, group: grupp, after });
+}
+document.addEventListener("pointerup", slappDrag);
+document.addEventListener("pointercancel", slappDrag);
+// Capture-fasen, så klicket stoppas innan bindEdit hinner öppna rubrik-redigeringen.
+document.addEventListener("click", (e) => {
+  if (!nyssDrog) return;
+  nyssDrog = false; e.stopPropagation(); e.preventDefault();
+}, true);
+
 // ---- render ----
 function draw() {
   const ev = S.ev, p = plan();
@@ -671,12 +1089,17 @@ function draw() {
       <button class="row-btn" data-toshop="${esc(it.id)}" title="Lägg också på inköpslistan" aria-label="Till inköpslistan">🛒</button>
       <button class="row-btn" data-del="${esc(it.id)}" title="Ta bort raden" aria-label="Ta bort">✕</button></div>`; };
 
+  // Aktivitetsfeeden. Låg förut i checklistan och visade två rader som bara gällde DEN listan;
+  // nu är den sidans gemensamma puls i hjärtat — budget, gäster och meny hörs också.
   // OBS: raderna escapas HÄR och får inte escapas igen där de sätts in — en andra esc()
   // gjorde "Michael & Julia" till "Michael &amp; Julia" i klartext på sidan.
-  const last = S.log.slice(-2).reverse().map((e) => {
+  const feedRader = S.log.slice(-14).reverse().map((e) => {
     const t = new Date(e.ts), hh = String(t.getHours()).padStart(2, "0"), mm = String(t.getMinutes()).padStart(2, "0");
-    return `${esc(e.by)} ${esc(e.text)} · ${daysTo(t) === 0 ? "idag" : t.toLocaleDateString("sv-SE")} ${hh}:${mm}`;
+    const nar = daysTo(t) === 0 ? "idag" : daysTo(t) === -1 ? "i går" : t.toLocaleDateString("sv-SE");
+    return `<div class="feed-rad"><b>${esc(e.by)}</b> ${esc(e.text)} <span>· ${nar} ${hh}:${mm}</span></div>`;
   });
+  const feed = `<div class="feed"><span class="lbl">Senaste ändringarna</span>
+    <div class="feed-lista">${feedRader.length ? feedRader.join("") : `<div class="feed-tom">Inget har hänt än — det som ändras här dyker upp i listan.</div>`}</div></div>`;
 
   // Avbockat göms bakom "Klart · n" — det gjorda är inte det man ska mötas av när man
   // öppnar sidan. Samma mönster i inköpslistan.
@@ -727,17 +1150,19 @@ function draw() {
       : `<div class="callout">${S.tag ? `Allt till ${esc(S.tag)} är hemma ✓` : "Allt på listan är klart ✓"}</div>`}
     ${klart(closed.map(rowHtml), "klart")}
     ${S.tag ? `<button class="btn wide" id="clearTag" style="margin-top:12px">Rensa filtret · visa alla ${inCat.length}</button>` : ""}
-    <div class="add"><input id="addTxt" placeholder="Lägg till… (t.ex. Servetter)" /><button class="btn primary" id="addBtn">Lägg till</button></div>
-    ${last.length ? `<div class="act">${last.join("<br>")}</div>` : ""}`;
+    <div class="add"><input id="addTxt" placeholder="Lägg till… (t.ex. Servetter)" /><button class="btn primary" id="addBtn">Lägg till</button></div>`;
 
   // Delad vy: bara meningsfull när det finns bredd. På en telefon blir två kolumner oläsliga,
   // så knappen göms under 900 px och flippen är vägen mellan listorna där.
   const bred = window.matchMedia("(min-width:900px)").matches;
   const delad = bred && !!S.split;
+  // "+"-menyn samlar det som förut var utspritt över listan: ny rad, ny rubrik, ny tagg och
+  // massinmatning. En knapp per lista — i delad vy finns två listor, alltså två knappar.
+  const plusBtn = (lista) => `<button class="plusbtn" data-plus="${lista}" title="Lägg till rad, rubrik, tagg eller flera rader" aria-label="Lägg till">+</button>`;
   const kropp = delad
     ? `<div class="split">
-         <div><div class="split-h">Checklistan</div>${checkKropp}</div>
-         <div><div class="split-h">Inköpslistan</div>${shopKropp}</div>
+         <div><div class="split-h"><span>Checklistan</span>${plusBtn("plan")}</div>${checkKropp}</div>
+         <div><div class="split-h"><span>Inköpslistan</span>${plusBtn("shop")}</div>${shopKropp}</div>
        </div>`
     : (vy === "shop" ? shopKropp : checkKropp);
 
@@ -750,22 +1175,41 @@ function draw() {
       </div>
       <span style="font-size:12px;color:var(--dim)" class="num">${delad ? `${done} av ${p.length} · ${shOpen.length} att handla`
         : vy === "shop" ? `${shOpen.length} kvar av ${sh.length}` : S.tag ? `visar ${shown.length} av ${inCat.length}` : `${done} av ${p.length} klara`}</span>
+      ${delad ? "" : plusBtn(vy === "shop" ? "shop" : "plan")}
       <button class="splitbtn${delad ? " on" : ""}" id="splitBtn" title="${delad ? "Visa en lista i taget" : "Visa båda listorna bredvid varandra"}" aria-label="Delad vy">${delad ? "▥" : "▤"}</button>
       <button class="chevbtn" data-sek="lista" aria-label="Fäll ihop">${oppen("lista") ? "▾" : "▸"}</button>
     </div>
     ${oppen("lista") ? kropp : ""}
   </section>`;
 
-  // Programmet sorteras på tid, precis som i pappen — annars hamnar en punkt någon lägger till
-  // sist i listan även om den ska ske klockan tio.
-  const prog = (ev.program || []).slice().sort((a, b) => String(a.time || "").localeCompare(String(b.time || "")));
-  const program = sekt("program", "Programmet", `${prog.length} punkter`, `
-    ${prog.length ? prog.map((x, i, a) => `<div class="tl"><div class="time num ed" data-pt="${esc(x.id)}" title="Klicka för att ändra tiden">${esc(x.time)}</div>
-      <div class="dotcol"><div class="dot"></div>${i < a.length - 1 ? '<div class="line"></div>' : ""}</div>
+  // Programmet grupperas på DAG och sorteras på tid inom dagen. En festhelg börjar på torsdagen
+  // med förberedelser, och utan dagrubriker låg "11:00 duka" före "13:00 gästerna kommer" som
+  // om det vore samma dag. Dagen är ett datum, inte en fritextrubrik: den går att sortera, och
+  // rubriken skrivs ut i klartext ("lördag 29 augusti") eftersom det är den man läser efter.
+  // Punkter UTAN dag hör till festdagen — det är den vanliga punkten, och den ska inte kräva
+  // att någon fyller i ett datum för att hamna rätt.
+  const festDag = String((ev.info && ev.info.date) || "");
+  const dagAv = (x) => String(x.date || "") || festDag;
+  const progAlla = (ev.program || []).slice()
+    .sort((a, b) => String(a.time || "").localeCompare(String(b.time || "")));
+  const dagar = [...new Set(progAlla.map(dagAv))].sort();
+  const flerDagar = dagar.filter(Boolean).length > 1;
+  const progRad = (x, sist) => `<div class="tl"><div class="time num ed" data-pt="${esc(x.id)}" title="Klicka för att ändra tiden">${esc(x.time)}</div>
+      <div class="dotcol"><div class="dot"></div>${sist ? "" : '<div class="line"></div>'}</div>
       <div class="txt"><span class="ed" data-px="${esc(x.id)}" title="Klicka för att ändra">${esc(x.text)}</span>
-        <button class="row-btn" data-pdel="${esc(x.id)}" title="Ta bort punkten" aria-label="Ta bort">✕</button></div></div>`).join("")
+        <button class="mini grp${x.date ? " satt" : " tom"}" data-pdag="${esc(x.id)}" title="${x.date ? `${esc(dagKort(x.date))} — klicka för att ändra dagen` : "Klicka för att lägga punkten på en annan dag"}">${x.date ? esc(dagKort(x.date)) : "+"}</button>
+        <button class="row-btn" data-pdel="${esc(x.id)}" title="Ta bort punkten" aria-label="Ta bort">✕</button></div></div>`;
+  const program = sekt("program", "Programmet", `${progAlla.length} punkter`, `
+    ${progAlla.length ? dagar.map((dag) => {
+        const rader = progAlla.filter((x) => dagAv(x) === dag);
+        // Ingen rubrik när allt ligger på samma dag — då säger den bara om vad som redan står
+        // överst på sidan.
+        const rubrik = (flerDagar && dag) ? `<div class="grp-h"><span class="lbl">${esc(dagRubrik(dag))}</span><span class="n num">${rader.length}</span></div>` : "";
+        return rubrik + rader.map((x, i) => progRad(x, i === rader.length - 1)).join("");
+      }).join("")
       : `<div style="font-size:13px;color:var(--dim)">Inget program än — lägg till första punkten.</div>`}
     <div class="add p-add"><input class="p-in-time" id="pTime" placeholder="18:00" inputmode="numeric" />
+      <input class="p-in-time" id="pDate" placeholder="29/8" inputmode="numeric" title="Dag — lämna tomt för festdagen" />
       <input id="pText" placeholder="Vad händer?" /><button class="btn primary" id="pAdd">+</button></div>`);
 
   // Fyra gästlägen, samma som pappen. Kedjan är en livscykel: inte bjuden → bjuden, inget svar
@@ -794,6 +1238,14 @@ function draw() {
       <button class="btn primary" id="gAdd">+ Lägg till</button>
     </div>`);
 
+  // 🛒 Inköpslistan som en budgetpost. Den skrivs inte in — den RÄKNAS, ur samma rader familjen
+  // bockar av i butiken, till schablonpriserna som följer med från pappen. Skälet att den är
+  // expanderbar: en klumpsumma utan uppdelning går inte att lita på, man vill se vad som kostar.
+  // "Kvar" är det som faktiskt ska handlas; avbockat är antingen köpt eller redan hemma, och
+  // båda betyder att pengarna inte lämnar kontot. Totalen står kvar bredvid så inget försvinner
+  // tyst. Saknas prislistan (eventet inte publicerat om än) visas ingen rad alls.
+  const est = priser().length ? shopEstimat(shop()) : null;
+  const estKvar = est ? est.kvar : 0;
   const bsum = (ev.budget || []).reduce((a, b) => a + (Number(b.est) || 0), 0);
   const bkonf = (ev.budget || []).filter((b) => b.status === "bokad" || b.status === "betald")
     .reduce((a, b) => a + (Number(b.est) || 0), 0);
@@ -806,18 +1258,40 @@ function draw() {
   const BSTAT = { ej_bokad: { l: "Att boka", c: "" }, offert: { l: "⏳ Offert", c: "b-off" },
     bokad: { l: "✅ Bokad", c: "b-ok" }, betald: { l: "💸 Betald", c: "b-paid" } };
   const bmeta = (k) => BSTAT[k] || BSTAT.ej_bokad;
+  // Grupperad på inköpslistans egna rubriker, så uppdelningen är den man plockar efter.
+  const estRader = est ? (() => {
+    const grupper = grupperaRader(est.per.map((x) => x.rad));
+    const prisAv = new Map(est.per.map((x) => [x.rad.id, x.pr]));
+    return grupper.map(([g, rader]) => (g ? `<div class="b-dgrp">${esc(g)}</div>` : "") + rader.map((r) => {
+      const pr = prisAv.get(r.id);
+      return `<div class="b-drad${r.done ? " klar" : ""}"><span>${esc(r.item)}${r.qty ? ` · ${esc(r.qty)}` : ""}</span>
+        <span class="kr num${pr ? "" : " ingen"}">${pr ? `≈ ${Math.round(pr.kr).toLocaleString("sv-SE")} kr` : "—"}</span></div>`;
+    }).join("")).join("");
+  })() : "";
+  const estBlock = est ? `<details class="b-auto" data-k="bauto"${S.open.bauto ? " open" : ""}>
+      <summary><span class="b-lbl">🛒 Inköpslistan<span style="color:var(--faint)"> · räknas fram</span></span>
+        <span class="b-stat">${shop().filter((x) => !x.done).length} kvar av ${shop().length}</span>
+        <span class="b-est num">≈ ${estKvar.toLocaleString("sv-SE")} kr</span><span style="color:var(--faint);text-align:center">▾</span></summary>
+      <div class="b-detalj">${estRader || `<div class="b-empty" style="padding:8px 0">Inköpslistan är tom.</div>`}
+        <div class="b-dfot">Schablonpriser i vanlig matbutik och på Systembolaget — ett estimat, inte ett kvitto.
+          Totalt ≈ ${est.tot.toLocaleString("sv-SE")} kr${est.tot !== estKvar ? ` · ${(est.tot - estKvar).toLocaleString("sv-SE")} kr redan avbockat` : ""}${
+          est.utan ? ` · ${est.utan} ${est.utan === 1 ? "vara" : "varor"} utan pris (räknas inte in)` : ""}.
+          Bocka av det ni redan har hemma, så försvinner det ur summan.</div></div>
+    </details>` : "";
   const budget = `<details class="card foldable" data-k="budget"${S.open.budget ? " open" : ""}><summary><span style="font-weight:600">Budget</span>
-      <span style="font-size:12px;color:var(--dim)" class="num">≈ ${bsum.toLocaleString("sv-SE")} kr · ${(ev.budget || []).length} poster ▾</span></summary>
+      <span style="font-size:12px;color:var(--dim)" class="num">≈ ${(bsum + estKvar).toLocaleString("sv-SE")} kr · ${(ev.budget || []).length}${est ? " + 🛒" : ""} poster ▾</span></summary>
       ${(ev.budget || []).map((b) => `<div class="b-row">
         <span class="b-lbl ed" data-bl="${esc(b.id)}" title="Klicka för att ändra posten">${esc(b.label)}</span>
         <button class="b-stat ${bmeta(b.status).c}" data-bstat="${esc(b.id)}" title="Klicka för nästa steg">${bmeta(b.status).l}</button>
         <span class="b-est ed num" data-be="${esc(b.id)}" title="Klicka för att ändra beloppet">${(Number(b.est) || 0).toLocaleString("sv-SE")} kr</span>
         <button class="row-btn" data-bdel="${esc(b.id)}" title="Ta bort posten" aria-label="Ta bort">✕</button></div>`).join("")
         || `<div class="b-empty">Inga poster än.</div>`}
+      ${estBlock}
       <div class="b-add"><input class="b-in-lbl" id="bLabel" placeholder="Ny post, t.ex. Tårta" />
         <input class="b-in-est num" id="bEst" inputmode="numeric" placeholder="kr" />
         <button class="btn primary" id="bAdd">+</button></div>
-      <div class="b-foot num">Bokat eller betalt ≈ ${bkonf.toLocaleString("sv-SE")} kr · kvar att spika ≈ ${(bsum - bkonf).toLocaleString("sv-SE")} kr</div>
+      <div class="b-foot num">Bokat eller betalt ≈ ${bkonf.toLocaleString("sv-SE")} kr · kvar att spika ≈ ${(bsum - bkonf + estKvar).toLocaleString("sv-SE")} kr${
+        est ? ` (varav ≈ ${estKvar.toLocaleString("sv-SE")} kr inköpslista)` : ""}</div>
     </details>`;
 
   // Underlagen bodde förut som lösa kort med ett eget add-kort under. Nu EN sektion som fälls
@@ -909,6 +1383,7 @@ function draw() {
   $("app").innerHTML = `
     <div class="sticky" id="sticky"><span style="font-size:14px;font-weight:650">${esc(ev.info.title)}</span><span style="font-size:12px;font-weight:600;color:var(--champ-ink)">${esc(cd)}</span></div>
     <section class="card heart"><div class="heart-in">
+      <div class="heart-mitt">
       <div class="lbl">${esc(ev.info.dateLabel || ev.info.date || "")}</div>
       <h1>${esc(ev.info.title)}</h1>
       ${ev.info.subtitle ? `<div style="font-size:13px;color:var(--dim);margin-top:4px">${esc(ev.info.subtitle)}</div>` : ""}
@@ -918,6 +1393,7 @@ function draw() {
       <div class="track"><div class="fill" style="width:${pct}%"></div></div>
       <div style="font-size:12px;color:var(--dim)" class="num">${done} av ${p.length} på listan klara · ${gj} gäster har svarat ja</div>
       <button class="btn" id="share" style="margin-top:16px;height:38px;font-size:13px">Dela sidan</button>
+      </div>${feed}
     </div></section>
     <div class="grid"><div class="gcol">${checklist}${meny}${budget}</div><div class="gcol">${program}${guests}${docs}</div></div>
     <div class="foot">Sidan delas av planeringsgänget${upd ? ` · uppdaterad ${daysTo(upd) === 0 ? "idag" : upd.toLocaleDateString("sv-SE")} ${String(upd.getHours()).padStart(2, "0")}:${String(upd.getMinutes()).padStart(2, "0")}` : ""}</div>`;
@@ -1004,6 +1480,9 @@ function wire() {
   // Program
   bindEdit("data-px", (id) => (byId("program", id) || {}).text, (id, v) => write("pedit", { id, text: v }));
   bindEdit("data-pt", (id) => (byId("program", id) || {}).time, (id, v) => write("pedit", { id, time: v }));
+  // Dagen. Tomt fält = festdagen, alltså vägen tillbaka från ett eget datum.
+  bindEdit("data-pdag", (id) => { const x = byId("program", id); return x ? (x.date || "") : null; },
+    (id, v) => write("pedit", { id, date: v }), { allowEmpty: true });
   document.querySelectorAll("[data-pdel]").forEach((btn) => btn.onclick = async () => {
     const x = byId("program", btn.dataset.pdel); if (!x) return;
     if (!confirm(`Ta bort ”${x.text}” ur programmet?\n\nPunkten försvinner för alla.`)) return;
@@ -1011,10 +1490,10 @@ function wire() {
   });
   const addP = () => {
     const text = ($("pText").value || "").trim(); if (!text) return;
-    write("padd", { text, time: ($("pTime").value || "").trim() });
+    write("padd", { text, time: ($("pTime").value || "").trim(), date: ($("pDate").value || "").trim() });
   };
   const pA = $("pAdd"); if (pA) pA.onclick = addP;
-  ["pTime", "pText"].forEach((id) => { const el = $(id); if (el) el.onkeydown = (e) => { if (e.key === "Enter") addP(); }; });
+  ["pTime", "pDate", "pText"].forEach((id) => { const el = $(id); if (el) el.onkeydown = (e) => { if (e.key === "Enter") addP(); }; });
 
   // Gäster
   // guestName, inte name — write() fyller name med VEM som ändrar (se Workern).
@@ -1206,6 +1685,21 @@ function wire() {
       showToast(err.message === "finns_redan" ? "Den varan finns redan på inköpslistan" : "Kunde inte lägga till: " + err.message);
     }
   });
+  // Drag and drop: bara pointerdown binds här, resten av lyssnarna sitter på document och
+  // registreras EN gång (wire() körs vid varje omritning och hade annars staplat dem).
+  document.querySelectorAll("[data-grp]").forEach((h) => {
+    h.onpointerdown = (e) => {
+      if (e.button != null && e.button !== 0) return;
+      const [lista, id] = delaNyckel(h.dataset.grp);
+      drag = { h, lista, id, x0: e.clientX, y0: e.clientY, pid: e.pointerId,
+        aktiv: false, mal: null, rad: h.closest(".row,.s-row") };
+    };
+  });
+  document.querySelectorAll("[data-plus]").forEach((b) => b.onclick = (e) => {
+    e.preventDefault(); e.stopPropagation();
+    oppnaPlus(b, b.dataset.plus);
+  });
+
   // Delad vy. Klickar man på en av rubrikerna i delat läge menar man "visa bara den".
   const sb = $("splitBtn"); if (sb) sb.onclick = (e) => { e.stopPropagation(); S.split = !S.split; S.open.lista = true; draw(); };
 
