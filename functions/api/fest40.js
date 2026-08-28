@@ -209,6 +209,13 @@ function delaIngrediens(rad) {
 }
 const BUDGET_STATUS = ["ej_bokad", "offert", "bokad", "betald"];   // samma kedja som pappen
 const GUEST_STATUS = ["ja", "nej", "väntar", "ej_bjuden"];
+// Tre åldersgrupper, inte två. En tolvåring äter som en vuxen men betalar barnpris, och sitter
+// varken i barnbordet eller bland de vuxna — bussen, maten och borden räknas olika för dem.
+// `barn` finns kvar som HÄRLEDD spegling (barn === "barn") eftersom pappen, räknarna och
+// mobil-feeden läser det fältet. Skriv alltid båda, läs alltid alder.
+const ALDRAR = ["vuxen", "tonaring", "barn"];
+const alderAv = (g) => ALDRAR.includes(g && g.alder) ? g.alder : ((g && g.barn) ? "barn" : "vuxen");
+const sattAlder = (g, a) => { g.alder = ALDRAR.includes(a) ? a : "vuxen"; g.barn = g.alder === "barn"; return g.alder; };
 const SLUG_RE = /^[a-z0-9][a-z0-9-]{1,40}$/;
 const K_EVENT = (s) => `event:${s}`, K_LOG = (s) => `event:${s}:log`;
 const failKey = (s, i) => `event:${s}:fail:${i}`;
@@ -565,8 +572,10 @@ export async function onRequestPost(context) {
     if (!name) return Response.json({ error: "empty" }, { status: 400 });
     // "väntar", inte pappens "ej_bjuden": lägger familjen till någon HÄR är hen bjuden,
     // det som saknas är svaret.
-    ev.guests.push({ id: mkId(), name, household: sanitize(body.household, HOUSE_MAX) || "Övriga",
-      barn: !!body.barn, status: "väntar", note: "", fromGuest: true, by });
+    const g = { id: mkId(), name, household: sanitize(body.household, HOUSE_MAX) || "Övriga",
+      status: "väntar", note: "", fromGuest: true, by };
+    sattAlder(g, body.alder || (body.barn ? "barn" : "vuxen"));
+    ev.guests.push(g);
     note(`la till gästen ${name}`);
   } else if (kind === "gedit") {
     const g = ev.guests.find((x) => x.id === body.id);
@@ -582,7 +591,11 @@ export async function onRequestPost(context) {
       if (h !== g.household) note(`flyttade ${g.name} till ${h}`);
       g.household = h;
     }
-    if (body.barn != null) { g.barn = !!body.barn; note(`markerade ${g.name} som ${g.barn ? "barn" : "vuxen"}`); }
+    // alder är det fält sidan skickar; barn tas emot för bakåtkompatibilitet (äldre klient).
+    if (body.alder != null || body.barn != null) {
+      const a = sattAlder(g, body.alder != null ? body.alder : (body.barn ? "barn" : "vuxen"));
+      note(`markerade ${g.name} som ${a === "tonaring" ? "tonåring" : a}`);
+    }
   } else if (kind === "gdel") {
     const i = ev.guests.findIndex((x) => x.id === body.id);
     if (i === -1) return Response.json({ error: "not_found_guest" }, { status: 404 });
@@ -917,6 +930,9 @@ export async function onRequestPut(context) {
   // Gäller alla listor sedan sidan fick full paritet (2026-08-27), inte bara recepten:
   // en budgetpost mamma la in är precis lika lätt att tappa som ett receptförslag.
   // fromGuest-märket lever bara tills pappen skickat tillbaka raden — då vinner den inkommande.
+  // Normalisera vid SKRIVNING (CLAUDE.md §5): en gäst som kommer in med bara `barn` ska ligga i
+  // lagret med båda fälten satta, inte lagas om vid varje läsning.
+  if (Array.isArray(ev.guests)) for (const g of ev.guests) if (g) sattAlder(g, alderAv(g));
   const LISTOR = ["plan", "guests", "budget", "program", "docs", "recipes", "shop"];
   for (const k of LISTOR) {
     if (!prev || !Array.isArray(prev[k])) continue;

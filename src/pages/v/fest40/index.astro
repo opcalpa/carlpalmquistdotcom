@@ -201,9 +201,23 @@ textarea.t-edit{min-height:140px;line-height:1.5;resize:vertical;white-space:pre
 /* gäster */
 .g-name{display:flex;align-items:center;gap:6px;min-width:0}
 .g-act{display:flex;align-items:center;gap:2px;flex:0 0 auto}
-.g-barn{border:0;background:none;padding:0 2px;font-size:15px;line-height:1;opacity:.15;filter:grayscale(1)}
-.g-barn:hover{opacity:.6}
-.g-barn.on{opacity:1;filter:none}
+/* Åldern som ETIKETT, inte emoji: 👶 kunde bara säga barn/inte-barn, och med tre grupper är
+   skillnaden mellan tonåring och vuxen precis den man behöver kunna läsa i förbifarten.
+   Vuxen är default och tonas ned — det är majoriteten, och det som avviker ska sticka ut. */
+.g-alder{border:1px solid var(--line);background:var(--panel2);color:var(--mid);border-radius:999px;
+  padding:2px 8px;font-size:10.5px;font-weight:600;line-height:1.5;white-space:nowrap;flex:0 0 auto}
+.g-alder.a-vuxen{background:transparent;border-color:var(--line);color:var(--faint);font-weight:500}
+.g-alder.a-vuxen:hover{color:var(--mid);border-color:var(--line-strong)}
+.g-alder.a-ton{background:rgba(230,180,80,.16);border-color:rgba(230,180,80,.42);color:var(--warn-ink)}
+.g-alder.a-barn{background:rgba(108,140,255,.12);border-color:rgba(108,140,255,.42);color:var(--accent-ink)}
+/* Andra statsraden: samma rutnät, men tunnare — den svarar på "hur många av varje", inte på
+   huvudfrågan "hur många kommer". */
+.stats.alder{border-top:0}
+.stats.alder .stat{padding:8px 0}
+.stats.alder b{font-size:17px;color:var(--txt)}
+.g-add select{height:44px;padding:0 10px;border:1px solid var(--line);border-radius:var(--r-field);
+  background:var(--panel);color:var(--txt);font-size:14px;flex:0 0 auto}
+.g-add select:focus{outline:none;border-color:var(--accent)}
 .g-add{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px;padding-top:12px;border-top:1px solid var(--line-soft)}
 .g-add input[type=text]{height:44px;padding:0 12px;border:1px solid var(--line);border-radius:var(--r-field);
   background:var(--panel);color:var(--txt);font-size:14px;flex:1 1 130px;min-width:0}
@@ -517,6 +531,16 @@ const GST = {
 // Infinity - Infinity är NaN, och en jämförare som ger NaN sorterar godtyckligt.
 const ordAv = (x) => { const n = Number(x && x.ord) || 0; return n > 0 ? n : Number.MAX_SAFE_INTEGER; };
 const iOrd = (a) => a.slice().sort((x, y) => ordAv(x) - ordAv(y));
+// Tre åldersgrupper. SPEGEL av ALDRAR i functions/api/fest40.js — ändras den ena måste den
+// andra ändras. `barn` finns kvar som härlett fält för pappen och räknarna; läs alltid alder.
+// Vuxen är default för allt okänt: en gäst utan uppgift ska inte tyst räknas som barn.
+const ALDER = {
+  vuxen: { l: "Vuxen", kort: "Vuxen", c: "a-vuxen", next: "tonaring" },
+  tonaring: { l: "Tonåring", kort: "Tonåring", c: "a-ton", next: "barn" },
+  barn: { l: "Barn", kort: "Barn", c: "a-barn", next: "vuxen" },
+};
+const alderAv = (g) => (g && ALDER[g.alder]) ? g.alder : ((g && g.barn) ? "barn" : "vuxen");
+const raknaAlder = (gaster) => gaster.reduce((n, g) => { n[alderAv(g)]++; return n; }, { vuxen: 0, tonaring: 0, barn: 0 });
 const plan = () => iOrd(Array.isArray(S.ev.plan) ? S.ev.plan : []);
 const shop = () => iOrd(Array.isArray(S.ev.shop) ? S.ev.shop : []);
 const listAv = (lista) => (lista === "shop" ? shop() : plan());
@@ -1343,17 +1367,27 @@ function draw() {
   // → svarat. Nej går tillbaka till "ej bjuden" så en felklickad rad kan backas hela vägen.
   const households = [...new Set((ev.guests || []).map((g) => g.household))];
   const ej = (ev.guests || []).filter((g) => !GST[g.status] || g.status === "ej_bjuden").length;
-  const guests = sekt("gaster", "Gästerna", `${(ev.guests || []).filter((g) => g.barn).length} barn`, `
+  // Åldersfördelningen räknas på dem som SVARAT JA — det är den siffran man bokar mat, bord och
+  // transport efter. Hela listans fördelning står i raden under, så inget försvinner.
+  const jaGaster = (ev.guests || []).filter((g) => g.status === "ja");
+  const aJa = raknaAlder(jaGaster), aAlla = raknaAlder(ev.guests || []);
+  const guests = sekt("gaster", "Gästerna", `${aJa.vuxen} vuxna${aJa.tonaring ? ` · ${aJa.tonaring} tonåringar` : ""} · ${aJa.barn} barn`, `
     <div class="stats">
       <div class="stat"><b class="num" style="color:var(--ok-ink)">${gj}</b><span class="lbl">Ja</span></div>
       <div class="stat"><b class="num" style="color:var(--warn-ink)">${gv}</b><span class="lbl">Väntar</span></div>
       <div class="stat"><b class="num" style="color:var(--dim)">${gn}</b><span class="lbl">Nej</span></div>
     </div>
-    <div style="font-size:12px;color:var(--dim);padding:12px 0 4px" class="num">${(ev.guests || []).length} på listan${ej ? ` · ${ej} ej bjudna` : ""}${ev.info && ev.info.target ? ` · mål ~${ev.info.target}` : ""}</div>
+    <div class="stats alder">
+      <div class="stat"><b class="num">${aJa.vuxen}</b><span class="lbl">Vuxna</span></div>
+      <div class="stat"><b class="num">${aJa.tonaring}</b><span class="lbl">Tonåringar</span></div>
+      <div class="stat"><b class="num">${aJa.barn}</b><span class="lbl">Barn</span></div>
+    </div>
+    <div style="font-size:11px;color:var(--faint);padding:6px 0 0;text-align:center">av dem som svarat ja</div>
+    <div style="font-size:12px;color:var(--dim);padding:10px 0 4px" class="num">${(ev.guests || []).length} på listan (${aAlla.vuxen} vuxna${aAlla.tonaring ? `, ${aAlla.tonaring} tonåringar` : ""}, ${aAlla.barn} barn)${ej ? ` · ${ej} ej bjudna` : ""}${ev.info && ev.info.target ? ` · mål ~${ev.info.target}` : ""}</div>
     <div id="guestList">${households.slice(0, S.allG ? 999 : 2).map((h) => `<div class="lbl" style="padding-top:12px">${esc(h)}</div>${
       (ev.guests || []).filter((g) => g.household === h).map((g) => `<div class="g-row">
         <div class="g-name"><span class="ed" data-gn="${esc(g.id)}" title="Klicka för att ändra namnet">${esc(g.name)}</span>
-          <button class="g-barn${g.barn ? " on" : ""}" data-gb="${esc(g.id)}" title="${g.barn ? "Räknas som barn — klicka för vuxen" : "Räknas som vuxen — klicka för barn"}" aria-label="Barn eller vuxen">👶</button></div>
+          ${(() => { const a = alderAv(g); return `<button class="g-alder ${ALDER[a].c}" data-gb="${esc(g.id)}" title="Räknas som ${ALDER[a].l.toLowerCase()} — klicka för nästa" aria-label="Ålder: ${ALDER[a].l}">${ALDER[a].kort}</button>`; })()}</div>
         <div class="g-act"><button class="spill ${GST[g.status] ? GST[g.status].c : ""}" data-guest="${esc(g.id)}" title="Klicka för nästa läge">${esc((GST[g.status] || GST.ej_bjuden).l)}</button>
           <button class="row-btn" data-gdel="${esc(g.id)}" title="Ta bort gästen" aria-label="Ta bort">✕</button></div></div>`).join("")}`).join("")}</div>
     ${households.length > 2 ? `<button class="btn wide" id="allG" style="margin-top:12px">${S.allG ? "Visa färre" : `Visa alla ${households.length} hushåll`}</button>` : ""}
@@ -1361,7 +1395,7 @@ function draw() {
       <input type="text" id="gName" placeholder="Namn" />
       <input type="text" id="gHouse" placeholder="Sällskap" list="gHouses" />
       <datalist id="gHouses">${households.map((h) => `<option value="${esc(h)}">`).join("")}</datalist>
-      <label><input type="checkbox" id="gBarn" /> barn</label>
+      <select id="gAlder" title="Ålder"><option value="vuxen">Vuxen</option><option value="tonaring">Tonåring</option><option value="barn">Barn</option></select>
       <button class="btn primary" id="gAdd">+ Lägg till</button>
     </div>`);
 
@@ -1626,10 +1660,12 @@ function wire() {
   // Gäster
   // guestName, inte name — write() fyller name med VEM som ändrar (se Workern).
   bindEdit("data-gn", (id) => (byId("guests", id) || {}).name, (id, v) => write("gedit", { id, guestName: v }));
+  // Åldern cyklar vuxen → tonåring → barn → vuxen, samma mönster som gäststatusen bredvid.
   document.querySelectorAll("[data-gb]").forEach((btn) => btn.onclick = () => {
     const g = byId("guests", btn.dataset.gb); if (!g) return;
-    g.barn = !g.barn; draw();                                                  // optimistiskt
-    write("gedit", { id: btn.dataset.gb, barn: g.barn }, true);
+    const next = ALDER[alderAv(g)].next;
+    g.alder = next; g.barn = next === "barn"; draw();                          // optimistiskt
+    write("gedit", { id: btn.dataset.gb, alder: next }, true);
   });
   document.querySelectorAll("[data-gdel]").forEach((btn) => btn.onclick = async () => {
     const g = byId("guests", btn.dataset.gdel); if (!g) return;
@@ -1638,7 +1674,7 @@ function wire() {
   });
   const addG = () => {
     const name = ($("gName").value || "").trim(); if (!name) return;
-    write("gadd", { guestName: name, household: ($("gHouse").value || "").trim(), barn: $("gBarn").checked });
+    write("gadd", { guestName: name, household: ($("gHouse").value || "").trim(), alder: ($("gAlder") || {}).value || "vuxen" });
   };
   const gA = $("gAdd"); if (gA) gA.onclick = addG;
   ["gName", "gHouse"].forEach((id) => { const el = $(id); if (el) el.onkeydown = (e) => { if (e.key === "Enter") addG(); }; });
