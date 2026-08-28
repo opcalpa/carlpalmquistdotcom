@@ -234,15 +234,16 @@ details.klart[open]>summary::after{content:"▴"}
 .flip button:not(.on):hover{color:var(--mid)}
 .flip .sep{color:var(--line-strong);font-weight:400;align-self:center}
 .chevbtn{border:0;background:none;color:var(--faint);font-size:12px;padding:4px 0 4px 8px;flex:0 0 auto}
-.s-row{display:grid;grid-template-columns:26px minmax(0,1fr) minmax(58px,auto) auto 30px;
-  grid-template-areas:"box item chips qty del";
+.s-row{display:grid;grid-template-columns:26px minmax(0,1fr) auto auto 28px;
+  grid-template-areas:"box item tagg qty meny";
   gap:2px 8px;align-items:center;padding:10px 0;border-bottom:1px solid var(--line-soft)}
-.s-row .chips-col{grid-area:chips}
+.s-row .mini.tagg{grid-area:tagg}
+.s-row .radmeny{grid-area:meny}
 .s-row:last-child{border-bottom:0}
 .s-row .box{grid-area:box}
 .s-item{grid-area:item;font-size:15px;min-width:0}
 .s-qty{grid-area:qty;font-size:13px;color:var(--mid);font-weight:600;white-space:nowrap}
-.s-row .row-btn{grid-area:del}
+
 
 .s-row.done .s-item{color:var(--dim);text-decoration:line-through;text-decoration-color:rgba(139,130,114,.45)}
 .s-row.done .s-qty{color:var(--faint)}
@@ -264,10 +265,6 @@ details.klart[open]>summary::after{content:"▴"}
 .grp-add{border:1px solid var(--line);background:var(--panel);color:var(--dim);border-radius:6px;
   width:22px;height:22px;font-size:13px;line-height:1;padding:0;flex:0 0 auto}
 .grp-add:hover{border-color:var(--accent);color:var(--accent-ink)}
-/* Fast bredd i px, inte i procent: i delad vy blev 34 % av en smal kolumn så lite att
-   taggarna kapades till "L…" och "D…", vilket är sämre än ingen tagg alls. */
-.chips-col{flex:0 0 auto;display:flex;flex-direction:column;align-items:flex-end;gap:3px;
-  max-width:128px;min-width:58px}
 .mini{max-width:100%;padding:2px 7px;border-radius:6px;font-size:10.5px;line-height:1.5;font-weight:600;
   border:1px solid var(--line);background:var(--panel2);color:var(--mid);
   white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -275,7 +272,20 @@ details.klart[open]>summary::after{content:"▴"}
 .mini.grp{text-transform:uppercase;letter-spacing:.4px;font-size:9.5px}
 .mini.grp.satt{font-size:11px;letter-spacing:0;padding:1px 6px;color:var(--faint);background:transparent;border-color:var(--line)}
 .mini.grp.satt:hover{color:var(--accent-ink);border-color:var(--accent)}
+/* Taggen på en rad är en ETIKETT, inte en knapp: den bär information man skummar efter, och
+   allt som ändrar den bor bakom ⋯. Fast maxbredd i px — i delad vy blev en procentandel av en
+   smal kolumn så lite att taggarna kapades till "L…", vilket är sämre än ingen tagg alls. */
+.mini.tagg{flex:0 0 auto;max-width:118px;cursor:default}
+/* ⋯ ska synas när man letar efter den och försvinna när man läser listan. Därav faint som
+   viloläge. Den är också draghandtag, så touch-action:none — ytan är liten med flit, resten
+   av raden scrollar fortfarande. */
+.radmeny{flex:0 0 auto;width:28px;height:28px;padding:0;border:1px solid transparent;border-radius:var(--r-field);
+  background:transparent;color:var(--faint);font-size:15px;line-height:1;display:flex;align-items:center;
+  justify-content:center;touch-action:none;cursor:grab}
+.radmeny:hover{border-color:var(--line);color:var(--txt);background:var(--panel)}
+body.drar .radmeny{cursor:grabbing}
 .row.done .mini,.s-row.done .mini{opacity:.5}
+.row.done .radmeny,.s-row.done .radmeny{opacity:.5}
 
 /* ── Delad vy: checklista och inköpslista bredvid varandra i samma kort ── */
 .split{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:18px;align-items:start}
@@ -335,9 +345,7 @@ details.klart[open]>summary::after{content:"▴"}
    ikoner för samma sak på varje rad.
    touch-action:none behövs för att ett drag på telefonen inte ska bli en sidscroll; ytan är
    liten med flit, så resten av raden fortfarande scrollar. */
-.mini.grp{touch-action:none;cursor:grab}
 body.drar{cursor:grabbing;user-select:none;-webkit-user-select:none}
-body.drar .mini.grp{cursor:grabbing}
 .drar-rad{opacity:.35}
 /* Spöket följer fingret. position:fixed, så det inte påverkar layouten under. */
 #spoke{position:fixed;z-index:60;pointer-events:none;background:var(--panel);border:1px solid var(--accent);
@@ -353,13 +361,13 @@ body.drar .mini.grp{cursor:grabbing}
   width:30px;height:26px;font-size:15px;line-height:1;padding:0;flex:0 0 auto;margin-left:6px}
 .plusbtn:hover{border-color:var(--accent);color:var(--accent-ink)}
 .split-h{display:flex;align-items:center;justify-content:space-between;gap:8px}
-#plusmeny{position:fixed;z-index:70;background:var(--panel);border:1px solid var(--line);
+#meny{position:fixed;z-index:70;background:var(--panel);border:1px solid var(--line);
   border-radius:var(--r-field);box-shadow:0 12px 30px rgba(0,0,0,.16);padding:4px;min-width:232px}
-#plusmeny button{display:flex;width:100%;align-items:center;gap:10px;background:none;border:0;
+#meny button{display:flex;width:100%;align-items:center;gap:10px;background:none;border:0;
   padding:10px 12px;border-radius:6px;font-size:14px;color:var(--txt);text-align:left}
-#plusmeny button:hover{background:var(--panel2)}
-#plusmeny .mi{flex:0 0 18px;text-align:center}
-#plusmeny hr{border:0;border-top:1px solid var(--line-soft);margin:4px 6px}
+#meny button:hover{background:var(--panel2)}
+#meny .mi{flex:0 0 18px;text-align:center}
+#meny hr{border:0;border-top:1px solid var(--line-soft);margin:4px 6px}
 
 /* ── Massinmatning ────────────────────────────────────────────────────────────
    91 rader lades in via API:t, inte för hand. Rutan gör det familjen redan gör i en
@@ -563,15 +571,19 @@ function taggStil(t) {
   const [bg, br, ink] = TAGGFARGER[h % TAGGFARGER.length];
   return `background:${bg};border-color:${br};color:${ink}`;
 }
-// Rubrik + tagg som två små rutor till höger om titeln. Tomma rutor är streckade "+" så det
-// syns att de går att fylla — dolda affordances hittar ingen på en telefon.
-// Har raden en rubrik står den redan som överskrift ovanför — att upprepa den i varje rad var
-// ren dubblering (59 inköpsrader som alla sa "HUSHÅLL", "KYL & MEJERI"…). Då räcker ett litet
-// ⇅ som ändå går att klicka för att flytta raden. Rader UTAN rubrik behåller sitt "+".
-const chipsKol = (lista, rad) => `<div class="chips-col">
-  <button class="mini grp${rad.group ? " satt" : " tom"}" data-grp="${lista}:${esc(rad.id)}" title="${rad.group ? `Under ”${esc(rad.group)}” — klicka för att flytta` : "Lägg raden under en rubrik"}">${rad.group ? "⇅" : "+"}</button>
-  <button class="mini${rad.tag ? "" : " tom"}"${rad.tag ? ` style="${taggStil(rad.tag)}"` : ""} data-ptag="${lista}:${esc(rad.id)}" title="Tagg, t.ex. vilken rätt raden hör till">${rad.tag ? esc(rad.tag) : "+"}</button>
-</div>`;
+// Radens högerkant. TVÅ saker, inte fem (Calle 2026-08-28: "generellt lite överplottrat …
+// för sådana som bara gillar att använda excel eller word").
+//
+// TAGGEN är INFORMATION, inte en kontroll — den är det man skummar efter i en butik, så den
+// står kvar som en färgad etikett. Men bara när den ÄR satt: de tomma streckade "+"-rutorna
+// fanns på varje rad som inte hade en tagg, alltså mest plotter i utbyte mot en affordance
+// man ändå hittar en gång och sedan minns.
+//
+// ALLT SOM ÄNDRAR RADEN bor bakom ⋯: rubrik, tagg, inköpslistan, texten, ta bort. Knappen är
+// dessutom DRAGHANDTAGET (tryck = meny, dra = flytta), precis som ⇅-rutan var — annars hade
+// drag and drop tappat sitt grepp när rutan togs bort.
+const radSlut = (lista, rad) => `${rad.tag ? `<span class="mini tagg" style="${taggStil(rad.tag)}" title="Tagg: ${esc(rad.tag)}">${esc(rad.tag)}</span>` : ""}
+  <button class="radmeny" data-radmeny="${lista}:${esc(rad.id)}" title="Rubrik, tagg, ändra, ta bort — håll och dra för att flytta raden" aria-label="Fler val för raden">⋯</button>`;
 // Gruppera på rubrik.
 // ORDNINGEN: grupper med deadline sorteras KRONOLOGISKT, inte alfabetiskt. Med rubriker som
 // "Torsdag kväll / Fredag / Lördag" la bokstavsordningen den mest brådskande dagen sist, vilket
@@ -875,32 +887,93 @@ $("toast-undo").onclick = () => { $("toast").style.display = "none"; if (S.undo)
 // Prompt i stället för egna formulär — ett fält per val hade fyllt listan med tomma rutor man
 // nästan aldrig använder, och prompten är samma mönster som "+" i en rubrik redan använder.
 const listaNamn = (l) => (l === "shop" ? "inköpslistan" : "checklistan");
-function stangPlus() { const m = $("plusmeny"); if (m) m.remove(); }
+function stangMeny() { const m = $("meny"); if (m) m.remove(); }
+// Delad popup: används av "+" per lista OCH av ⋯ per rad. `nyckel` gör att ett andra tryck på
+// SAMMA knapp stänger menyn i stället för att rita om den.
+function visaMeny(btn, nyckel, val, valj) {
+  const redanOppen = $("meny") && $("meny").dataset.for === nyckel;
+  stangMeny();
+  if (redanOppen) return;
+  const m = document.createElement("div");
+  m.id = "meny"; m.dataset.for = nyckel;
+  m.innerHTML = val.filter((x) => x !== undefined).map((x) =>
+    x ? `<button data-mi="${x[0]}"><span class="mi">${x[1]}</span>${esc(x[2])}</button>` : "<hr>").join("");
+  document.body.appendChild(m);
+  // Placeras under knappen men hålls innanför fönstret — på en telefon ligger knappen ofta så
+  // nära högerkanten att en meny med fast vänsterkant hade hamnat utanför.
+  const r = btn.getBoundingClientRect(), b = m.getBoundingClientRect();
+  m.style.top = Math.max(8, Math.min(window.innerHeight - b.height - 8, r.bottom + 6)) + "px";
+  m.style.left = Math.max(8, Math.min(window.innerWidth - b.width - 8, r.right - b.width)) + "px";
+  m.querySelectorAll("[data-mi]").forEach((b2) => b2.onclick = async (e) => {
+    e.stopPropagation(); stangMeny();
+    await valj(b2.dataset.mi);
+  });
+}
 function oppnaPlus(btn, lista) {
-  const redanOppen = $("plusmeny") && $("plusmeny").dataset.for === lista;
-  stangPlus();
-  if (redanOppen) return;                       // andra trycket på samma knapp stänger
-  const val = [
+  visaMeny(btn, "plus:" + lista, [
     ["rad", "➕", "Ny rad"],
     ["rubrik", "🗂", "Ny rad under en ny rubrik"],
     ["tagg", "🏷", "Ny rad med en ny tagg"],
     lista === "plan" ? ["bada", "🛒", "Ny rad — även på inköpslistan"] : null,
     null,
     ["massa", "📋", "Klistra in flera rader…"],
-  ];
-  const m = document.createElement("div");
-  m.id = "plusmeny"; m.dataset.for = lista;
-  m.innerHTML = val.map((x) => x ? `<button data-mi="${x[0]}"><span class="mi">${x[1]}</span>${x[2]}</button>` : "<hr>").join("");
-  document.body.appendChild(m);
-  // Placeras under knappen, men hålls innanför fönstret — på en telefon ligger knappen ofta
-  // så nära högerkanten att en meny med fast vänsterkant hade hamnat utanför.
-  const r = btn.getBoundingClientRect(), b = m.getBoundingClientRect();
-  m.style.top = Math.max(8, Math.min(window.innerHeight - b.height - 8, r.bottom + 6)) + "px";
-  m.style.left = Math.max(8, Math.min(window.innerWidth - b.width - 8, r.right - b.width)) + "px";
-  m.querySelectorAll("[data-mi]").forEach((b2) => b2.onclick = async (e) => {
-    e.stopPropagation(); stangPlus();
-    await plusVal(b2.dataset.mi, lista);
+  ], (vad) => plusVal(vad, lista));
+}
+
+// ── ⋯ på en rad ───────────────────────────────────────────────────────────────
+// Fem kontroller per rad blev en. Menyn SÄGER vad som redan är satt ("Rubrik: Kyl") i stället
+// för att visa det som en ruta på raden — samma information, men bara när man frågar efter den.
+function oppnaRadMeny(btn, lista, id) {
+  const rad = radAv(lista, id);
+  if (!rad) return;
+  const namn = rad.text || rad.item || "raden";
+  visaMeny(btn, "rad:" + lista + ":" + id, [
+    ["rubrik", "🗂", rad.group ? `Rubrik: ${rad.group}` : "Lägg under en rubrik"],
+    ["tagg", "🏷", rad.tag ? `Tagg: ${rad.tag}` : "Sätt en tagg"],
+    lista === "plan" ? ["toshop", "🛒", "Lägg på inköpslistan"] : null,
+    null,
+    ["andra", "✎", "Ändra texten"],
+    ["bort", "✕", "Ta bort raden"],
+  ], async (vad) => {
+    if (vad === "rubrik") {
+      const v = prompt(`Rubrik för ”${namn}” (tomt tar bort rubriken):`, rad.group || "");
+      if (v === null) return;
+      return write("grp", { lista, id, group: v.trim() });
+    }
+    if (vad === "tagg") {
+      const v = prompt(`Tagg för ”${namn}” — t.ex. en rätt eller ”Dryck” (tomt tar bort):`, rad.tag || "");
+      if (v === null) return;
+      return write("ptag", { lista, id, tag: v.trim() });
+    }
+    if (vad === "toshop") return laggPaInkop(id);
+    if (vad === "andra") {
+      const v = prompt("Ändra texten:", namn);
+      if (v === null) return;
+      const t = v.trim();
+      if (!t || t === namn) return;
+      return write(lista === "shop" ? "shopedit" : "edit", lista === "shop" ? { id, item: t } : { id, text: t });
+    }
+    if (vad === "bort") {
+      if (!confirm(`Ta bort ”${namn}”?\n\nRaden försvinner för alla.`)) return;
+      return write(lista === "shop" ? "shopdel" : "del", { id });
+    }
   });
+}
+// 🛒 DUPLICERAR raden till inköpslistan — den flyttas inte: "Köp is" kan behöva stå kvar som
+// en punkt att bocka av även när varan ligger på listan.
+async function laggPaInkop(id) {
+  const it = plan().find((x) => x.id === id);
+  if (!it) return;
+  try {
+    const d = await api(`/api/fest40?slug=${encodeURIComponent(slug)}&kind=toshop`, {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ pw: S.pw, name: S.me, id }),
+    });
+    S.ev = d.event; S.log = d.changelog || []; S.sedd = d.event.updatedAt || 0;
+    draw(); showToast(`”${it.text}” ligger nu också på inköpslistan`);
+  } catch (err) {
+    showToast(err.message === "finns_redan" ? "Den varan finns redan på inköpslistan" : (FEL[err.message] || "Kunde inte lägga till: " + err.message));
+  }
 }
 async function plusVal(vad, lista) {
   const skriv = (extra) => lista === "shop"
@@ -936,9 +1009,9 @@ async function plusVal(vad, lista) {
 }
 // Stäng menyn på klick utanför, Esc och scroll — den är fast positionerad och hade annars
 // blivit hängande fritt när sidan rullar.
-document.addEventListener("click", (e) => { if (!e.target.closest("#plusmeny,[data-plus]")) stangPlus(); });
-document.addEventListener("keydown", (e) => { if (e.key === "Escape") { stangPlus(); stangMassa(); } });
-window.addEventListener("scroll", stangPlus, { passive: true });
+document.addEventListener("click", (e) => { if (!e.target.closest("#meny,[data-plus],[data-radmeny]")) stangMeny(); });
+document.addEventListener("keydown", (e) => { if (e.key === "Escape") { stangMeny(); stangMassa(); } });
+window.addEventListener("scroll", stangMeny, { passive: true });
 
 // ── Massinmatning ─────────────────────────────────────────────────────────────
 // Verktyget underhåller en plan bra men var trögt att mata EN rad i taget — den här festens
@@ -1105,11 +1178,8 @@ function draw() {
 
   const rowHtml = (it) => { const d = dueLabel(it.due); return `<div class="row${it.done ? " done" : ""}" data-id="${esc(it.id)}">
       <div class="box">✓</div><div class="row-txt"><div class="t" data-t="${esc(it.id)}" title="Dubbelklicka för att ändra texten">${esc(it.text)}</div></div>
-      ${chipsKol("plan", it)}
       ${d.t ? `<div class="due num ${d.c}">${esc(d.t)}</div>` : ""}
-      <button class="row-btn touch-only" data-edit="${esc(it.id)}" title="Ändra texten" aria-label="Ändra">✎</button>
-      <button class="row-btn" data-toshop="${esc(it.id)}" title="Lägg också på inköpslistan" aria-label="Till inköpslistan">🛒</button>
-      <button class="row-btn" data-del="${esc(it.id)}" title="Ta bort raden" aria-label="Ta bort">✕</button></div>`; };
+      ${radSlut("plan", it)}</div>`; };
 
   // Aktivitetsfeeden. Låg förut i checklistan och visade två rader som bara gällde DEN listan;
   // nu är den sidans gemensamma puls i hjärtat — budget, gäster och meny hörs också.
@@ -1136,9 +1206,8 @@ function draw() {
   const shRow = (x) => `<div class="s-row${x.done ? " done" : ""}" data-sid="${esc(x.id)}">
     <div class="box">✓</div>
     <div class="s-item ed" data-sitem="${esc(x.id)}" title="Klicka för att ändra varan">${esc(x.item)}</div>
-    ${chipsKol("shop", x)}
     <div class="s-qty ed num" data-sqty="${esc(x.id)}" title="Klicka för att ändra antalet">${esc(x.qty || "–")}</div>
-    <button class="row-btn" data-sdel="${esc(x.id)}" title="Ta bort raden" aria-label="Ta bort">✕</button></div>`;
+    ${radSlut("shop", x)}</div>`;
 
   const utvalda = (ev.recipes || []).filter((r) => r.status !== "forslag").length;
   const vy = S.vy === "shop" ? "shop" : "check";
@@ -1446,18 +1515,6 @@ function wire() {
     const it = plan().find((p) => p.id === id); if (!it) return;
     editable(el, it.text, (t) => write("edit", { id, text: t }));
   }
-  document.querySelectorAll("[data-edit]").forEach((b) => b.onclick = async () => {
-    const it = plan().find((p) => p.id === b.dataset.edit); if (!it) return;
-    const v = prompt("Ändra texten:", it.text);
-    if (v === null) return;
-    const t = v.trim(); if (!t || t === it.text) return;
-    await write("edit", { id: b.dataset.edit, text: t });
-  });
-  document.querySelectorAll("[data-del]").forEach((b) => b.onclick = async () => {
-    const it = plan().find((p) => p.id === b.dataset.del); if (!it) return;
-    if (!confirm(`Ta bort ”${it.text}”?\n\nRaden försvinner för alla.`)) return;
-    await write("del", { id: b.dataset.del });
-  });
   document.querySelectorAll("[data-rdel]").forEach((b) => b.onclick = async () => {
     const r = (S.ev.recipes || []).find((x) => x.id === b.dataset.rdel); if (!r) return;
     if (!confirm(`Ta bort ”${r.title}” ur menyn?\n\nRätten försvinner för alla.`)) return;
@@ -1575,12 +1632,6 @@ function wire() {
   // Antalet får vara tomt — "ost" utan mängd är en fullt rimlig rad på en inköpslista.
   bindEdit("data-sqty", (id) => { const x = byId("shop", id); return x ? (x.qty || "") : null; },
     (id, v) => write("shopedit", { id, qty: v }), { allowEmpty: true });
-  document.querySelectorAll("[data-sdel]").forEach((b) => b.onclick = async (e) => {
-    e.stopPropagation();
-    const x = byId("shop", b.dataset.sdel); if (!x) return;
-    if (!confirm(`Ta bort ”${x.item}” från inköpslistan?\n\nRaden försvinner för alla.`)) return;
-    await write("shopdel", { id: b.dataset.sdel });
-  });
   const addS = () => {
     const item = ($("sItem").value || "").trim(); if (!item) return;
     write("shopadd", { item, qty: ($("sQty").value || "").trim() });
@@ -1666,11 +1717,6 @@ function wire() {
   // ── Rubriker och taggar ──
   // Nyckeln är "lista:id". Delas på FÖRSTA kolonet — ett rubriknamn får gärna innehålla ett.
   const delaNyckel = (v) => { const i = String(v).indexOf(":"); return [v.slice(0, i), v.slice(i + 1)]; };
-  const radI = (v) => { const [lista, id] = delaNyckel(v); return byId(lista === "shop" ? "shop" : "plan", id); };
-  bindEdit("data-grp", (k) => { const r = radI(k); return r ? (r.group || "") : null; },
-    (k, v) => { const [lista, id] = delaNyckel(k); return write("grp", { lista, id, group: v }); }, { allowEmpty: true });
-  bindEdit("data-ptag", (k) => { const r = radI(k); return r ? (r.tag || "") : null; },
-    (k, v) => { const [lista, id] = delaNyckel(k); return write("ptag", { lista, id, tag: v }); }, { allowEmpty: true });
   // Rubriken är inget eget objekt — den ÄR fältet på raderna. Att döpa om den skriver därför
   // om alla rader som bär den, och ett tomt namn löser upp gruppen.
   document.querySelectorAll("[data-grpname]").forEach((el) => {
@@ -1691,31 +1737,18 @@ function wire() {
     if (lista === "shop") await write("shopadd", { item: t, group: grupp });
     else await write("add", { text: t, category: S.cat, group: grupp, tag: S.tag || "" });
   });
-  // 🛒 på en checklistrad: DUPLICERAR den till inköpslistan. "Köp is" kan behöva stå kvar som
-  // en punkt att bocka av även när varan ligger på listan.
-  document.querySelectorAll("[data-toshop]").forEach((b) => b.onclick = async (e) => {
-    e.stopPropagation();
-    const it = plan().find((x) => x.id === b.dataset.toshop); if (!it) return;
-    try {
-      const d = await api(`/api/fest40?slug=${encodeURIComponent(slug)}&kind=toshop`, {
-        method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ pw: S.pw, name: S.me, id: b.dataset.toshop }),
-      });
-      S.ev = d.event; S.log = d.changelog || []; S.sedd = d.event.updatedAt || 0;
-      draw(); showToast(`”${it.text}” ligger nu också på inköpslistan`);
-    } catch (err) {
-      showToast(err.message === "finns_redan" ? "Den varan finns redan på inköpslistan" : "Kunde inte lägga till: " + err.message);
-    }
-  });
   // Drag and drop: bara pointerdown binds här, resten av lyssnarna sitter på document och
   // registreras EN gång (wire() körs vid varje omritning och hade annars staplat dem).
-  document.querySelectorAll("[data-grp]").forEach((h) => {
+  // ⋯ är både meny och draghandtag: ett tryck öppnar menyn, ett drag flyttar raden. Samma
+  // dubbelroll som ⇅-rutan hade — nyssDrog hindrar att släppet också öppnar menyn.
+  document.querySelectorAll("[data-radmeny]").forEach((h) => {
+    const [lista, id] = delaNyckel(h.dataset.radmeny);
     h.onpointerdown = (e) => {
       if (e.button != null && e.button !== 0) return;
-      const [lista, id] = delaNyckel(h.dataset.grp);
       drag = { h, lista, id, x0: e.clientX, y0: e.clientY, pid: e.pointerId,
         aktiv: false, mal: null, rad: h.closest(".row,.s-row") };
     };
+    h.onclick = (e) => { e.preventDefault(); e.stopPropagation(); oppnaRadMeny(h, lista, id); };
   });
   // Toning bara när det faktiskt finns mer att se — i feeden nedåt, i taggraden åt höger.
   const feedEl = document.querySelector(".feed-lista");
