@@ -281,7 +281,10 @@ async function fetchRecipeFromUrl(url) {
   if (!r.ok) return null;
   const html = (await r.text()).slice(0, 600000);
   let rec = null;
-  const blocks = html.match(/<script[^>]+type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi) || [];
+  // Typ-attributet matchas LÖST ("...ld...json..."), inte exakt "application/ld+json": Arla och
+  // andra sajter HTML-escapar plustecknet (type="application/ld&#x2B;json"), och den exakta
+  // regexen missade dem helt trots att receptet låg där. Samma fix som i pappens server.js.
+  const blocks = html.match(/<script[^>]*\btype=["'][^"']*ld[^"']*json[^"']*["'][^>]*>([\s\S]*?)<\/script>/gi) || [];
   for (const b of blocks) {
     const raw = b.replace(/^[\s\S]*?>/, "").replace(/<\/script>$/i, "");
     let data; try { data = JSON.parse(raw); } catch { continue; }
