@@ -73,6 +73,15 @@ button{font:inherit;cursor:pointer}
   -webkit-mask-image:linear-gradient(to right,#000 calc(100% - 28px),transparent)}
 .chip{white-space:nowrap;padding:5px 12px;border-radius:999px;font-size:12px;border:1px solid var(--line);background:var(--panel2);color:var(--mid)}
 .chip.on{background:rgba(108,140,255,.12);border-color:rgba(108,140,255,.45);color:var(--accent-ink);font-weight:600}
+/* En färdig tagg tonas ned men behåller sin färg — man ska känna igen den, inte leta efter
+   den. Bocken ersätter siffran: "0" ser ut som ett fel, "✓" säger vad det betyder. */
+.chip.klar{opacity:.55;font-weight:500}
+.chip.klar:hover{opacity:1}
+/* Gruppchipen bär ingen taggfärg — den är ett fack, inte en tagg. */
+.chip.klargrupp{background:rgba(55,193,132,.1);border-color:rgba(55,193,132,.32);color:var(--ok-ink);font-weight:600}
+.chip.klargrupp.on{background:rgba(55,193,132,.18);border-color:rgba(55,193,132,.5)}
+/* Andra raden ligger indragen så det syns att den hör till gruppen ovanför. */
+.chips.klarrad{margin-top:-4px;padding-left:14px;border-left:2px solid rgba(55,193,132,.25)}
 .row{display:flex;align-items:flex-start;gap:12px;padding:12px 0;border-bottom:1px solid var(--line-soft)}
 .row:last-child{border-bottom:0}
 .box{flex:0 0 auto;width:26px;height:26px;border-radius:999px;border:1.5px solid var(--line-strong);background:var(--panel);display:flex;align-items:center;justify-content:center;font-size:13px;color:transparent;transition:.12s ease}
@@ -475,7 +484,9 @@ body.drar{cursor:grabbing;user-select:none;-webkit-user-select:none}
 <script define:vars={{ slug }}>
 // S.open håller <details>-lägena. Varje skrivning ritar om HELA appen, så utan detta
 // slog Budget och underlagen igen mitt i att någon skrev i dem.
-const S = { pw: "", ev: null, log: [], cat: null, tag: null, stag: null, me: "", undo: null, open: {}, sedd: 0, vy: "check" };
+const S = { pw: "", ev: null, log: [], cat: null, tag: null, stag: null, me: "", undo: null, open: {}, sedd: 0, vy: "check",
+  // Är "✓ Färdigt"-gruppen utfälld? Per lista, eftersom båda syns samtidigt i delad vy.
+  klartOppen: {} };
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s == null ? "" : s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 const api = async (path, opts) => { const r = await fetch(path, opts); const d = await r.json().catch(() => ({})); if (!r.ok) throw new Error(d.error || r.status); return d; };
@@ -584,6 +595,35 @@ function taggStil(t) {
 // drag and drop tappat sitt grepp när rutan togs bort.
 const radSlut = (lista, rad) => `${rad.tag ? `<span class="mini tagg" style="${taggStil(rad.tag)}" title="Tagg: ${esc(rad.tag)}">${esc(rad.tag)}</span>` : ""}
   <button class="radmeny" data-radmeny="${lista}:${esc(rad.id)}" title="Rubrik, tagg, ändra, ta bort — håll och dra för att flytta raden" aria-label="Fler val för raden">⋯</button>`;
+// Taggraden, delad av checklistan och inköpslistan.
+// TAL = ANTAL KVAR, inte totalen. En tagg vars siffra är noll bär ingen information alls men
+// tar full bredd i en rad som redan scrollar — och med tolv taggar var det halva raden.
+// Därför samlas de FÄRDIGA taggarna bakom EN chip ("✓ Färdigt 4") som fälls ut när man vill
+// åt dem. Inget göms permanent: allt går fortfarande att filtrera på, det ligger bara ett
+// tryck bort i stället för att konkurrera om plats med det som är kvar att göra.
+// UNDANTAG: den AKTIVA taggen står alltid kvar i huvudraden, även när den blivit färdig —
+// annars försvinner filtret man just satte, mitt framför ögonen på en.
+function taggRad(lista, poster, aktiv, attr) {
+  if (!poster.length) return "";
+  const klara = poster.filter((x) => x.kvar === 0 && x.tag !== aktiv);
+  const kvar = poster.filter((x) => !klara.includes(x));
+  const oppen = !!S.klartOppen[lista];
+  const chip = (x) => {
+    const pa = aktiv === x.tag;
+    const fardig = x.kvar === 0;
+    return `<button class="chip${pa ? " on" : ""}${fardig && !pa ? " klar" : ""}" data-${attr}="${esc(x.tag)}"${
+      pa ? "" : ` style="${taggStil(x.tag)}"`}>${esc(x.tag)} ${pa ? "✕" : fardig ? "✓" : x.kvar}</button>`;
+  };
+  // "Alla" och "Färdigt" står FÖRST, före taggarna. Båda är fack, inte taggar — och raden
+  // scrollar vågrätt: låg Färdigt sist hamnade den utanför skärmen på en telefon, alltså
+  // gömd bakom precis den scroll den var till för att slippa.
+  return `<div class="chips"><button class="chip${aktiv ? "" : " on"}" data-${attr}="">Alla</button>${
+    klara.length ? `<button class="chip klargrupp${oppen ? " on" : ""}" data-klart="${esc(lista)}" title="${
+      oppen ? "Dölj de färdiga taggarna" : `${klara.length} taggar där allt är avbockat`}">✓ Färdigt ${oppen ? "✕" : klara.length}</button>` : ""}${
+    kvar.map(chip).join("")}</div>${
+    oppen && klara.length ? `<div class="chips klarrad">${klara.map(chip).join("")}</div>` : ""}`;
+}
+
 // Gruppera på rubrik.
 // ORDNINGEN: grupper med deadline sorteras KRONOLOGISKT, inte alfabetiskt. Med rubriker som
 // "Torsdag kväll / Fredag / Lördag" la bokstavsordningen den mest brådskande dagen sist, vilket
@@ -1219,9 +1259,7 @@ function draw() {
   if (S.stag && !shTags.includes(S.stag)) S.stag = null;
   const shOpenF = S.stag ? shOpen.filter((x) => x.tag === S.stag) : shOpen;
   const shopKropp = `
-    ${shTags.length ? `<div class="chips"><button class="chip${S.stag ? "" : " on"}" data-stag="">Alla</button>${shTags.map((t) => {
-      const n = shOpen.filter((x) => x.tag === t).length;
-      return `<button class="chip${S.stag === t ? " on" : ""}" data-stag="${esc(t)}" style="${S.stag === t ? "" : taggStil(t)}">${esc(t)} ${S.stag === t ? "✕" : n}</button>`; }).join("")}</div>` : ""}
+    ${taggRad("shop", shTags.map((t) => ({ tag: t, kvar: shOpen.filter((x) => x.tag === t).length })), S.stag, "stag")}
     ${shOpenF.length ? grupperaRader(shOpenF).map(([g, rader]) =>
         grpRubrik("shop", g, rader.length) + rader.map(shRow).join("")).join("")
       : `<div class="callout">${S.stag ? `Allt till ${esc(S.stag)} är hemma ✓` : sh.length ? "Allt är inhandlat ✓" : "Listan är tom — hämta in de utvalda rätterna eller skriv en vara."}</div>`}
@@ -1233,9 +1271,7 @@ function draw() {
   const checkKropp = `
     <div class="seg">${cats().map((c) => { const l = p.filter((x) => x.category === c && !x.done).length;
       return `<button data-cat="${esc(c)}" class="${c === S.cat ? "on" : ""}">${esc(c)} · ${l} kvar</button>`; }).join("")}</div>
-    ${tags.length ? `<div class="chips"><button class="chip${S.tag ? "" : " on"}" data-tag="">Alla</button>${tags.map((t) => {
-      const n = inCat.filter((x) => x.tag === t).length;
-      return `<button class="chip${S.tag === t ? " on" : ""}" data-tag="${esc(t)}" style="${S.tag === t ? "" : taggStil(t)}">${esc(t)} ${S.tag === t ? "✕" : n}</button>`; }).join("")}</div>` : ""}
+    ${taggRad("plan", tags.map((t) => ({ tag: t, kvar: inCat.filter((x) => x.tag === t && !x.done).length })), S.tag, "tag")}
     ${open.length ? grupperaRader(open).map(([g, rader]) =>
         grpRubrik("plan", g, rader.length) + rader.map(rowHtml).join("")).join("")
       : `<div class="callout">${S.tag ? `Allt till ${esc(S.tag)} är hemma ✓` : "Allt på listan är klart ✓"}</div>`}
@@ -1493,8 +1529,21 @@ function draw() {
 
 function wire() {
   document.querySelectorAll("[data-cat]").forEach((b) => b.onclick = () => { S.cat = b.dataset.cat; S.tag = null; draw(); });
-  document.querySelectorAll("[data-tag]").forEach((b) => b.onclick = () => { S.tag = b.dataset.tag || null; draw(); });
-  document.querySelectorAll("[data-stag]").forEach((b) => b.onclick = () => { S.stag = b.dataset.stag || null; draw(); });
+  // Den aktiva chipen visar ✕ — då ska ett klick SLÄPPA filtret. Förut satte den om samma
+  // tagg igen, så krysset var en tom gest: enda vägen tillbaka var "Rensa filtret"-knappen
+  // längst ned. Hittat när "Färdigt" gjorde det möjligt att filtrera på en avbockad tagg och
+  // listan såg tom ut utan uppenbar väg ur.
+  const valjTagg = (falt) => (b) => b.onclick = () => {
+    const v = b.dataset[falt] || null;
+    S[falt] = (v && v === S[falt]) ? null : v;
+    draw();
+  };
+  document.querySelectorAll("[data-tag]").forEach(valjTagg("tag"));
+  document.querySelectorAll("[data-stag]").forEach(valjTagg("stag"));
+  // "✓ Färdigt" fäller bara ut gruppen — den filtrerar ingenting själv.
+  document.querySelectorAll("[data-klart]").forEach((b) => b.onclick = () => {
+    const l = b.dataset.klart; S.klartOppen[l] = !S.klartOppen[l]; draw();
+  });
   // Bocken bockar av, texten döps om. Förut bockade ett klick på TEXTEN av efter en fördröjning
   // — vilket gjorde att man inte kunde läsa en lång rad utan att råka bocka av den, och att
   // varje omdöpning kändes som en kamp. Nu har de två helt skilda ytor.
