@@ -151,7 +151,23 @@ details.foldable summary::-webkit-details-marker{display:none}
 .r-title{font-size:14px;font-weight:600;line-height:1.3}
 .r-sub{font-size:12px;color:var(--dim);margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .r-sub a{color:var(--champ-ink)}
-.r-act{display:flex;gap:4px;flex:0 0 auto}
+.r-act{display:flex;gap:4px;flex:0 0 auto;position:relative}
+/* ⋯-menyn. Tre knappar per rätt blev en vägg på mobilen; valen bor nu bakom en knapp och
+   läggs OVANPÅ raden (absolut) så listan inte hoppar när menyn öppnas. */
+.r-meny{position:absolute;top:40px;right:0;z-index:50;min-width:236px;display:flex;flex-direction:column;
+  background:var(--panel);border:1px solid var(--line);border-radius:var(--r-field);padding:5px;
+  box-shadow:0 12px 34px rgba(60,48,32,.22)}
+.r-meny button{display:block;width:100%;text-align:left;background:transparent;border:0;border-radius:8px;
+  padding:9px 10px;font:inherit;font-size:14px;color:var(--txt);white-space:nowrap}
+.r-meny button:active{background:var(--panel2)}
+@media (hover:hover){.r-meny button:hover{background:var(--panel2)}}
+.r-meny button.fara:active{color:var(--late-ink)}
+.r-meny-sep{height:1px;background:var(--line-soft);margin:4px 6px}
+/* 🍳 Tillagad rätt: grön ton på raden + märke i titeln, så läget syns utan att öppna menyn. */
+.r-row.kokt{background:rgba(55,193,132,.07);border-radius:var(--r-field)}
+.r-kokt{display:inline-block;vertical-align:middle;margin-left:6px;font-size:10px;font-weight:700;
+  text-transform:uppercase;letter-spacing:.4px;color:var(--ok-ink);
+  background:rgba(55,193,132,.14);border:1px solid rgba(55,193,132,.36);border-radius:999px;padding:1px 7px}
 .r-btn{width:34px;height:34px;border-radius:var(--r-field);border:1px solid var(--line);background:var(--panel);
   color:var(--dim);font-size:14px;display:flex;align-items:center;justify-content:center;padding:0}
 .r-btn.on{background:rgba(200,171,119,.16);border-color:rgba(200,171,119,.45);color:var(--champ-ink)}
@@ -270,6 +286,13 @@ details.klart[open]>summary::after{content:"▴"}
 
 .s-row.done .s-item{color:var(--dim);text-decoration:line-through;text-decoration-color:rgba(139,130,114,.45)}
 .s-row.done .s-qty{color:var(--faint)}
+/* 🍳 Varan hör till en tillagad rätt. Grön i stället för grå: den är avklarad, men inte
+   avbockad av någon i butiken — och den kommer tillbaka om rätten av-markeras. */
+.s-row.kokt .s-item{color:var(--ok-ink);text-decoration:line-through;text-decoration-color:rgba(55,193,132,.5)}
+.s-row.kokt .s-qty{color:var(--ok-ink);opacity:.75}
+.s-row.kokt .box{background:rgba(55,193,132,.15);border-color:rgba(55,193,132,.5);color:var(--ok-ink)}
+.s-kokt{display:inline-block;margin-left:6px;font-size:11px;font-weight:700;color:var(--ok-ink);
+  background:rgba(55,193,132,.14);border-radius:999px;padding:1px 8px;text-decoration:none}
 .s-add{display:flex;gap:8px;margin-top:12px}
 .s-add input{height:44px;padding:0 12px;border:1px solid var(--line);border-radius:var(--r-field);
   background:var(--panel);color:var(--txt);font-size:14px;min-width:0}
@@ -500,7 +523,10 @@ body.drar{cursor:grabbing;user-select:none;-webkit-user-select:none}
 // slog Budget och underlagen igen mitt i att någon skrev i dem.
 const S = { pw: "", ev: null, log: [], cat: null, tag: null, stag: null, me: "", undo: null, open: {}, sedd: 0, vy: "check",
   // Är "✓ Färdigt"-gruppen utfälld? Per lista, eftersom båda syns samtidigt i delad vy.
-  klartOppen: {} };
+  klartOppen: {},
+  // Id på den rätt vars ⋯-meny är öppen. Fyra knappar per rätt blev en knappvägg på mobilen;
+  // valen bor nu bakom en knapp. Ren UI-state, sparas aldrig.
+  rmenu: null };
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s == null ? "" : s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 const api = async (path, opts) => { const r = await fetch(path, opts); const d = await r.json().catch(() => ({})); if (!r.ok) throw new Error(d.error || r.status); return d; };
@@ -544,6 +570,22 @@ const raknaAlder = (gaster) => gaster.reduce((n, g) => { n[alderAv(g)]++; return
 const plan = () => iOrd(Array.isArray(S.ev.plan) ? S.ev.plan : []);
 const shop = () => iOrd(Array.isArray(S.ev.shop) ? S.ev.shop : []);
 const listAv = (lista) => (lista === "shop" ? shop() : plan());
+// 🍳 TILLAGAT. Varje inköpsrad hör redan till EN rätt (tag + fromRecipe): hämtningen lägger in
+// en rad per rätt, så tre rätter som var för sig behöver 1 liter mjölk ger tre rader. Därför
+// räcker det att stryka raderna som hör till den lagade rätten — bara den mängden markeras,
+// de andra rätternas mjölk står kvar. HÄRLETT, aldrig skrivet: raderna får ingen done-flagga,
+// så "Ångra tillagat" ger tillbaka listan exakt som den var (någon kan ha bockat av hälften
+// för hand innan rätten lagades, och den handpåläggningen får inte skrivas över).
+// fromRecipe är den säkra kopplingen; taggen är fallback för rader som hämtades in innan
+// fältet fanns, eller som speglats in från pappen.
+const koktaRatter = () => ((S.ev && S.ev.recipes) || []).filter((r) => r.cooked && r.status !== "forslag");
+const arKokt = (x) => {
+  const k = koktaRatter();
+  if (!k.length) return false;
+  if (x.fromRecipe && k.some((r) => r.id === x.fromRecipe)) return true;
+  const t = String(x.tag || "").trim().toLowerCase();
+  return !!t && k.some((r) => String(r.title || "").trim().toLowerCase() === t);
+};
 // Sektionerna är öppna som default; S.open minns bara avvikelserna.
 const oppen = (k) => S.open[k] !== false;
 // Portionsskalning. SPEGEL av samma funktioner i functions/api/fest40.js — ändras den ena
@@ -1266,12 +1308,12 @@ function draw() {
   // MATERIALISERADE, alltså vanliga rader man kan ändra och stryka — familjen har salt och
   // olja hemma och ska slippa handla dem bara för att ett recept nämner dem.
   const sh = shop();
-  const shOpen = sh.filter((x) => !x.done), shDone = sh.filter((x) => x.done);
-  const shRow = (x) => `<div class="s-row${x.done ? " done" : ""}" data-sid="${esc(x.id)}">
-    <div class="box">✓</div>
-    <div class="s-item ed" data-sitem="${esc(x.id)}" title="Klicka för att ändra varan">${esc(x.item)}</div>
+  const shOpen = sh.filter((x) => !x.done && !arKokt(x)), shDone = sh.filter((x) => x.done || arKokt(x));
+  const shRow = (x) => { const kokt = !x.done && arKokt(x); return `<div class="s-row${x.done ? " done" : ""}${kokt ? " kokt" : ""}" data-sid="${esc(x.id)}">
+    <div class="box">${kokt ? "🍳" : "✓"}</div>
+    <div class="s-item ed" data-sitem="${esc(x.id)}" title="${kokt ? "Ingår i en tillagad rätt" : "Klicka för att ändra varan"}">${esc(x.item)}${kokt ? ` <span class="s-kokt">tillagat</span>` : ""}</div>
     <div class="s-qty ed num" data-sqty="${esc(x.id)}" title="Klicka för att ändra antalet">${esc(x.qty || "–")}</div>
-    ${radSlut("shop", x)}</div>`;
+    ${radSlut("shop", x)}</div>`; };
 
   const utvalda = (ev.recipes || []).filter((r) => r.status !== "forslag").length;
   const vy = S.vy === "shop" ? "shop" : "check";
@@ -1431,7 +1473,7 @@ function draw() {
   })() : "";
   const estBlock = est ? `<details class="b-auto" data-k="bauto"${S.open.bauto ? " open" : ""}>
       <summary><span class="b-lbl">🛒 Inköpslistan<span style="color:var(--faint)"> · räknas fram</span></span>
-        <span class="b-stat">${shop().filter((x) => !x.done).length} kvar av ${shop().length}</span>
+        <span class="b-stat">${shop().filter((x) => !x.done && !arKokt(x)).length} kvar av ${shop().length}</span>
         <span class="b-est num">≈ ${estKvar.toLocaleString("sv-SE")} kr</span><span style="color:var(--faint);text-align:center">▾</span></summary>
       <div class="b-detalj">${estRader || `<div class="b-empty" style="padding:8px 0">Inköpslistan är tom.</div>`}
         <div class="b-dfot">Schablonpriser i vanlig matbutik och på Systembolaget — ett estimat, inte ett kvitto.
@@ -1475,10 +1517,11 @@ function draw() {
   // Stjärnan/bilden/✕ ligger utanför klickytan så de inte krockar.
   const rRow = (r) => {
     const upp = !!S.open["r:" + r.id];
-    return `<div class="r-row" data-rid="${esc(r.id)}">
+    return `<div class="r-row${r.cooked && r.status !== "forslag" ? " kokt" : ""}" data-rid="${esc(r.id)}">
     <div class="r-thumb" data-ropen="${esc(r.id)}"${r.image ? ` style="background-image:url('${esc(r.image)}')"` : ""}>${r.image ? "" : "🍽"}</div>
     <div class="r-main" data-ropen="${esc(r.id)}" title="Klicka för ingredienser och utförande">
-      <div class="r-title" data-rt="${esc(r.id)}" title="Dubbelklicka för att döpa om">${esc(r.title)}</div>
+      <div class="r-title" data-rt="${esc(r.id)}" title="Dubbelklicka för att döpa om">${esc(r.title)}${
+        r.cooked && r.status !== "forslag" ? ` <span class="r-kokt">🍳 Tillagad</span>` : ""}</div>
       <div class="r-sub">${[
         (r.ingredients && r.ingredients.length)
           ? (() => { const h = new Set((r.have || []).map(haveKey));
@@ -1492,9 +1535,14 @@ function draw() {
       ].filter(Boolean).join(" · ")}</div>
     </div>
     <div class="r-act">
-      <button class="r-btn${r.status !== "forslag" ? " on" : ""}" data-rstar="${esc(r.id)}" title="${r.status !== "forslag" ? "Utvald — klicka för att flytta till förslag" : "Förslag — klicka för att välja ut"}">${r.status !== "forslag" ? "★" : "☆"}</button>
-      <button class="r-btn" data-rimg="${esc(r.id)}" title="Sätt bild (bild-URL eller sidlänk)">🖼</button>
-      <button class="r-btn" data-rdel="${esc(r.id)}" title="Ta bort rätten">✕</button>
+      <button class="r-btn${S.rmenu === r.id ? " on" : ""}" data-rmenu="${esc(r.id)}" title="Fler val: utvald, tillagat, bild, ta bort" aria-label="Fler val">⋯</button>
+      ${S.rmenu === r.id ? `<div class="r-meny" role="menu">
+        <button data-rstar="${esc(r.id)}">${r.status !== "forslag" ? "☆ Flytta till förslag" : "★ Välj ut — blir mat"}</button>
+        ${r.status !== "forslag" ? `<button data-rcook="${esc(r.id)}">${r.cooked ? "↩ Ångra tillagat" : "🍳 Tillagat — stryk varorna ur listan"}</button>` : ""}
+        <button data-rimg="${esc(r.id)}">🖼 Lägg till bild</button>
+        <div class="r-meny-sep"></div>
+        <button class="fara" data-rdel="${esc(r.id)}">🗑 Ta bort rätten</button>
+      </div>` : ""}
     </div>
   </div>${upp ? (() => {
     const f = skalfaktor(r);
@@ -1598,8 +1646,15 @@ function wire() {
     const it = plan().find((p) => p.id === id); if (!it) return;
     editable(el, it.text, (t) => write("edit", { id, text: t }));
   }
+  // Klick utanför ⋯-menyn stänger den. Sätts om vid varje draw, så det blir aldrig två.
+  if (S.rmenu) document.addEventListener("mousedown", (e) => {
+    if (e.target.closest && e.target.closest(".r-meny, [data-rmenu]")) return;
+    if (!S.rmenu) return;
+    S.rmenu = null; draw();
+  }, { once: true, capture: true });
   document.querySelectorAll("[data-rdel]").forEach((b) => b.onclick = async () => {
     const r = (S.ev.recipes || []).find((x) => x.id === b.dataset.rdel); if (!r) return;
+    S.rmenu = null;
     if (!confirm(`Ta bort ”${r.title}” ur menyn?\n\nRätten försvinner för alla.`)) return;
     await write("rdel", { id: b.dataset.rdel });
   });
@@ -1857,14 +1912,29 @@ function wire() {
   const add = () => { const t = $("addTxt").value.trim(); if (!t) return; $("addTxt").value = ""; write("add", { text: t, category: S.cat, tag: S.tag || "" }); };
   const ab = $("addBtn"); if (ab) ab.onclick = add;
   const at = $("addTxt"); if (at) at.addEventListener("keydown", (e) => { if (e.key === "Enter") add(); });
-  // 🍳 Meny-wiring
+  // 🍳 Meny-wiring. ⋯ öppnar valen; allt annat i menyn stänger den innan det körs.
+  document.querySelectorAll("[data-rmenu]").forEach((b) => b.onclick = (e) => {
+    e.stopPropagation();
+    S.rmenu = S.rmenu === b.dataset.rmenu ? null : b.dataset.rmenu;
+    draw();
+  });
   document.querySelectorAll("[data-rstar]").forEach((b) => b.onclick = () => {
     const r = (S.ev.recipes || []).find((x) => x.id === b.dataset.rstar); if (!r) return;
-    r.status = r.status === "forslag" ? "utvald" : "forslag"; draw();   // optimistiskt
+    S.rmenu = null;
+    r.status = r.status === "forslag" ? "utvald" : "forslag";
+    if (r.status === "forslag") r.cooked = false;   // ett förslag lagas inte
+    draw();   // optimistiskt
     write("rstar", { id: b.dataset.rstar }, true);
+  });
+  document.querySelectorAll("[data-rcook]").forEach((b) => b.onclick = () => {
+    const r = (S.ev.recipes || []).find((x) => x.id === b.dataset.rcook); if (!r) return;
+    S.rmenu = null;
+    r.cooked = !r.cooked; draw();                   // optimistiskt: listan grönas direkt
+    write("rcook", { id: b.dataset.rcook }, true);
   });
   document.querySelectorAll("[data-rimg]").forEach((b) => b.onclick = async () => {
     const r = (S.ev.recipes || []).find((x) => x.id === b.dataset.rimg); if (!r) return;
+    S.rmenu = null; draw();
     const v = prompt(`Bild för ”${r.title}”\n\nKlistra in en bild-länk, eller en sidlänk vars bild hämtas.\nTomt fält tar bort bilden.`, r.image || "");
     if (v === null) return;
     await write("rimage", { id: b.dataset.rimg, image: v.trim() });

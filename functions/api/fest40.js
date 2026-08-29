@@ -22,6 +22,7 @@
 //   POST .. kind=shopadd|shopedit|shoptoggle|shopdel   inköpslistan (artikel+antal+tagg)
 //   POST .. kind=shopfrom                      {id?}                          -> hämta in utvalda rätter
 //   POST .. kind=cook                          {n}                            -> vi lagar för N personer
+//   POST .. kind=rcook                         {id}                           -> rätten är tillagad (växlar)
 //   POST .. kind=rserv                         {id,n}                         -> receptets egna portioner
 //   POST .. kind=rport                         {id,n}                         -> hur många VI lagar av rätten
 //   POST .. kind=rtitle                        {id,title}                     -> döp om rätten
@@ -485,6 +486,15 @@ export async function onRequestPost(context) {
     if (!r) return Response.json({ error: "not_found_recipe" }, { status: 404 });
     r.status = r.status === "forslag" ? "utvald" : "forslag";
     note(`${r.status === "utvald" ? "valde ut" : "flyttade tillbaka"} ”${r.title}”`);
+  } else if (kind === "rcook") {
+    // 🍳 Tillagat. Bara en flagga på rätten — inköpsraderna rörs ALDRIG. De raderna hör redan
+    // till en rätt (tag + fromRecipe), så sidan kan härleda vilka som är avklarade och visa
+    // dem gröna. Att skriva done på trettio rader hade varit destruktivt och omöjligt att
+    // ångra rent: någon kan ha bockat av hälften för hand innan rätten lagades.
+    const r = ev.recipes.find((x) => x.id === body.id);
+    if (!r) return Response.json({ error: "not_found_recipe" }, { status: 404 });
+    r.cooked = !r.cooked;
+    note(`${r.cooked ? "lagade" : "ångrade tillagat på"} ”${r.title}”`);
   } else if (kind === "rimage") {
     const r = ev.recipes.find((x) => x.id === body.id);
     if (!r) return Response.json({ error: "not_found_recipe" }, { status: 404 });
