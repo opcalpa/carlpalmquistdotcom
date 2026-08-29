@@ -35,6 +35,7 @@
 //   POST .. kind=ringedit                      {id,from,qty,item}             -> ändra EN ingrediens
 //   POST .. kind=ringdel                       {id,line}                      -> ta bort EN ingrediens
 //   POST .. kind=move                          {lista,id,group,after}         -> flytta rad (drag and drop)
+//   POST .. kind=movegroup                     {lista,group,after}            -> flytta HEL rubriksektion
 //   POST .. kind=bulk                          {lista,text,category,tag,group}-> klistra in flera rader
 // FULL PARITET (2026-08-27): allt Calle kan redigera i pappen går att redigera här. Sidan är
 // ett delat planeringsverktyg som ersätter ett Google Sheet, inte en avbockningsvy.
@@ -801,6 +802,36 @@ export async function onRequestPost(context) {
     note((rad.group || "") !== forut
       ? `flyttade ”${namn}” till ${rad.group || "utan rubrik"}`
       : `flyttade om ”${namn}”`);
+  } else if (kind === "movegroup") {
+    // Dra en HEL rubriksektion. Rubriker har ingen egen post i datan — en grupp är bara de
+    // rader som bär samma `group`, och dess plats i listan är den minsta ord:en bland dem.
+    // Att flytta sektionen är alltså att numrera om raderna: grupperna läggs efter varandra
+    // i den nya ordningen, och radernas inbördes ordning i varje grupp behålls exakt.
+    // Alternativet — ett eget ordningsfält per rubrik — hade infört ett andra ordningsbegrepp
+    // som kan säga emot radernas, och det första som driftar isär är det man litar på.
+    if (!listaAv(ev, body.lista)) return Response.json({ error: "bad_list" }, { status: 400 });
+    const arr = sorteraPaOrd(listaAv(ev, body.lista));
+    const namnAv = (x) => x.group || "";
+    const flytt = sanitize(body.group, GRP_MAX);
+    const efter = body.after == null ? null : sanitize(body.after, GRP_MAX);
+    // Gruppordningen som den ser ut nu, i radernas ordning (första förekomst vinner).
+    const ordning = [];
+    for (const x of arr) { const g = namnAv(x); if (!ordning.includes(g)) ordning.push(g); }
+    // Rader UTAN rubrik ligger alltid sist — samma regel som sidan ritar efter. Utan den här
+    // raden skulle en omnumrering kasta upp det osorterade blocket överst första gången någon
+    // drar en sektion, och det ser ut som att listan tappat ordningen.
+    if (ordning.includes("")) { ordning.splice(ordning.indexOf(""), 1); ordning.push(""); }
+    const i = ordning.indexOf(flytt);
+    if (i === -1) return Response.json({ error: "not_found_group" }, { status: 404 });
+    ordning.splice(i, 1);
+    // efter === null eller "" tolkas som "först"; annars direkt efter den namngivna gruppen.
+    // Hittas inte målgruppen läggs sektionen sist — hellre det än att draget tyst inte gör något.
+    const j = efter ? ordning.indexOf(efter) : -1;
+    if (efter && j === -1) ordning.push(flytt); else ordning.splice(j + 1, 0, flytt);
+    const nyOrdning = [];
+    for (const g of ordning) for (const x of arr) if (namnAv(x) === g) nyOrdning.push(x);
+    numreraOm(nyOrdning);
+    note(`flyttade sektionen ”${flytt || "utan rubrik"}”`);
   } else if (kind === "bulk") {
     // Massinmatning. Verktyget underhåller en plan bra men är trögt att mata EN rad i taget —
     // de 91 raderna i den här festen lades in via API:t, inte för hand.

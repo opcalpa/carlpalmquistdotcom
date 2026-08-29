@@ -293,6 +293,20 @@ details.klart[open]>summary::after{content:"▴"}
 .s-row.kokt .box{background:rgba(55,193,132,.15);border-color:rgba(55,193,132,.5);color:var(--ok-ink)}
 .s-kokt{display:inline-block;margin-left:6px;font-size:11px;font-weight:700;color:var(--ok-ink);
   background:rgba(55,193,132,.14);border-radius:999px;padding:1px 8px;text-decoration:none}
+/* Sorteringsväljaren. Tre lägen, ett tryck: min ordning / butikens gångordning / per rätt. */
+/* Rubrikens draghandtag. Liten med flit — det är rubriken man läser, inte greppet — men
+   alltid synlig: ett handtag som visas först vid hover finns inte på en telefon.
+   touch-action:none, annars blir ett drag en sidscroll. */
+.grp-drag{flex:0 0 auto;color:var(--faint);font-size:13px;line-height:1;padding:2px 4px;
+  cursor:grab;touch-action:none;user-select:none}
+.grp-drag:active{cursor:grabbing;color:var(--champ-ink)}
+.slapp-grp{height:3px;background:var(--champ-ink);opacity:.9}
+.sortrad{display:flex;gap:6px;margin:2px 0 10px;flex-wrap:wrap}
+.sortbtn{border:1px solid var(--line);background:var(--panel);color:var(--dim);border-radius:999px;
+  padding:6px 12px;font-size:12px;font-weight:600;font:inherit;font-size:12px}
+.sortbtn.on{background:rgba(200,171,119,.16);border-color:rgba(200,171,119,.45);color:var(--champ-ink)}
+.grp-h.grp-last .lbl{color:var(--dim)}
+.sort-not{font-size:11px;color:var(--faint);padding:10px 0 0;line-height:1.5}
 .s-add{display:flex;gap:8px;margin-top:12px}
 .s-add input{height:44px;padding:0 12px;border:1px solid var(--line);border-radius:var(--r-field);
   background:var(--panel);color:var(--txt);font-size:14px;min-width:0}
@@ -524,6 +538,11 @@ body.drar{cursor:grabbing;user-select:none;-webkit-user-select:none}
 const S = { pw: "", ev: null, log: [], cat: null, tag: null, stag: null, me: "", undo: null, open: {}, sedd: 0, vy: "check",
   // Är "✓ Färdigt"-gruppen utfälld? Per lista, eftersom båda syns samtidigt i delad vy.
   klartOppen: {},
+  // Inköpslistans ordning: "min" (egna rubriker + dragen ordning), "butik" (gångordningen i
+  // en vanlig svensk matbutik) eller "ratt" (en rubrik per rätt). Sparas lokalt per person —
+  // det är en vy-inställning, inte en gemensam sanning, och den som står i butiken vill ha
+  // butiksordningen utan att ändra listan för alla andra.
+  sortShop: (() => { try { return localStorage.getItem("fest:sortshop") || "min"; } catch (e) { return "min"; } })(),
   // Id på den rätt vars ⋯-meny är öppen. Fyra knappar per rätt blev en knappvägg på mobilen;
   // valen bor nu bakom en knapp. Ren UI-state, sparas aldrig.
   rmenu: null };
@@ -578,6 +597,19 @@ const listAv = (lista) => (lista === "shop" ? shop() : plan());
 // för hand innan rätten lagades, och den handpåläggningen får inte skrivas över).
 // fromRecipe är den säkra kopplingen; taggen är fallback för rader som hämtades in innan
 // fältet fanns, eller som speglats in från pappen.
+// 🛒 BUTIKSORDNING. Hyllorna kommer FRÅN PAPPEN i eventet (ev.shelves), precis som priserna —
+// ingen andra kopia här. Ordningen i arrayen ÄR gångordningen i butiken.
+// Matchningen är en spegel av festShelfOf i pappens public/js/inkops-data.js: LÄNGSTA träffade
+// nyckelordet vinner, inte det första. Svensk sammansättning gör förstaträff otillförlitlig —
+// "te" finns i "servetter", "ost" i "ostbågar", "is" i "ris". Ändras regeln där måste den
+// ändras här. Saknas ev.shelves (eventet inte ompublicerat än) faller vyn tillbaka på "min".
+const hyllor = () => (Array.isArray(S.ev.shelves) ? S.ev.shelves : []);
+const hyllaFor = (namn) => {
+  const hay = String(namn == null ? "" : namn).toLowerCase();
+  let bast = null, langd = 0;
+  for (const h of hyllor()) for (const k of (h.k || [])) if (k.length > langd && hay.includes(k)) { bast = h; langd = k.length; }
+  return bast;
+};
 const koktaRatter = () => ((S.ev && S.ev.recipes) || []).filter((r) => r.cooked && r.status !== "forslag");
 const arKokt = (x) => {
   const k = koktaRatter();
@@ -691,30 +723,39 @@ function taggRad(lista, poster, aktiv, attr) {
 }
 
 // Gruppera på rubrik.
-// ORDNINGEN: grupper med deadline sorteras KRONOLOGISKT, inte alfabetiskt. Med rubriker som
-// "Torsdag kväll / Fredag / Lördag" la bokstavsordningen den mest brådskande dagen sist, vilket
-// är precis fel för en plan man betar av. Grupper utan datum faller tillbaka på bokstavsordning.
+// ORDNINGEN ÄR RADERNAS (2026-08-29). En rubrik har ingen egen post i datan — en grupp är bara
+// de rader som bär samma `group`, och sektionens plats är alltså där dess första rad ligger.
+// Det gör hela sektionen dragbar utan ett andra ordningsbegrepp som kan säga emot radernas.
+// (Förut sorterades grupper kronologiskt på deadline, annars alfabetiskt. Den automatiken gick
+// inte att styra: drog man om en sektion hoppade den tillbaka. Dragen ordning slår gissad.)
 // Rader UTAN rubrik hamnar sist under "Övrigt" — annars låg 30 osorterade varor före hela den
 // indelning man just gjort. Har ingen rad någon rubrik visas ingen överskrift alls.
-function grupperaRader(rader) {
+// `alla` = hela listan i ord-ordning, `rader` = det som faktiskt visas (filtrerat på kategori,
+// tagg, avbockat). ORDNINGEN MÅSTE RÄKNAS PÅ HELA LISTAN. Räknas den på det filtrerade urvalet
+// får sektionerna en annan inbördes ordning på skärmen än den workern numrerar om efter, och
+// ett sektionsdrag landar då någon annanstans än där man släppte. Bet 2026-08-29: "Hushåll"
+// släpptes överst och hamnade näst överst, med en avbockad sektion före sig.
+function grupperaRader(rader, alla) {
   const utan = rader.filter((x) => !x.group);
-  const namn = [...new Set(rader.map((x) => x.group).filter(Boolean))];
-  const tidigast = (g) => rader.filter((x) => x.group === g && x.due).map((x) => x.due).sort()[0] || "";
-  namn.sort((a, b) => {
-    const da = tidigast(a), db = tidigast(b);
-    if (da && db && da !== db) return da < db ? -1 : 1;
-    if (da && !db) return -1;
-    if (!da && db) return 1;
-    return a.localeCompare(b, "sv");
-  });
+  const kalla = Array.isArray(alla) && alla.length ? alla : rader;
+  const finns = new Set(rader.map((x) => x.group).filter(Boolean));
+  const namn = [];
+  for (const x of kalla) if (x.group && finns.has(x.group) && !namn.includes(x.group)) namn.push(x.group);
   const ut = namn.map((g) => [g, rader.filter((x) => x.group === g)]);
   if (utan.length) ut.push([namn.length ? "Övrigt" : "", utan]);
   return ut.filter(([, r]) => r.length);
 }
 // "+" i rubriken lägger en rad DIREKT i gruppen. Utan den blir en indelad lista tungrodd:
 // man lägger till raden längst ner och får sedan klicka upp den i rätt grupp, varje gång.
+// Rubrik i en HÄRLEDD ordning (butik/per rätt). Ser likadan ut men bär varken data-grpname
+// (omdöpning + släppmål) eller +-knapp: gruppen finns inte i datan, den räknas fram.
+const grpRubrikLast = (namn, n) => namn
+  ? `<div class="grp-h grp-last"><span class="lbl">${esc(namn)}</span><span class="n num">${n}</span></div>`
+  : "";
 const grpRubrik = (lista, namn, n) => namn
-  ? `<div class="grp-h"><span class="lbl" data-grpname="${lista}:${esc(namn)}" title="Dubbelklicka för att döpa om rubriken">${esc(namn)}</span>
+  ? `<div class="grp-h" data-grph="${lista}:${esc(namn)}">
+      <span class="grp-drag" data-grpdrag="${lista}:${esc(namn)}" title="Håll och dra för att flytta HELA sektionen med alla dess rader" aria-label="Flytta sektionen">⠿</span>
+      <span class="lbl" data-grpname="${lista}:${esc(namn)}" title="Dubbelklicka för att döpa om rubriken">${esc(namn)}</span>
       <span class="n num">${n}</span>
       <button class="grp-add" data-grpadd="${lista}:${esc(namn)}" title="Lägg till en rad under ${esc(namn)}" aria-label="Lägg till här">+</button></div>`
   : "";
@@ -1165,6 +1206,10 @@ function oppnaMassa(lista) {
   };
 }
 
+// Nyckeln är "lista:id". Delas på FÖRSTA kolonet — ett rubriknamn får gärna innehålla ett.
+// Modulnivå: både drag-motorn (utanför wire) och wire() läser den.
+const delaNyckel = (v) => { const i = String(v).indexOf(":"); return [v.slice(0, i), v.slice(i + 1)]; };
+
 // ── Drag and drop ─────────────────────────────────────────────────────────────
 // Handtaget ÄR ⇅/+-rutan som redan flyttar raden mellan rubriker: ett klick öppnar rubriken,
 // ett drag flyttar raden. Ett andra handtag hade gett två ikoner för samma sak på varje rad.
@@ -1180,6 +1225,16 @@ function rensaSlapp() {
 function malUnder(x, y) {
   const under = document.elementFromPoint(x, y);
   if (!under) return null;
+  // Sektionsdrag: bara andra RUBRIKER är släppmål. En sektion kan inte landa mitt i en annan
+  // sektion — den har med sig alla sina rader, och "mitt i" vore därför inte en plats.
+  if (drag.typ === "grupp") {
+    const rubrik = under.closest(".grp-h[data-grph]");
+    if (!rubrik) return null;
+    const [lista, namn] = delaNyckel(rubrik.dataset.grph);
+    if (lista !== drag.lista || namn === drag.grupp) return null;
+    const r = rubrik.getBoundingClientRect();
+    return { typ: "grupp", el: rubrik, grupp: namn, efter: y > r.top + r.height / 2 };
+  }
   const rad = under.closest(drag.lista === "shop" ? ".s-row[data-sid]" : ".row[data-id]");
   if (rad) {
     const id = rad.dataset.sid || rad.dataset.id;
@@ -1201,6 +1256,12 @@ function visaSlapp(x, y) {
   drag.mal = mal;
   if (!mal) return;
   if (mal.typ === "rubrik") return mal.el.classList.add("slapp-i");
+  if (mal.typ === "grupp") {
+    const linje = document.createElement("div");
+    linje.className = "slapp slapp-grp";
+    mal.el.parentNode.insertBefore(linje, mal.efter ? mal.el.nextSibling : mal.el);
+    return;
+  }
   const linje = document.createElement("div");
   linje.className = "slapp";
   mal.el.parentNode.insertBefore(linje, mal.efter ? mal.el.nextSibling : mal.el);
@@ -1214,7 +1275,8 @@ document.addEventListener("pointermove", (e) => {
     document.body.classList.add("drar");
     if (drag.rad) drag.rad.classList.add("drar-rad");
     const g = document.createElement("div");
-    g.id = "spoke"; g.textContent = radNamn(radAv(drag.lista, drag.id));
+    g.id = "spoke";
+    g.textContent = drag.typ === "grupp" ? `${drag.grupp} · ${drag.antal} rader` : radNamn(radAv(drag.lista, drag.id));
     document.body.appendChild(g); drag.spoke = g;
   }
   e.preventDefault();
@@ -1233,6 +1295,15 @@ async function slappDrag() {
   // Klicket som följer på ett pointerup skulle annars öppna rubrik-redigeringen.
   nyssDrog = true; setTimeout(() => { nyssDrog = false; }, 400);
   if (!d.mal) return;
+  if (d.typ === "grupp") {
+    // after = gruppen den nya sektionen ska ligga EFTER. Släpper man ovanför målrubriken är
+    // det gruppen före målet i ordningen; är målet först blir after "" = lägg överst.
+    const ordning = grupperaRader(listAv(d.lista)).map(([g]) => g).filter((g) => g && g !== "Övrigt");
+    const i = ordning.indexOf(d.mal.grupp);
+    const after = d.mal.efter ? d.mal.grupp : (i > 0 ? ordning[i - 1] : "");
+    await write("movegroup", { lista: d.lista, group: d.grupp, after });
+    return;
+  }
   // Ordningen räknas UTAN den dragna raden — annars pekar "raden före målet" på en själv.
   // Gruppen följer med släppet: släpper man en rad under en annan rubrik menar man att den
   // ska höra dit, och allt annat hade krävt två handgrepp för det som ser ut som ett.
@@ -1324,11 +1395,54 @@ function draw() {
   const shTags = [...new Set(sh.map((x) => x.tag).filter(Boolean))].sort((a, b) => a.localeCompare(b, "sv"));
   if (S.stag && !shTags.includes(S.stag)) S.stag = null;
   const shOpenF = S.stag ? shOpen.filter((x) => x.tag === S.stag) : shOpen;
+  // Tre sätt att ordna listan. "Min" är den enda som ÄGER ordningen — de två andra är linser
+  // som räknas fram i stunden, och därför är rubrikerna där låsta: en dragen rad skulle annars
+  // skriva "Frukt & grönt" som riktig rubrik på raden och göra lånet permanent.
+  const SORT = [["min", "Min ordning", "Dina rubriker, i den ordning du dragit dem"],
+    ["butik", "🛒 Butiken", "Gångordningen i en vanlig svensk matbutik"],
+    ["ratt", "🍳 Per rätt", "En rubrik per rätt, i menyns ordning"]];
+  const sortVal = S.sortShop === "butik" || S.sortShop === "ratt" ? S.sortShop : "min";
+  const lastOrdning = sortVal !== "min";
+  const sortRad = `<div class="sortrad">${SORT.map(([v, l, t]) =>
+    `<button class="sortbtn${sortVal === v ? " on" : ""}" data-sortshop="${v}" title="${esc(t)}">${esc(l)}</button>`).join("")}</div>`;
+  // Butiksordning: hyllorna i gångordning, okända varor sist under Övrigt. Per rätt: rätterna
+  // i menyns ordning (utvalda före förslag), rader utan rätt sist.
+  const grupperaShop = (rader, alla) => {
+    if (sortVal === "min") return grupperaRader(rader, alla);
+    if (sortVal === "butik") {
+      const ord = hyllor().map((h) => `${h.i || ""} ${h.h}`.trim());
+      const av = new Map();
+      for (const r of rader) {
+        const h = hyllaFor(r.item);
+        const namn = h ? `${h.i || ""} ${h.h}`.trim() : "Övrigt";
+        if (!av.has(namn)) av.set(namn, []);
+        av.get(namn).push(r);
+      }
+      return [...ord, "Övrigt"].filter((n) => av.has(n)).map((n) => [n, av.get(n)]);
+    }
+    const ratter = (ev.recipes || []).slice().sort((a, b) => (a.status === "forslag" ? 1 : 0) - (b.status === "forslag" ? 1 : 0));
+    const ord = ratter.map((r) => String(r.title || "").trim()).filter(Boolean);
+    const av = new Map();
+    for (const r of rader) {
+      const namn = String(r.tag || "").trim() || "Utan rätt";
+      if (!av.has(namn)) av.set(namn, []);
+      av.get(namn).push(r);
+    }
+    const sedda = new Set();
+    const ut = [];
+    for (const n of ord) { if (av.has(n) && !sedda.has(n)) { sedda.add(n); ut.push([n, av.get(n)]); } }
+    for (const [n, r] of av) if (!sedda.has(n)) ut.push([n, r]);   // taggar utan matchande rätt
+    return ut;
+  };
   const shopKropp = `
     ${taggRad("shop", shTags.map((t) => ({ tag: t, kvar: shOpen.filter((x) => x.tag === t).length })), S.stag, "stag")}
-    ${shOpenF.length ? grupperaRader(shOpenF).map(([g, rader]) =>
-        grpRubrik("shop", g, rader.length) + rader.map(shRow).join("")).join("")
+    ${sh.length > 1 ? sortRad : ""}
+    ${shOpenF.length ? grupperaShop(shOpenF, sh).map(([g, rader]) =>
+        (lastOrdning ? grpRubrikLast(g, rader.length) : grpRubrik("shop", g, rader.length)) + rader.map(shRow).join("")).join("")
       : `<div class="callout">${S.stag ? `Allt till ${esc(S.stag)} är hemma ✓` : sh.length ? "Allt är inhandlat ✓" : "Listan är tom — hämta in de utvalda rätterna eller skriv en vara."}</div>`}
+    ${lastOrdning ? `<div class="sort-not">${sortVal === "butik"
+        ? "Butiksordningen är en lins — dina egna rubriker ligger kvar under «Min ordning». Dra rader i den vyn."
+        : "Rubrikerna är rätterna varan hämtades in från. Dra rader i «Min ordning»."}</div>` : ""}
     ${klart(shDone.map(shRow), "shklart")}
     <div class="s-add"><input class="s-in-item" id="sItem" placeholder="Vara, t.ex. Isbitar" />
       <input class="s-in-qty num" id="sQty" placeholder="Antal" /><button class="btn primary" id="sAdd">+</button></div>
@@ -1338,7 +1452,7 @@ function draw() {
     <div class="seg">${cats().map((c) => { const l = p.filter((x) => x.category === c && !x.done).length;
       return `<button data-cat="${esc(c)}" class="${c === S.cat ? "on" : ""}">${esc(c)} · ${l} kvar</button>`; }).join("")}</div>
     ${taggRad("plan", tags.map((t) => ({ tag: t, kvar: inCat.filter((x) => x.tag === t && !x.done).length })), S.tag, "tag")}
-    ${open.length ? grupperaRader(open).map(([g, rader]) =>
+    ${open.length ? grupperaRader(open, p).map(([g, rader]) =>
         grpRubrik("plan", g, rader.length) + rader.map(rowHtml).join("")).join("")
       : `<div class="callout">${S.tag ? `Allt till ${esc(S.tag)} är hemma ✓` : "Allt på listan är klart ✓"}</div>`}
     ${klart(closed.map(rowHtml), "klart")}
@@ -1778,6 +1892,11 @@ function wire() {
   };
   const sA = $("sAdd"); if (sA) sA.onclick = addS;
   ["sItem", "sQty"].forEach((id) => { const el = $(id); if (el) el.onkeydown = (e) => { if (e.key === "Enter") addS(); }; });
+  document.querySelectorAll("[data-sortshop]").forEach((b) => b.onclick = () => {
+    S.sortShop = b.dataset.sortshop;
+    try { localStorage.setItem("fest:sortshop", S.sortShop); } catch (e) {}
+    draw();                                   // ren vy-växling, ingen skrivning till molnet
+  });
   const sF = $("sFrom"); if (sF) sF.onclick = () => write("shopfrom", {});
 
   // ── Rätten: öppna, skriv ingredienser, läs utförande ──
@@ -1855,8 +1974,6 @@ function wire() {
   });
 
   // ── Rubriker och taggar ──
-  // Nyckeln är "lista:id". Delas på FÖRSTA kolonet — ett rubriknamn får gärna innehålla ett.
-  const delaNyckel = (v) => { const i = String(v).indexOf(":"); return [v.slice(0, i), v.slice(i + 1)]; };
   // Rubriken är inget eget objekt — den ÄR fältet på raderna. Att döpa om den skriver därför
   // om alla rader som bär den, och ett tomt namn löser upp gruppen.
   document.querySelectorAll("[data-grpname]").forEach((el) => {
@@ -1885,10 +2002,25 @@ function wire() {
     const [lista, id] = delaNyckel(h.dataset.radmeny);
     h.onpointerdown = (e) => {
       if (e.button != null && e.button !== 0) return;
+      // I butiks-/rätt-vyn ÄGER listan inte sin ordning — ett drag där skulle skriva en lånad
+      // rubrik på raden. Menyn (klicket) funkar fortfarande.
+      if (lista === "shop" && S.sortShop !== "min") return;
       drag = { h, lista, id, x0: e.clientX, y0: e.clientY, pid: e.pointerId,
         aktiv: false, mal: null, rad: h.closest(".row,.s-row") };
     };
     h.onclick = (e) => { e.preventDefault(); e.stopPropagation(); oppnaRadMeny(h, lista, id); };
+  });
+  // Sektionsdrag: samma motor, eget handtag (⠿) i rubriken. Rubriken bär inga rader själv —
+  // draget flyttar gruppen, och workern numrerar om raderna så de följer med.
+  document.querySelectorAll("[data-grpdrag]").forEach((h) => {
+    const [lista, grupp] = delaNyckel(h.dataset.grpdrag);
+    h.onpointerdown = (e) => {
+      if (e.button != null && e.button !== 0) return;
+      if (lista === "shop" && S.sortShop !== "min") return;   // härledd ordning ägs inte av listan
+      const antal = listAv(lista).filter((x) => (x.group || "") === grupp).length;
+      drag = { typ: "grupp", h, lista, grupp, antal, x0: e.clientX, y0: e.clientY, pid: e.pointerId,
+        aktiv: false, mal: null, rad: h.closest(".grp-h") };
+    };
   });
   // Toning bara när det faktiskt finns mer att se — i feeden nedåt, i taggraden åt höger.
   const feedEl = document.querySelector(".feed-lista");
