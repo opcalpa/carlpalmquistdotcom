@@ -9,7 +9,8 @@
 //   POST /api/falt?kind=quiz  {pw,quiz}       -> { ok, bytes }          (pappen pushar frågebanken)
 //   POST /api/falt?kind=note  {pw,text}       -> { ok, item }           (mobilen antecknar; IP-rate-limitad)
 //   POST /api/falt?kind=ack   {pw,ids}        -> { ok, left }           (pappen kvitterar hämtat)
-//   POST /api/falt?kind=push  {pw,title,md}   -> { ok, feed }           (pappen pushar läsunderlag)
+//   POST /api/falt?kind=push  {pw,title,md,ttlDays?} -> { ok, feed }      (pappen pushar läsunderlag)
+//   POST /api/falt?kind=drop  {pw,id|title}  -> { ok, dropped, feed }     (pappen pensionerar ett underlag)
 //   POST /api/falt?kind=mirror {pw,mirror}    -> { ok, bytes }          (pappen pushar spegel-snapshot)
 
 const nsId = (env) => env.KV_NAMESPACE_ID || env.KV_NAMSPACE_ID;
@@ -37,6 +38,11 @@ const BLOB_MAX = 2_000_000;  // text-JSON per blob, 2 MB räcker gott
 const MIR_MAX = 4_000_000;   // spegel-snapshot (To Do/Listor/Agera) — rejält tilltaget, KV tål 25 MB
 const QUIZ_MAX = 1_000_000;  // frågebanken (🎲 Spel-fliken) — text-JSON, 1 MB räcker långt
 const IN_CAP = 200, FEED_CAP = 20, TEXT_MAX = 20000, TITLE_MAX = 120, MD_MAX = 60000;
+// Pushade underlag är färskvara. `exp` (ISO) sätts av pappen via ttlDays; utgångna filtreras bort
+// vid BÅDE läsning och skrivning, så en gammal påminnelse aldrig överlever sitt eget syfte.
+// (Bet 2026-09-02: "🎉 Fest 40 — läge" låg kvar och räknade ner till minus fyra dagar.)
+const DEFAULT_TTL_DAYS = 30, MAX_TTL_DAYS = 365;
+const liveFeed = (feed) => { const now = Date.now(); return (feed || []).filter((d) => !d.exp || Date.parse(d.exp) > now); };
 const RL_MAX = 60, RL_WINDOW = 600;              // max 60 anteckningar per IP / 10 min
 const rlKey = (ip) => `falt:rl:${ip}`;
 const FAIL_MAX = 20, FAIL_WINDOW = 600;          // brute-force-broms som Maria-sidan
@@ -78,7 +84,10 @@ export async function onRequestGet(context) {
     if (kind === "quiz") return Response.json({ quiz: await readJson(env, K_QUIZ, null) });
     if (PUSH_BLOBS[kind]) return Response.json({ [kind]: await readJson(env, PUSH_BLOBS[kind], null) });
     const [inbox, feed] = await Promise.all([readJson(env, K_IN, []), readJson(env, K_FEED, [])]);
-    return Response.json({ inbox, feed });
+    const live = liveFeed(feed);
+    // Städa KV först när något faktiskt gått ut, annars blir varje läsning en skrivning (KV-budget).
+    if (live.length !== feed.length) await kvPut(env, K_FEED, JSON.stringify(live)).catch(() => {});
+    return Response.json({ inbox, feed: live });
   } catch (e) { return Response.json({ error: String(e).slice(0, 200) }, { status: 500 }); }
 }
 
@@ -123,12 +132,14 @@ export async function onRequestPost(context) {
       const title = (body.title || "").toString().replace(/[\x00-\x1F\x7F]/g, " ").trim().slice(0, TITLE_MAX);
       const md = (body.md || "").toString().replace(/[\x00-\x09\x0B-\x1F\x7F]/g, " ").slice(0, MD_MAX);
       if (!title || !md.trim()) return Response.json({ error: "empty" }, { status: 400 });
-      let feed = await readJson(env, K_FEED, []);
-      feed = feed.filter((d) => d.title !== title);          // samma titel ersätter (t.ex. "Idag")
-      feed.unshift({ id: mkId(), title, md, at: new Date().toISOString() });
+      const ttl = Math.min(MAX_TTL_DAYS, Math.max(1, Number(body.ttlDays) || DEFAULT_TTL_DAYS));
+      const exp = new Date(Date.now() + ttl * 86400000).toISOString();
+      let feed = liveFeed(await readJson(env, K_FEED, []));   // utgångna åker ut i samma svep
+      feed = feed.filter((d) => d.title !== title);           // samma titel ersätter (t.ex. "Idag")
+      feed.unshift({ id: mkId(), title, md, at: new Date().toISOString(), exp });
       if (feed.length > FEED_CAP) feed.length = FEED_CAP;
       await kvPut(env, K_FEED, JSON.stringify(feed));
-      return Response.json({ ok: true, feed: feed.map((d) => ({ id: d.id, title: d.title, at: d.at })) });
+      return Response.json({ ok: true, feed: feed.map((d) => ({ id: d.id, title: d.title, at: d.at, exp: d.exp })) });
     }
     if (kind === "mirror") {
       if (!body.mirror || typeof body.mirror !== "object") return Response.json({ error: "no_mirror" }, { status: 400 });
@@ -151,6 +162,15 @@ export async function onRequestPost(context) {
       if (raw.length > BLOB_MAX) return Response.json({ error: "too_big" }, { status: 413 });
       await kvPut(env, PUSH_BLOBS[kind], raw);
       return Response.json({ ok: true, bytes: raw.length });
+    }
+    if (kind === "drop") {
+      const id = (body.id || "").toString().slice(0, 40);
+      const title = (body.title || "").toString().slice(0, TITLE_MAX);
+      if (!id && !title) return Response.json({ error: "no_target" }, { status: 400 });
+      const before = liveFeed(await readJson(env, K_FEED, []));
+      const feed = before.filter((d) => (id ? d.id !== id : d.title !== title));
+      await kvPut(env, K_FEED, JSON.stringify(feed));
+      return Response.json({ ok: true, dropped: before.length - feed.length, feed: feed.map((d) => ({ id: d.id, title: d.title, at: d.at, exp: d.exp })) });
     }
     return Response.json({ error: "bad kind" }, { status: 400 });
   } catch (e) { return Response.json({ error: String(e).slice(0, 200) }, { status: 500 }); }
